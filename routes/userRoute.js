@@ -13,37 +13,22 @@ router.options("/", (req, res) => {
 });
 
 //get all users
-router.get("/", async (req, res) => {
-    try {
-        const users = await User.find();
-
-        const items = users.map((user) => ({
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            spotifyId: user.spotifyId,
-            _links: {
-                self: {
-                    href: `${process.env.BASE_URI}/users/${user._id}`,
-                },
-                collection: {
-                    href: `${process.env.BASE_URI}/users`,
-                },
+router.get("/",  async (req, res) => {
+    const user =await User.find({},'-password -__v');
+    const trainCollection = {
+        items: user,
+        _links: {
+            self: {
+                href: process.env.BASE_URI,
             },
-        }));
-
-        res.json({
-            items: items,
-            _links: {
-                self: {
-                    href: `${process.env.BASE_URI}/users`,
-                },
+            collection: {
+                href: process.env.BASE_URI,
             },
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Server error" });
+        }
+
+
     }
+    res.json(trainCollection);
 });
 
 //post create new user
@@ -118,6 +103,36 @@ router.post("/seed", async (req, res) => {
     }
 });
 
+// router.put("/:id", async (req, res) => {
+//     const userId = req.params.id;
+//     const { username, email, password, role, spotify_id } = req.body;
+//
+//     // Validate required fields (adjust based on your requirements)
+//     if (!username || !email || !role) {
+//         return res.status(400).json({
+//             error: "Required fields missing. Username, email, and role are required for update"
+//         });
+//     }
+//
+//     const updateData = {
+//         username,
+//         email,
+//         role
+//     };
+//
+//     const updatedUser = await User.findByIdAndUpdate(
+//         userId,
+//         updateData,
+//         {
+//             new: true,           // Return updated document
+//             runValidators: true,  // Run schema validators
+//             context: 'query'      // Important for certain validators
+//         }
+//     ).select('-__v'); // Optionally exclude version field
+//
+//     if (!updatedUser) {
+//         return res.status(404).json({ error: "User not found" });
+//     }});
 //options for detail
 router.options("/:id", (req, res) => {
     res.setHeader("Allow", "GET, OPTIONS");
@@ -128,35 +143,13 @@ router.options("/:id", (req, res) => {
 
 //get user by id
 router.get("/:id", async (req, res) => {
+    const userId = req.params.id;
+
     try {
-        const user = await User.findById(req.params.id);
-        if (!user) return res.sendStatus(404);
-
-        const lastModified = user.updatedAt.toUTCString();
-        res.setHeader("Last-Modified", lastModified);
-
-        const ifModifiedSince = req.headers["if-modified-since"];
-        if (ifModifiedSince && new Date(ifModifiedSince) >= user.updatedAt) {
-            return res.sendStatus(304);
-        }
-
-        res.json({
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            spotifyId: user.spotifyId,
-            _links: {
-                self: {
-                    href: `${process.env.BASE_URI}/users/${user._id}`,
-                },
-                collection: {
-                    href: `${process.env.BASE_URI}/users`,
-                },
-            },
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Server error" });
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).send(); // not found after deletion
+        res.json(user);
+    } catch (e) {res.status(404).send();
     }
 });
 
@@ -170,12 +163,5 @@ router.all("/", (req, res, next) => {
 });
 
 // Forbidden methods for detail
-router.all("/:id", (req, res, next) => {
-    if (!["GET", "OPTIONS"].includes(req.method)) {
-        res.setHeader("Allow", "GET, OPTIONS");
-        return res.sendStatus(405);
-    }
-    next();
-});
 
 export default router;
