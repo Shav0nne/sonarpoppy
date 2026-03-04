@@ -57,6 +57,10 @@ describe("cosineSimilarity — zero-vector guard", () => {
   it("retourneert 0 als beide vectoren zero-vector zijn", () => {
     assert.equal(cosineSimilarity([0, 0, 0], [0, 0, 0]), 0);
   });
+
+  it("retourneert 0 voor lege vectoren", () => {
+    assert.equal(cosineSimilarity([], []), 0);
+  });
 });
 
 // REQ-001: Core cosine similarity
