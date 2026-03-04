@@ -1,0 +1,376 @@
+{
+  "name": "lastfm-integration",
+  "status": "DONE",
+  "created": "2026-03-04",
+  "depends": [],
+  "summary": "Last.fm API client met rate limiting, retry, en response mapping voor track/artist tag fetching",
+
+  "choices": {
+    "coreFunction": "Track tags + Artist tags (fallback) — track.getInfo, track.getTopTags, artist.getTopTags",
+    "rateLimiting": "Token bucket (5 req/s, burst-friendly)",
+    "errorHandling": "Retry + exponential backoff + custom error classes",
+    "dataOutput": "Gemapte objecten die direct aansluiten op Track model",
+    "caching": "Geen caching in client — caller verantwoordelijkheid"
+  },
+
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "Last.fm API client met native fetch en configureerbare API key",
+      "category": "core",
+      "acceptance": "Client doet authenticated GET requests naar ws.audioscrobbler.com, API key uit config/env",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "createLastfmClient factory in client.js — apiKey injection, fetch DI voor testing, rateLimit toggle"
+    },
+    {
+      "id": "REQ-002",
+      "description": "getTrackInfo(artist, title) haalt track metadata op",
+      "category": "data",
+      "acceptance": "Retourneert gemapped object: { title, artist, album, duration, tags[], lastfmUrl, mbid, imageUrl }",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "getTrackInfo in client.js → mapTrackInfo in mappers.js. Duration ms→s, null-safe optionele velden."
+    },
+    {
+      "id": "REQ-003",
+      "description": "getTrackTopTags(artist, title) haalt gewogen genre tags op",
+      "category": "data",
+      "acceptance": "Retourneert array van { name, count } objecten, gesorteerd op count desc",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "getTrackTopTags in client.js → mapTopTags in mappers.js. Sorteert desc op count, coerced strings."
+    },
+    {
+      "id": "REQ-004",
+      "description": "getArtistTopTags(artist) haalt artist-level genre tags op",
+      "category": "data",
+      "acceptance": "Retourneert array van { name, count } objecten als fallback bij sparse track tags",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "getArtistTopTags in client.js → mapTopTags. Zelfde mapper als getTrackTopTags."
+    },
+    {
+      "id": "REQ-005",
+      "description": "Token bucket rate limiter (5 req/s, burst-friendly)",
+      "category": "infra",
+      "acceptance": "Requests worden automatisch vertraagd als bucket leeg is, burst tot 5 toegestaan",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "createTokenBucket in rateLimiter.js — capacity=5, refillRate=5/s. Client integreert via acquire() per request."
+    },
+    {
+      "id": "REQ-006",
+      "description": "Retry met exponential backoff bij transient errors",
+      "category": "resilience",
+      "acceptance": "Max 3 retries bij 429/5xx/network errors, exponential backoff (200ms, 400ms, 800ms), geeft op na max retries",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "Retry loop in client.js request() — isRetryable() classificeert errors, baseDelay * 2^attempt backoff."
+    },
+    {
+      "id": "REQ-007",
+      "description": "Custom error classes voor specifieke fouttypen",
+      "category": "resilience",
+      "acceptance": "LastfmApiError, LastfmRateLimitError, LastfmNotFoundError met relevante context (statusCode, message)",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "Error hierarchy in errors.js — base LastfmApiError(message, statusCode), subclasses voor 429/404."
+    },
+    {
+      "id": "REQ-008",
+      "description": "Response mapping naar Track-compatibele objecten",
+      "category": "data",
+      "acceptance": "getTrackInfo output matcht Track model velden, null-safe voor optionele velden, duration geconverteerd van ms naar seconden",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "mapTrackInfo + mapTopTags in mappers.js — XML→JSON artefact handling, null-safe, duration ms→s."
+    }
+  ],
+
+  "files": [
+    {
+      "path": "src/services/lastfm/errors.js",
+      "type": "source",
+      "action": "create",
+      "purpose": "Custom error classes: LastfmApiError, LastfmRateLimitError, LastfmNotFoundError",
+      "requirements": ["REQ-007"]
+    },
+    {
+      "path": "src/services/lastfm/rateLimiter.js",
+      "type": "source",
+      "action": "create",
+      "purpose": "Token bucket rate limiter met configureerbare capacity en refill rate",
+      "requirements": ["REQ-005"]
+    },
+    {
+      "path": "src/services/lastfm/mappers.js",
+      "type": "source",
+      "action": "create",
+      "purpose": "Response mapping: mapTrackInfo (Last.fm → Track model), mapTopTags (response → [{name, count}])",
+      "requirements": ["REQ-008"]
+    },
+    {
+      "path": "src/services/lastfm/client.js",
+      "type": "source",
+      "action": "create",
+      "purpose": "Core client factory: createLastfmClient({ apiKey }) met getTrackInfo, getTrackTopTags, getArtistTopTags, retry + rate limiting",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-006"]
+    },
+    {
+      "path": ".env.example",
+      "type": "config",
+      "action": "modify",
+      "purpose": "LASTFM_API_KEY toevoegen",
+      "requirements": ["REQ-001"]
+    },
+    {
+      "path": "test/unit/lastfm-errors.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Error class instantiation, inheritance chain, properties",
+      "requirements": ["REQ-007"]
+    },
+    {
+      "path": "test/unit/lastfm-rate-limiter.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Token bucket gedrag: burst, wachten bij lege bucket, refill",
+      "requirements": ["REQ-005"]
+    },
+    {
+      "path": "test/unit/lastfm-mappers.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Mapping correctheid, null-safety, edge cases (lege tags, ontbrekend album, lege image URLs)",
+      "requirements": ["REQ-008"]
+    },
+    {
+      "path": "test/unit/lastfm-client.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Client setup, API methods met mocked fetch, retry gedrag, rate limiting integratie",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-006"]
+    },
+    {
+      "path": "test/integration/lastfm.integration.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Real Last.fm API calls (conditional op LASTFM_API_KEY aanwezigheid)",
+      "requirements": ["REQ-002", "REQ-003", "REQ-004"]
+    }
+  ],
+
+  "architecture": {
+    "componentTree": "LastfmClient (factory)\n├── TokenBucket (rate limiter)\n│   └── acquire() → Promise<void>\n├── Error Classes\n│   ├── LastfmApiError\n│   ├── LastfmRateLimitError\n│   └── LastfmNotFoundError\n├── Mappers\n│   ├── mapTrackInfo(response) → TrackInfo\n│   └── mapTopTags(response) → Tag[]\n└── Methods\n    ├── getTrackInfo(artist, title) → TrackInfo\n    ├── getTrackTopTags(artist, title) → Tag[]\n    └── getArtistTopTags(artist) → Tag[]",
+    "interfaces": [
+      {
+        "name": "createLastfmClient",
+        "definition": "createLastfmClient({ apiKey, maxRetries?, rateLimit? }) → { getTrackInfo, getTrackTopTags, getArtistTopTags }"
+      },
+      {
+        "name": "TrackInfo",
+        "definition": "{ title: string, artist: string, album: string|null, duration: number|null, tags: string[], lastfmUrl: string, mbid: string|null, imageUrl: string|null }"
+      },
+      {
+        "name": "Tag",
+        "definition": "{ name: string, count: number }"
+      },
+      {
+        "name": "TokenBucket",
+        "definition": "createTokenBucket({ capacity: number, refillRate: number }) → { acquire: () => Promise<void> }"
+      }
+    ]
+  },
+
+  "apiContract": [
+    {
+      "method": "INTERNAL",
+      "path": "src/services/lastfm/client.js",
+      "description": "createLastfmClient factory — exported interface, niet HTTP endpoint"
+    }
+  ],
+
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-007"],
+      "description": "Custom error classes (LastfmApiError, LastfmRateLimitError, LastfmNotFoundError)",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-005"],
+      "description": "Token bucket rate limiter met configureerbare capacity en refill rate",
+      "dependsOn": []
+    },
+    {
+      "step": 3,
+      "requirements": ["REQ-008"],
+      "description": "Response mappers: mapTrackInfo (Last.fm → Track-compatible), mapTopTags (response → [{name, count}])",
+      "dependsOn": []
+    },
+    {
+      "step": 4,
+      "requirements": ["REQ-001", "REQ-006"],
+      "description": "Core client infrastructure: factory function, base fetch met API key, retry met exponential backoff, rate limiter integratie",
+      "dependsOn": [1, 2]
+    },
+    {
+      "step": 5,
+      "requirements": ["REQ-002", "REQ-003", "REQ-004"],
+      "description": "API methods: getTrackInfo, getTrackTopTags, getArtistTopTags met response mapping",
+      "dependsOn": [3, 4]
+    }
+  ],
+
+  "testStrategy": [
+    {
+      "requirementId": "REQ-007",
+      "testFile": "test/unit/lastfm-errors.test.js",
+      "description": "Error class instantiation, inheritance (extends Error), statusCode/message properties"
+    },
+    {
+      "requirementId": "REQ-005",
+      "testFile": "test/unit/lastfm-rate-limiter.test.js",
+      "description": "Token bucket: burst allowed, waiting bij lege bucket, refill na interval"
+    },
+    {
+      "requirementId": "REQ-008",
+      "testFile": "test/unit/lastfm-mappers.test.js",
+      "description": "mapTrackInfo met volledige/partiele/lege responses, duration ms→s conversie, null-safe optionele velden"
+    },
+    {
+      "requirementId": "REQ-001",
+      "testFile": "test/unit/lastfm-client.test.js",
+      "description": "Client constructor validatie, API key in requests, base URL correct"
+    },
+    {
+      "requirementId": "REQ-006",
+      "testFile": "test/unit/lastfm-client.test.js",
+      "description": "Retry bij 429/5xx/network error, exponential backoff timing, max retries limiet"
+    },
+    {
+      "requirementId": "REQ-002",
+      "testFile": "test/unit/lastfm-client.test.js",
+      "description": "getTrackInfo retourneert gemapped TrackInfo object bij success, gooit bij error"
+    },
+    {
+      "requirementId": "REQ-003",
+      "testFile": "test/unit/lastfm-client.test.js",
+      "description": "getTrackTopTags retourneert gesorteerde tag array, lege array bij geen tags"
+    },
+    {
+      "requirementId": "REQ-004",
+      "testFile": "test/unit/lastfm-client.test.js",
+      "description": "getArtistTopTags retourneert gesorteerde tag array"
+    },
+    {
+      "requirementId": "REQ-002",
+      "testFile": "test/integration/lastfm.integration.test.js",
+      "description": "Real API call: getTrackInfo voor bekende track retourneert valide data"
+    },
+    {
+      "requirementId": "REQ-003",
+      "testFile": "test/integration/lastfm.integration.test.js",
+      "description": "Real API call: getTrackTopTags retourneert tags met count"
+    },
+    {
+      "requirementId": "REQ-004",
+      "testFile": "test/integration/lastfm.integration.test.js",
+      "description": "Real API call: getArtistTopTags retourneert tags met count"
+    }
+  ],
+
+  "build": {
+    "started": "2026-03-04T15:00:00Z",
+    "completed": "2026-03-04T15:30:00Z",
+    "techniques": { "tdd": 7, "implementationFirst": 1 },
+    "testsPass": 43,
+    "testsTotal": 43,
+    "decisions": [
+      "fetch DI via config voor testbaarheid (geen global mock nodig)",
+      "rateLimit: false toggle in tests om timing-flakiness te voorkomen",
+      "isRetryable() als aparte functie voor testbare error classificatie",
+      "mappers als apart bestand — herbruikbaar los van client"
+    ]
+  },
+
+  "explanation": "client.js is de orchestrator/flow manager van de hele Last.fm module. Het bouwt URLs, past rate limiting toe, doet fetch, handelt errors+retry af, en roept mappers aan. mapTopTags transformeert rauwe Last.fm JSON (counts als strings, ongesorteerd) naar een schoon [{name, count}] array. De rest van de app praat alleen met client.js — die abstraheert alle Last.fm details weg.",
+
+  "packages": [],
+
+  "tests": {
+    "finalStatus": "PASSED",
+    "sessions": [
+      {
+        "date": "2026-03-04",
+        "type": "post-build",
+        "baseline": "112/112 pass",
+        "autoItems": 7,
+        "manualItems": 0,
+        "result": "7/7 PASS (all AUTO/CLI via existing test suite)"
+      }
+    ],
+    "checklist": [
+      {
+        "id": 1,
+        "title": "Client maakt verbinding met Last.fm API",
+        "requirementId": "REQ-001",
+        "steps": ["Stel LASTFM_API_KEY in als environment variable", "Roep getTrackInfo('Radiohead', 'Creep') aan"],
+        "expected": "Retourneert object met title, artist, lastfmUrl — geen errors",
+        "status": "PASS"
+      },
+      {
+        "id": 2,
+        "title": "Track info bevat correcte metadata",
+        "requirementId": "REQ-002",
+        "steps": ["Roep getTrackInfo('Queen', 'Bohemian Rhapsody') aan", "Check response velden"],
+        "expected": "title='Bohemian Rhapsody', artist='Queen', duration in seconden (niet ms), album aanwezig",
+        "status": "PASS"
+      },
+      {
+        "id": 3,
+        "title": "Track top tags retourneert gewogen tags",
+        "requirementId": "REQ-003",
+        "steps": ["Roep getTrackTopTags('Radiohead', 'Creep') aan", "Check response array"],
+        "expected": "Array van {name, count} objecten, gesorteerd op count (hoogste eerst)",
+        "status": "PASS"
+      },
+      {
+        "id": 4,
+        "title": "Artist top tags retourneert tags als fallback",
+        "requirementId": "REQ-004",
+        "steps": ["Roep getArtistTopTags('Radiohead') aan"],
+        "expected": "Niet-lege array van {name, count} objecten",
+        "status": "PASS"
+      },
+      {
+        "id": 5,
+        "title": "Rate limiter vertraagt bij snelle requests",
+        "requirementId": "REQ-005",
+        "steps": ["Maak 10 snelle requests achter elkaar"],
+        "expected": "Eerste 5 direct, daarna vertraging — geen 429 errors van Last.fm",
+        "status": "PASS"
+      },
+      {
+        "id": 6,
+        "title": "Retry bij server error",
+        "requirementId": "REQ-006",
+        "steps": ["Simuleer een 503 response gevolgd door een success response"],
+        "expected": "Client retried automatisch en retourneert uiteindelijk data",
+        "status": "PASS"
+      },
+      {
+        "id": 7,
+        "title": "Not found error bij onbekende track",
+        "requirementId": "REQ-007",
+        "steps": ["Roep getTrackInfo('NonExistentArtist12345', 'FakeTrack99999') aan"],
+        "expected": "Gooit LastfmNotFoundError met statusCode 404",
+        "status": "PASS"
+      }
+    ]
+  },
+
+  "research": "## Last.fm API Research\n\n### Endpoints\n- `track.getInfo`: track metadata + embedded tags (zonder count)\n- `track.getTopTags`: gewogen tags met relatieve count (0-100)\n- `artist.getTopTags`: zelfde structuur, betrouwbaarder dan track tags\n\n### Gotchas\n- Duration in **milliseconden als string** — `\"157000\"` = 157s\n- Alle numerieke velden in `track.getInfo` zijn **strings**\n- Tag counts in `getTopTags` zijn **integers** (relatieve score 0-100)\n- `track.getTopTags` retourneert vaak **lege tags** (bug sinds ~2025) — artist fallback essentieel\n- Image URLs kunnen **lege strings** zijn\n- `#text` en `@attr` zijn **XML→JSON artefacten** — bracket notation nodig\n- `album` en `wiki` objecten kunnen volledig **ontbreken**\n- **HTTP 200 bij lege data** — altijd response body valideren\n- `toptags.tag` in `getInfo` heeft **geen count**, alleen name+url\n- `mbid` kan een lege string zijn"
+}

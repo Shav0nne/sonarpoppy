@@ -1,0 +1,226 @@
+{
+  "concept": {
+    "name": "SonarPoppy",
+    "content": "# SonarPoppy\n\nShared muziek-aanbevelingsbackend die twee apps voedt met gepersonaliseerde track recommendations op basis van cosine similarity en een gebruiker-gestuurd dialsysteem.\n\n## Core Concept\n\nSonarPoppy is de engine achter twee muziekapps: **SonarPop** en **Poppy**. Beide apps consumeren dezelfde recommendation API, maar bedienen verschillende doelgroepen en use cases. Het kernidee is dat gebruikers niet passief aanbevelingen ontvangen, maar actief controle hebben over hoe ver het algoritme buiten hun comfortzone gaat — via een dial met 5 standen.\n\nElke track in de database heeft een genre-vector: een array van 20 floats die aangeeft hoe sterk de track bij elk gestandaardiseerd genre hoort. Elke gebruiker heeft een profielvector, opgebouwd uit genre-voorkeuren (sliders) en luistergeschiedenis. Cosine similarity vergelijkt deze vectoren en geeft een score van 0 tot 1. De dial bepaalt hoe die score wordt gebruikt.\n\n## Doelgroep\n\n- **SonarPop** — Muziek- en tech-enthousiastelingen die geinteresseerd zijn in hoe aanbevelingen werken en hun ervaring willen fine-tunen.\n- **Poppy** — 18-25 jarigen die snel nieuwe muziek willen ontdekken via een swipe-based preview feed.\n\n## Key Features\n\n### Het Dialsysteem (5 Standen)\n- **Stand 1:** Strikt — alleen tracks met similarity > 0.85. Puur binnen je smaak.\n- **Stand 2:** Dichtbij — similarity > 0.65. Herkenbaar met lichte variatie.\n- **Stand 3:** Gebalanceerd — similarity > 0.4, aangevuld met 30% random tracks.\n- **Stand 4:** Ontdekking — similarity > 0.2, 50% random. Bewust buiten de bubbel.\n- **Stand 5:** Anti-bubbel — volledig random of gesorteerd op laagste similarity.\n\n### Genre Sliders\nGebruikers zien sliders voor hun meest-beluisterde genres en kunnen handmatig bijsturen hoeveel elk genre hun aanbevelingen beinvloedt.\n\n### Blacklist\nTracks, artiesten of hele genres blokkeren. De blacklist is een post-filter: eerst scoren, dan filteren. Dit houdt het algoritme schoon.\n\n### Cold Start / Onboarding\n- **SonarPop:** Minimaal 3 genres en artiesten kiezen bij registratie.\n- **Poppy:** Genre selectie of Spotify import (top artists/tracks via Spotify API worden gemapped naar een initieel profielvector).\n\n## User Journey\n\n1. Gebruiker registreert en doorloopt onboarding (genres/artiesten of Spotify import).\n2. Backend berekent een initieel profielvector op basis van onboarding data.\n3. Bij elke recommendation request wordt de profielvector herberekend (sliders + liked tracks).\n4. Tracks worden gescoord via cosine similarity, gefilterd door blacklist, en gerangschikt volgens de dial stand.\n5. Gebruiker luistert, liked/skipt, en het profiel evolueert mee.\n6. Gebruiker kan de dial verschuiven om bewust meer of minder buiten de bubbel te gaan.\n\n## Value Proposition\n\nDe meeste muziekplatforms behandelen hun algoritme als een black box. SonarPoppy draait dit om: de gebruiker ziet en controleert hoe aanbevelingen worden samengesteld. De dial is geen gimmick — het is een bewuste designkeuze die transparantie en agency centraal zet.\n\n## Differentiatie\n\n- **De dial** — geen enkel mainstream platform biedt gebruikers een expliciete knop om hun filterbubbel te reguleren.\n- **Transparant algoritme** — genre scores en similarity zijn zichtbaar, niet verborgen.\n- **Dual-app architectuur** — een backend die twee totaal verschillende frontend-ervaringen bedient bewijst de flexibiliteit van de API.\n\n## Technische Architectuur\n\n- **Stack:** Express 5, MongoDB/Mongoose, ES modules, native fetch\n- **Data source:** Last.fm API voor genre tags en track similarity\n- **Genre systeem:** 20 gestandaardiseerde genres, Last.fm freeform tags gemapped via aliassen\n- **Cosine similarity:** Pure wiskunde, geen ML dependencies\n- **Schaal:** Start met 1.000-5.000 gecureerde tracks, groeit organisch via gebruikersinteractie\n- **Accounts:** Gescheiden per app, gedeelde tracks database\n- **Playback:** Spotify Web Playback SDK (frontend-side, niet in deze backend)",
+    "thinking": [
+      {
+        "type": "idea",
+        "date": "2026-03-04",
+        "title": "SonarPoppy",
+        "content": "# SonarPoppy\n\nShared muziek-aanbevelingsbackend die twee apps voedt met gepersonaliseerde track recommendations op basis van cosine similarity en een gebruiker-gestuurd dialsysteem.\n\n## Core Concept\n\nSonarPoppy is de engine achter twee muziekapps: **SonarPop** en **Poppy**. Beide apps consumeren dezelfde recommendation API, maar bedienen verschillende doelgroepen en use cases. Het kernidee is dat gebruikers niet passief aanbevelingen ontvangen, maar actief controle hebben over hoe ver het algoritme buiten hun comfortzone gaat — via een dial met 5 standen.\n\nElke track in de database heeft een genre-vector: een array van 20 floats die aangeeft hoe sterk de track bij elk gestandaardiseerd genre hoort. Elke gebruiker heeft een profielvector, opgebouwd uit genre-voorkeuren (sliders) en luistergeschiedenis. Cosine similarity vergelijkt deze vectoren en geeft een score van 0 tot 1. De dial bepaalt hoe die score wordt gebruikt.\n\n## Doelgroep\n\n- **SonarPop** — Muziek- en tech-enthousiastelingen die geinteresseerd zijn in hoe aanbevelingen werken en hun ervaring willen fine-tunen.\n- **Poppy** — 18-25 jarigen die snel nieuwe muziek willen ontdekken via een swipe-based preview feed.\n\n## Key Features\n\n### Het Dialsysteem (5 Standen)\n- **Stand 1:** Strikt — alleen tracks met similarity > 0.85. Puur binnen je smaak.\n- **Stand 2:** Dichtbij — similarity > 0.65. Herkenbaar met lichte variatie.\n- **Stand 3:** Gebalanceerd — similarity > 0.4, aangevuld met 30% random tracks.\n- **Stand 4:** Ontdekking — similarity > 0.2, 50% random. Bewust buiten de bubbel.\n- **Stand 5:** Anti-bubbel — volledig random of gesorteerd op laagste similarity.\n\n### Genre Sliders\nGebruikers zien sliders voor hun meest-beluisterde genres en kunnen handmatig bijsturen hoeveel elk genre hun aanbevelingen beinvloedt.\n\n### Blacklist\nTracks, artiesten of hele genres blokkeren. De blacklist is een post-filter: eerst scoren, dan filteren. Dit houdt het algoritme schoon.\n\n### Cold Start / Onboarding\n- **SonarPop:** Minimaal 3 genres en artiesten kiezen bij registratie.\n- **Poppy:** Genre selectie of Spotify import (top artists/tracks via Spotify API worden gemapped naar een initieel profielvector).\n\n## User Journey\n\n1. Gebruiker registreert en doorloopt onboarding (genres/artiesten of Spotify import).\n2. Backend berekent een initieel profielvector op basis van onboarding data.\n3. Bij elke recommendation request wordt de profielvector herberekend (sliders + liked tracks).\n4. Tracks worden gescoord via cosine similarity, gefilterd door blacklist, en gerangschikt volgens de dial stand.\n5. Gebruiker luistert, liked/skipt, en het profiel evolueert mee.\n6. Gebruiker kan de dial verschuiven om bewust meer of minder buiten de bubbel te gaan.\n\n## Value Proposition\n\nDe meeste muziekplatforms behandelen hun algoritme als een black box. SonarPoppy draait dit om: de gebruiker ziet en controleert hoe aanbevelingen worden samengesteld. De dial is geen gimmick — het is een bewuste designkeuze die transparantie en agency centraal zet.\n\n## Differentiatie\n\n- **De dial** — geen enkel mainstream platform biedt gebruikers een expliciete knop om hun filterbubbel te reguleren.\n- **Transparant algoritme** — genre scores en similarity zijn zichtbaar, niet verborgen.\n- **Dual-app architectuur** — een backend die twee totaal verschillende frontend-ervaringen bedient bewijst de flexibiliteit van de API.\n\n## Technische Architectuur\n\n- **Stack:** Express 5, MongoDB/Mongoose, ES modules, native fetch\n- **Data source:** Last.fm API voor genre tags en track similarity\n- **Genre systeem:** 20 gestandaardiseerde genres, Last.fm freeform tags gemapped via aliassen\n- **Cosine similarity:** Pure wiskunde, geen ML dependencies\n- **Schaal:** Start met 1.000-5.000 gecureerde tracks, groeit organisch via gebruikersinteractie\n- **Accounts:** Gescheiden per app, gedeelde tracks database\n- **Playback:** Spotify Web Playback SDK (frontend-side, niet in deze backend)",
+        "source": "/thinking-idea"
+      }
+    ]
+  },
+  "theme": {
+    "colors": {
+      "main": [],
+      "accent": [],
+      "semantic": []
+    },
+    "typography": {
+      "families": {
+        "heading": "",
+        "body": "",
+        "mono": ""
+      },
+      "sizes": []
+    },
+    "spacing": {
+      "base": "",
+      "scale": []
+    },
+    "breakpoints": [],
+    "borderRadius": [],
+    "shadows": [],
+    "modes": {},
+    "cssVars": ""
+  },
+  "stack": {
+    "framework": "Express",
+    "language": "JavaScript",
+    "styling": "",
+    "db": "MongoDB/Mongoose",
+    "auth": "",
+    "hosting": "",
+    "packages": [
+      {
+        "name": "express",
+        "version": "^5.2.1",
+        "purpose": "dependency"
+      },
+      {
+        "name": "mongoose",
+        "version": "^9.2.4",
+        "purpose": "dependency"
+      },
+      {
+        "name": "prettier",
+        "version": "^3.5.3",
+        "purpose": "devDependency"
+      },
+      {
+        "name": "mongodb-memory-server",
+        "version": "^10.4.0",
+        "purpose": "devDependency"
+      }
+    ]
+  },
+  "context": {
+    "structure": "sonarpoppy/\n├── src/\n│   ├── config/\n│   │   └── genres.js       # GENRES[20], GENRE_ALIASES, resolveAlias, conversies\n│   ├── models/\n│   │   └── Track.js        # Track schema + validatie + indexen\n│   ├── services/\n│   │   ├── ingestion/\n│   │   │   └── ingest.js    # ingestTrack, ingestBatch — pipeline met tag fallback\n│   │   └── lastfm/\n│   │       ├── client.js    # createLastfmClient factory + API methods\n│   │       ├── errors.js    # LastfmApiError, LastfmRateLimitError, LastfmNotFoundError\n│   │       ├── mappers.js   # Response mapping (Last.fm → Track model)\n│   │       └── rateLimiter.js # Token bucket rate limiter\n│   └── utils/\n│       └── genreVector.js  # createVector, normalizeVector\n├── test/\n│   ├── unit/\n│   │   ├── genres.test.js\n│   │   ├── genreVector.test.js\n│   │   ├── track.test.js\n│   │   ├── lastfm-client.test.js\n│   │   ├── lastfm-errors.test.js\n│   │   ├── lastfm-mappers.test.js\n│   │   ├── lastfm-rate-limiter.test.js\n│   │   └── ingest.test.js\n│   └── integration/\n│       ├── track.integration.test.js\n│       ├── ingest.integration.test.js\n│       └── lastfm.integration.test.js\n├── routes/\n│   └── index.js            # Main app setup + routes + DB connectie\n├── .project/\n│   ├── project.json        # Dashboard\n│   └── backlog.html        # Product backlog\n├── CLAUDE.md\n├── .prettierrc\n└── .env.example",
+    "routing": [],
+    "patterns": [
+      "ES modules (type: module in package.json)",
+      "Node --env-file voor .env loading (geen dotenv)",
+      "Express 5 (async route handlers native)",
+      "CORS middleware handmatig (geen cors package)",
+      "Accept header validatie middleware (alleen application/json)",
+      "Named exports + Object.freeze() voor config constanten",
+      "Named exports voor utilities (tree-shakeable)",
+      "node:test (ingebouwd) voor unit tests",
+      "mongodb-memory-server voor integration tests (geen externe MongoDB nodig)",
+      "Default export voor Mongoose models, named exports voor utilities"
+    ],
+    "updated": "2026-03-04T15:30:00Z"
+  },
+  "architecture": {
+    "diagram": "graph TD\n    GC[genres.js<br/>Config + Aliassen] --> GV[genreVector.js<br/>Vector Utilities]\n    GV --> TM[Track Model<br/>genreVector: Number 20]\n    GV --> TI[Track Ingestion<br/>ingestTrack + ingestBatch]\n    LFM[Last.fm Client<br/>API + Rate Limiter] --> TI\n    TM --> TI\n    TI --> DB[(MongoDB<br/>tracks collection)]\n    TM --> RE[Recommendation Engine<br/>Score + Rank]\n    GV --> PS[Profile Service<br/>profielVector berekening]\n    GC --> ON[Onboarding<br/>Genre selectie]\n    GC --> GS[Genre Sliders<br/>Weight overrides]\n    DB --- TM\n    LFM -.-> |native fetch| EXT{{Last.fm API}}",
+    "description": "## Genre System\n\nFundamentele data-laag voor het recommendation systeem. Genres en aliassen als hardcoded config, vector utilities als pure functies.\n\n## Track Model\n\nMongoose model voor tracks met genre-vector (20 floats), Last.fm metadata, schema-level validatie en compound indexen (artist+title unique).\n\n## Last.fm Client\n\nAPI client voor Last.fm met token bucket rate limiter (5 req/s), exponential backoff retry, en response mapping naar Track-compatibele objecten. Methodes: getTrackInfo, getTrackTopTags, getArtistTopTags.\n\n## Componenten\n\n- **genres.js** — 20 genres, alias map, index/naam conversie\n- **genreVector.js** — createVector (tags → vector), normalizeVector\n- **Track.js** — Mongoose model met genreVector validatie, compound index\n- **lastfm/client.js** — Factory: createLastfmClient met rate limiting en retry\n- **lastfm/errors.js** — LastfmApiError, LastfmRateLimitError, LastfmNotFoundError\n- **lastfm/mappers.js** — Response mapping (Last.fm → Track model)\n- **lastfm/rateLimiter.js** — Token bucket rate limiter\n\n## Track Ingestion\n\nImport pipeline die Last.fm data omzet naar tracks met genre-vectors. Single track (ingestTrack) en batch (ingestBatch) met tag fallback (track → artist), skip/force voor duplicaten, en graceful error handling per track.\n\n- **ingestion/ingest.js** — ingestTrack, ingestBatch, resolveTags helper"
+  },
+  "data": {
+    "entities": [
+      {
+        "name": "Track",
+        "collection": "tracks",
+        "fields": [
+          { "name": "title", "type": "String", "required": true },
+          { "name": "artist", "type": "String", "required": true },
+          { "name": "album", "type": "String" },
+          { "name": "duration", "type": "Number" },
+          { "name": "genreVector", "type": "[Number]", "note": "20 floats, 0.0-1.0" },
+          { "name": "lastfmUrl", "type": "String" },
+          { "name": "lastfmTags", "type": "[String]" },
+          { "name": "mbid", "type": "String" },
+          { "name": "imageUrl", "type": "String" }
+        ],
+        "indexes": [
+          { "fields": { "artist": 1, "title": 1 }, "unique": true },
+          { "fields": { "artist": 1 } }
+        ],
+        "relations": []
+      }
+    ]
+  },
+  "endpoints": [],
+  "features": [
+    {
+      "name": "genre-system",
+      "status": "DONE",
+      "summary": "20 gestandaardiseerde genres, alias mapping van Last.fm tags, genre-vector utilities",
+      "depends": [],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "track-model",
+      "status": "DONE",
+      "summary": "Mongoose Track schema met genre-vector (20 floats), Last.fm metadata, schema-level validatie en compound indexen",
+      "depends": [
+        "genre-system"
+      ],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "lastfm-integration",
+      "status": "DONE",
+      "summary": "Last.fm API client met rate limiting, retry, en response mapping voor track/artist tag fetching",
+      "depends": [],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "track-ingestion",
+      "status": "DEF",
+      "summary": "Track import pipeline: Last.fm tags ophalen (met artist fallback), genreVector berekenen, opslaan in MongoDB. Single + batch ingest met skip/force en graceful error handling.",
+      "depends": [
+        "track-model",
+        "lastfm-integration"
+      ],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "cosine-similarity",
+      "status": "TODO",
+      "summary": "Cosine similarity, normalisatie, zero-vector guard",
+      "depends": [],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "profile-service",
+      "status": "TODO",
+      "summary": "Profiel vector berekening uit history + sliders",
+      "depends": [
+        "cosine-similarity",
+        "genre-system"
+      ],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "recommendation-engine",
+      "status": "TODO",
+      "summary": "Pipeline: retrieve → score → filter → rank → serve",
+      "depends": [
+        "track-ingestion",
+        "profile-service"
+      ],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "dial-system",
+      "status": "TODO",
+      "summary": "5-stands dial logica met exploration floor",
+      "depends": [
+        "profile-service"
+      ],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "listen-history",
+      "status": "TODO",
+      "summary": "Like/skip/dislike tracking, profiel-evolutie",
+      "depends": [],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "blacklist",
+      "status": "TODO",
+      "summary": "Tracks/artiesten/genres blokkeren, post-filter",
+      "depends": [],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "onboarding",
+      "status": "TODO",
+      "summary": "Cold start flow: genre selectie + Spotify import",
+      "depends": [
+        "genre-system"
+      ],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "genre-sliders",
+      "status": "TODO",
+      "summary": "Genre slider endpoints, profiel herberekening",
+      "depends": [
+        "genre-system"
+      ],
+      "created": "2026-03-04"
+    },
+    {
+      "name": "spotify-integration",
+      "status": "TODO",
+      "summary": "Spotify OAuth, top artists/tracks import",
+      "depends": [],
+      "created": "2026-03-04"
+    }
+  ],
+  "thinking": []
+}
