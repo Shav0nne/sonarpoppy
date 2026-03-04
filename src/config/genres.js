@@ -171,7 +171,7 @@ export const GENRE_ALIASES = Object.freeze({
 
   // soul
   soul: "soul",
-  "neo soul": "soul",
+  "neo soul": "r&b",
   motown: "soul",
   "northern soul": "soul",
   "southern soul": "soul",
@@ -251,7 +251,7 @@ export function genreNameToIndex(name) {
  * Genre index (0-19) → naam. Retourneert null bij ongeldige index.
  */
 export function genreIndexToName(index) {
-  if (typeof index !== "number" || index < 0 || index >= GENRE_COUNT) {
+  if (!Number.isInteger(index) || index < 0 || index >= GENRE_COUNT) {
     return null;
   }
   return GENRES[index];

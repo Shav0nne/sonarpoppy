@@ -1,4 +1,4 @@
-import { GENRE_COUNT, resolveAlias, genreNameToIndex } from "../config/genres.js";
+import { GENRE_COUNT, GENRE_INDEX, resolveAlias } from "../config/genres.js";
 
 /**
  * Normaliseert een genre-vector zodat waarden optellen tot 1.0.
@@ -22,15 +22,10 @@ export function createVector(tags) {
   if (!Array.isArray(tags) || tags.length === 0) return vector;
 
   for (const tag of tags) {
-    if (tag == null || typeof tag !== "string") continue;
-
     const genre = resolveAlias(tag);
     if (genre == null) continue;
 
-    const idx = genreNameToIndex(genre);
-    if (idx != null) {
-      vector[idx] += 1;
-    }
+    vector[GENRE_INDEX[genre]] += 1;
   }
 
   return normalizeVector(vector);

@@ -19,15 +19,15 @@ describe("normalizeVector", () => {
   });
 
   it("retourneert zero-vector voor zero-vector input", () => {
-    const zeros = new Array(20).fill(0);
+    const zeros = new Array(GENRE_COUNT).fill(0);
     const result = normalizeVector(zeros);
     assert.deepEqual(result, zeros);
   });
 
   it("retourneert array van correcte lengte", () => {
-    const input = new Array(20).fill(1);
+    const input = new Array(GENRE_COUNT).fill(1);
     const result = normalizeVector(input);
-    assert.equal(result.length, 20);
+    assert.equal(result.length, GENRE_COUNT);
   });
 });
 
