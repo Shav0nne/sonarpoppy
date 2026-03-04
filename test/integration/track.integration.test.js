@@ -99,9 +99,6 @@ describe("Track CRUD operaties", () => {
     const track = await Track.create(baseTrack);
     const originalUpdated = track.updatedAt;
 
-    // Kleine delay zodat updatedAt verschilt
-    await new Promise((r) => setTimeout(r, 10));
-
     track.album = "Greatest Hits";
     await track.save();
 
