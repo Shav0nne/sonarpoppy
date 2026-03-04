@@ -16,10 +16,10 @@ const userSchema = new mongoose.Schema(
             transform: (doc, ret) => {
                 ret._links = {
                     self: {
-                        href: `${process.env.BASE_URI}/${ret._id}`,
+                        href: `${process.env.BASE_URI}/users/${ret._id}`,
                     },
                     collection: {
-                        href: process.env.BASE_URI,
+                        href: `${process.env.BASE_URI}/users`,
                     },
                 };
 

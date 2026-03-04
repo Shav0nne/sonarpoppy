@@ -1,4 +1,5 @@
 import express from "express";
+import { faker } from "@faker-js/faker";
 import User from "../models/userModel.js";
 
 const router = express.Router();
@@ -23,10 +24,10 @@ router.get("/", async (req, res) => {
             spotifyId: user.spotifyId,
             _links: {
                 self: {
-                    href: `${process.env.BASE_URI}/${user._id}`,
+                    href: `${process.env.BASE_URI}/users/${user._id}`,
                 },
                 collection: {
-                    href: process.env.BASE_URI,
+                    href: `${process.env.BASE_URI}/users`,
                 },
             },
         }));
@@ -35,7 +36,7 @@ router.get("/", async (req, res) => {
             items: items,
             _links: {
                 self: {
-                    href: process.env.BASE_URI,
+                    href: `${process.env.BASE_URI}/users`,
                 },
             },
         });
@@ -59,7 +60,12 @@ router.post("/", async (req, res) => {
             return res.status(409).json({ message: "Username already exists" });
         }
 
-        const user = new User({username, email, password, role: role || "user", spotifyId
+        const user = new User({
+            username,
+            email,
+            password,
+            role: role || "user",
+            spotifyId
         });
 
         await user.save();
@@ -71,10 +77,10 @@ router.post("/", async (req, res) => {
             spotifyId: user.spotifyId,
             _links: {
                 self: {
-                    href: `${process.env.BASE_URI}/${user._id}`,
+                    href: `${process.env.BASE_URI}/users/${user._id}`,
                 },
                 collection: {
-                    href: process.env.BASE_URI,
+                    href: `${process.env.BASE_URI}/users`,
                 },
             },
         });
@@ -84,26 +90,33 @@ router.post("/", async (req, res) => {
     }
 });
 
-
 //seed database
-// router.post("/seed", async (req, res) => {
-//     try {
-//         await User.deleteMany({});
-//         const amount = req.body.amount || 10;
-//
-//         const User = [];
-//         for (let i = 0; i < amount; i++) {
-//             characters.push({
-//                 username: faker.person.fullName(),
-//             });
-//         }
-//
-//         await User.insertMany(characters);
-//         res.status(201).json({ message: `Database seeded with ${amount} characters` });
-//     } catch (error) {
-//         res.status(500).json({ error: "Server error" });
-//     }
-// });
+router.post("/seed", async (req, res) => {
+    try {
+        await User.deleteMany({});
+        const amount = req.body.amount || 10;
+
+        const users = [];
+        for (let i = 0; i < amount; i++) {
+            users.push({
+                username: faker.internet.displayName(),
+                email: faker.internet.email(),
+                password: faker.internet.password(),
+                role: faker.helpers.arrayElement(["user", "admin"]),
+                spotifyId: faker.string.alphanumeric(10),
+            });
+        }
+
+        const result = await User.insertMany(users);
+        res.status(201).json({
+            message: `Database seeded with ${result.length} users`,
+            count: result.length
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
 
 //options for detail
 router.options("/:id", (req, res) => {
@@ -134,14 +147,15 @@ router.get("/:id", async (req, res) => {
             spotifyId: user.spotifyId,
             _links: {
                 self: {
-                    href: `${process.env.BASE_URI}/${user._id}`,
+                    href: `${process.env.BASE_URI}/users/${user._id}`,
                 },
                 collection: {
-                    href: process.env.BASE_URI,
+                    href: `${process.env.BASE_URI}/users`,
                 },
             },
         });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Server error" });
     }
 });
