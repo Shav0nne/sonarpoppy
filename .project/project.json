@@ -282,7 +282,7 @@
     },
     {
       "name": "recommendation-engine",
-      "status": "BLT",
+      "status": "DONE",
       "summary": "Pure scoring pipeline: laad alle tracks uit MongoDB, scoor tegen profielvector via cosine similarity, filter, pagineer, en retourneer gesorteerde resultaten met metadata. Extensiepunten voor dial/blacklist.",
       "depends": [
         "track-ingestion",

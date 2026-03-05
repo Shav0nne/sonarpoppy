@@ -1,0 +1,257 @@
+{
+  "name": "recommendation-engine",
+  "created": "2026-03-05",
+  "status": "DONE",
+  "summary": "Pure scoring pipeline: laad alle tracks uit MongoDB, scoor tegen profielvector via cosine similarity, filter, pagineer, en retourneer gesorteerde resultaten met metadata. Extensiepunten voor dial/blacklist.",
+  "depends": ["track-ingestion", "profile-service"],
+  "choices": [
+    {
+      "question": "Core functie",
+      "answer": "Score & Rank — pure scoring pipeline met extensiepunten voor dial/blacklist"
+    },
+    {
+      "question": "Data retrieval",
+      "answer": "Alle tracks uit MongoDB laden (in-memory scoring). Bij 1.000-5.000 tracks is dit triviaal qua performance."
+    },
+    {
+      "question": "Contract",
+      "answer": "Service functie (geen Express route). getRecommendations({ profileVector, limit, offset, filters }) → { tracks, total, meta }"
+    },
+    {
+      "question": "Tracks zonder genreVector",
+      "answer": "Skip — verschijnen niet in resultaten"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "Scoor alle tracks tegen profielvector via cosine similarity",
+      "category": "core",
+      "acceptanceCriteria": "getRecommendations({ profileVector }) retourneert tracks met score 0-1",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "scoreTracks(profileVector, tracks) in recommend.js — pure functie, scoort via cosineSimilarity"
+    },
+    {
+      "id": "REQ-002",
+      "description": "Sorteer op score (desc) en retourneer top N met pagination",
+      "category": "output",
+      "acceptanceCriteria": "limit en offset params werken correct, total klopt",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "getRecommendations pagineert via limit/offset na filtering. total reflecteert gefilterde count."
+    },
+    {
+      "id": "REQ-003",
+      "description": "Skip tracks zonder geldige genreVector",
+      "category": "edge-case",
+      "acceptanceCriteria": "Tracks met lege/ontbrekende genreVector verschijnen niet in resultaten",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "hasValidGenreVector guard in scoreTracks — skipt null, undefined, en lege arrays"
+    },
+    {
+      "id": "REQ-004",
+      "description": "Accepteer filters object als extensiepunt voor dial/blacklist",
+      "category": "contract",
+      "acceptanceCriteria": "filters.minScore en filters.excludeIds worden toegepast na scoring. Lege filters = geen filtering",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "filters.minScore en filters.excludeIds NA scoring VOOR pagination. Set-based excludeIds lookup."
+    },
+    {
+      "id": "REQ-005",
+      "description": "Retourneer metadata (avgScore, scoreRange, scoredAt)",
+      "category": "output",
+      "acceptanceCriteria": "meta object bevat avgScore, scoreRange { min, max }, en scoredAt timestamp",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "meta berekend over ALLE gefilterde tracks (niet alleen paged). avgScore, scoreRange, scoredAt ISO."
+    }
+  ],
+  "files": [
+    {
+      "path": "src/services/recommendation/recommend.js",
+      "type": "service",
+      "action": "create",
+      "purpose": "Core recommendation engine: scoreTracks (pure) + getRecommendations (orchestrator)",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005"]
+    },
+    {
+      "path": "test/unit/recommend.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Unit tests voor scoreTracks (pure scoring, edge cases, filters)",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005"]
+    },
+    {
+      "path": "test/integration/recommend.integration.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Integration tests met MongoDB (track loading, end-to-end flow)",
+      "requirements": ["REQ-001", "REQ-002"]
+    }
+  ],
+  "architecture": {
+    "componentTree": [
+      "recommendation/recommend.js",
+      "  ├── scoreTracks(profileVector, tracks) → [{ track, score }]  (pure)",
+      "  └── getRecommendations({ profileVector, limit, offset, filters })",
+      "        ├── Track.find().lean() → candidates",
+      "        ├── scoreTracks() → scored",
+      "        ├── apply filters (minScore, excludeIds)",
+      "        ├── sort + paginate",
+      "        └── return { tracks, total, meta }"
+    ],
+    "interfaces": [
+      {
+        "name": "scoreTracks",
+        "input": "(profileVector: number[20], tracks: Track[]) → ScoredTrack[]",
+        "output": "Array van { track, score } gesorteerd op score desc. Skipt tracks zonder valid genreVector."
+      },
+      {
+        "name": "getRecommendations",
+        "input": "{ profileVector: number[20], limit?: number, offset?: number, filters?: { minScore?: number, excludeIds?: string[] } }",
+        "output": "{ tracks: ScoredTrack[], total: number, meta: { scoredAt: string, avgScore: number, scoreRange: { min: number, max: number } } }"
+      }
+    ]
+  },
+  "apiContract": {
+    "note": "Geen Express route in deze feature. De service functies worden door een toekomstige API-laag geconsumeerd.",
+    "exports": [
+      {
+        "name": "scoreTracks",
+        "type": "named export",
+        "description": "Pure scoring functie, testbaar zonder DB"
+      },
+      {
+        "name": "getRecommendations",
+        "type": "named export",
+        "description": "Orchestrator met DB access"
+      }
+    ]
+  },
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-001", "REQ-003"],
+      "description": "scoreTracks: pure functie die tracks scoort via cosineSimilarity en invalide tracks skipt",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-002", "REQ-004", "REQ-005"],
+      "description": "getRecommendations: orchestrator die tracks uit MongoDB laadt (.lean()), scoreTracks aanroept, filters toepast, pagineert, en meta berekent",
+      "dependsOn": [1]
+    }
+  ],
+  "testStrategy": [
+    {
+      "requirement": "REQ-001",
+      "testFile": "test/unit/recommend.test.js",
+      "description": "Score berekening: juiste cosine similarity scores, correcte sorting"
+    },
+    {
+      "requirement": "REQ-002",
+      "testFile": "test/unit/recommend.test.js",
+      "description": "Pagination: limit beperkt resultaten, offset skipt, total is onafhankelijk van limit"
+    },
+    {
+      "requirement": "REQ-003",
+      "testFile": "test/unit/recommend.test.js",
+      "description": "Skip: tracks zonder genreVector of met lege array verschijnen niet"
+    },
+    {
+      "requirement": "REQ-004",
+      "testFile": "test/unit/recommend.test.js",
+      "description": "Filters: minScore filtert lage scores, excludeIds sluit tracks uit, lege filters = geen effect"
+    },
+    {
+      "requirement": "REQ-005",
+      "testFile": "test/unit/recommend.test.js",
+      "description": "Meta: avgScore, scoreRange.min/max, scoredAt aanwezig en correct"
+    },
+    {
+      "requirement": "REQ-001+REQ-002",
+      "testFile": "test/integration/recommend.integration.test.js",
+      "description": "End-to-end: tracks in MongoDB → getRecommendations → correcte gescoorde resultaten"
+    }
+  ],
+  "build": {
+    "started": "2026-03-05",
+    "completed": "2026-03-05",
+    "techniques": { "tdd": 5, "implementationFirst": 0 },
+    "testsPass": 25,
+    "testsTotal": 25,
+    "explanation": "Scoort alle tracks tegen een profielvector via cosine similarity. scoreTracks is pure (geen DB), getRecommendations is de orchestrator die tracks laadt, scoort, filtert (minScore/excludeIds als extensiepunten voor dial/blacklist), pagineert, en metadata berekent. _tracks DI-parameter voor unit testing zonder DB.",
+    "decisions": [
+      "scoreTracks is pure (geen DB) — _tracks DI-parameter voor unit testing",
+      "filters na scoring, voor pagination — total reflecteert gefilterde count",
+      "metadata (avgScore, scoreRange) berekend over alle gefilterde tracks, niet alleen paged subset"
+    ]
+  },
+  "packages": [],
+  "tests": {
+    "finalStatus": "PASSED",
+    "checklist": [
+      {
+        "id": 1,
+        "title": "Recommendation scoring retourneert tracks gesorteerd op relevantie",
+        "requirementId": "REQ-001",
+        "steps": ["Stel een profiel in met hoge rock-voorkeur", "Vraag recommendations op via getRecommendations", "Bekijk de resultaten"],
+        "expected": "Tracks met rock als genre staan bovenaan met de hoogste scores (dicht bij 1.0)",
+        "status": "PASS"
+      },
+      {
+        "id": 2,
+        "title": "Pagination beperkt het aantal resultaten per pagina",
+        "requirementId": "REQ-002",
+        "steps": ["Vraag recommendations op met limit=2 en offset=0", "Vraag daarna op met offset=2"],
+        "expected": "Eerste pagina toont 2 tracks, tweede pagina de volgende tracks, total blijft gelijk",
+        "status": "PASS"
+      },
+      {
+        "id": 3,
+        "title": "Tracks zonder genre-data verschijnen niet in resultaten",
+        "requirementId": "REQ-003",
+        "steps": ["Voeg een track toe zonder genreVector", "Vraag recommendations op"],
+        "expected": "De track zonder vector verschijnt niet in de resultatenlijst",
+        "status": "PASS"
+      },
+      {
+        "id": 4,
+        "title": "minScore filter toont alleen relevante tracks",
+        "requirementId": "REQ-004",
+        "steps": ["Vraag recommendations op met filters.minScore = 0.5"],
+        "expected": "Alle geretourneerde tracks hebben een score >= 0.5",
+        "status": "PASS"
+      },
+      {
+        "id": 5,
+        "title": "Metadata bevat gemiddelde score en bereik",
+        "requirementId": "REQ-005",
+        "steps": ["Vraag recommendations op", "Inspecteer het meta object"],
+        "expected": "meta bevat avgScore (getal), scoreRange.min/max, en scoredAt (ISO timestamp)",
+        "status": "PASS"
+      }
+    ],
+    "sessions": [
+      {
+        "date": "2026-03-05",
+        "type": "hybrid",
+        "autoItems": 7,
+        "manualItems": 0,
+        "passed": 7,
+        "failed": 0,
+        "integrationScenarios": ["score+filter+pagination combo", "excludeIds+meta on filtered set"]
+      }
+    ]
+  },
+  "durableDecisions": [
+    "Alle tracks laden uit MongoDB met .lean() — geen pre-filtering in aggregation pipeline",
+    "scoreTracks is een pure functie (geen DB dependency) — unit-testbaar",
+    "getRecommendations is de orchestrator met DB access",
+    "Filters worden toegepast NA scoring, VOOR pagination",
+    "Tracks zonder genreVector worden altijd geskipt (niet gescoord)"
+  ]
+}
