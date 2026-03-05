@@ -1,0 +1,258 @@
+{
+  "name": "track-model",
+  "status": "DONE",
+  "created": "2026-03-04",
+  "depends": ["genre-system"],
+  "summary": "Mongoose Track schema met genre-vector (20 floats), Last.fm metadata, schema-level validatie en compound indexen",
+
+  "choices": {
+    "coreFunction": "Basis + Last.fm + imageUrl: title, artist, album, duration, genreVector[20], lastfmUrl, lastfmTags, mbid, imageUrl + timestamps",
+    "validatie": "Schema-level validatie: array exact 20 Numbers, elk 0.0-1.0, zero-vector toegestaan",
+    "indexen": "Compound unique index op artist+title, losse index op artist"
+  },
+
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "Mongoose Track schema met alle velden en correcte types",
+      "category": "data",
+      "acceptance": "Schema bevat title (String, required, trim), artist (String, required, trim), album (String, trim), duration (Number, min 0), genreVector ([Number]), lastfmUrl (String), lastfmTags ([String]), mbid (String), imageUrl (String), timestamps",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "Track schema in src/models/Track.js — alle velden, types, timestamps. genreVector validator checkt lengte===20 en range 0-1."
+    },
+    {
+      "id": "REQ-002",
+      "description": "genreVector validatie: exact 20 Numbers, elk 0.0-1.0",
+      "category": "validation",
+      "acceptance": "Array van niet-20 items faalt; waarden buiten 0.0-1.0 falen; geldige vector (20 floats, elk 0-1) slaagt",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "Custom validator op genreVector in Track.js — lengte + range check, lege array = skip"
+    },
+    {
+      "id": "REQ-003",
+      "description": "genreVector zero-vector guard: all-zeros is geldig",
+      "category": "validation",
+      "acceptance": "[0,0,...,0] (20x) passeert validatie; sum-check staat zero-vector toe",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "Zero-vector passeert validator — geen sum-check, alleen lengte+range"
+    },
+    {
+      "id": "REQ-004",
+      "description": "Unique compound index op artist+title voorkomt duplicaten",
+      "category": "data",
+      "acceptance": "Twee tracks met zelfde artist+title → duplicate key error (E11000); zelfde title met andere artist → OK",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "Compound unique index {artist:1, title:1} in Track.js — voorkomt duplicate tracks"
+    },
+    {
+      "id": "REQ-005",
+      "description": "Losse index op artist voor zoekqueries",
+      "category": "data",
+      "acceptance": "Index bestaat op artist veld, verifieerbaar via schema.indexes()",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "Losse index {artist:1} in Track.js — optimaliseert queries op artist"
+    },
+    {
+      "id": "REQ-006",
+      "description": "Track model CRUD operaties werken correct",
+      "category": "integration",
+      "acceptance": "Create, read, update, delete via Mongoose werken; timestamps (createdAt, updatedAt) worden automatisch ingevuld",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "CRUD via standaard Mongoose methods; timestamps automatisch via schema option"
+    }
+  ],
+
+  "files": [
+    {
+      "path": "src/models/Track.js",
+      "type": "source",
+      "action": "create",
+      "purpose": "Mongoose Track schema + model met validatie en indexen",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005"]
+    },
+    {
+      "path": "test/unit/track.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Unit tests: schema velden, genreVector validatie, zero-vector guard",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003"]
+    },
+    {
+      "path": "test/integration/track.integration.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Integration tests: CRUD, unique index, duplicate handling, timestamps",
+      "requirements": ["REQ-004", "REQ-005", "REQ-006"]
+    }
+  ],
+
+  "architecture": {
+    "componentTree": "src/\n└── models/\n    └── Track.js          # Schema + model + validatie + indexen",
+    "interfaces": [
+      {
+        "name": "Track Model Export",
+        "definition": "export default mongoose.model('Track', trackSchema)"
+      },
+      {
+        "name": "Track Schema Shape",
+        "definition": "{\n  title:       { type: String, required: true, trim: true },\n  artist:      { type: String, required: true, trim: true },\n  album:       { type: String, trim: true },\n  duration:    { type: Number, min: 0 },\n  genreVector: { type: [Number], validate: { length === 20, each 0.0-1.0 } },\n  lastfmUrl:   { type: String },\n  lastfmTags:  { type: [String] },\n  mbid:        { type: String },\n  imageUrl:    { type: String }\n}\n// Options: { timestamps: true }\n// Indexes: { artist: 1, title: 1 } unique compound, { artist: 1 } losse index"
+      }
+    ]
+  },
+
+  "build.explanation": "Track model slaat muzieknummers op met een genreVector (20 floats, 0-1) als genre-DNA. Validatie checkt lengte en range, lege vector is toegestaan voor tracks die nog verrijkt moeten worden. Compound index op artist+title voorkomt duplicaten. Integration tests draaien via mongodb-memory-server (in-memory MongoDB).",
+
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-001", "REQ-002", "REQ-003"],
+      "description": "Track schema definitie met alle velden, genreVector custom validator (lengte 20, range 0-1, zero-vector guard)",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-004", "REQ-005"],
+      "description": "Compound unique index op artist+title, losse index op artist",
+      "dependsOn": [1]
+    },
+    {
+      "step": 3,
+      "requirements": ["REQ-006"],
+      "description": "Integration tests: CRUD operaties, timestamps, duplicate handling",
+      "dependsOn": [1, 2]
+    }
+  ],
+
+  "build": {
+    "started": "2026-03-04",
+    "completed": "2026-03-04",
+    "techniques": { "tdd": 3, "implementationFirst": 3 },
+    "testsPass": 32,
+    "testsTotal": 32,
+    "decisions": [
+      "mongodb-memory-server als devDependency voor integration tests (geen externe MongoDB nodig)",
+      "genreVector validatie staat lege array toe — tracks kunnen eerst zonder genre-profiel worden opgeslagen",
+      "Track.syncIndexes() nodig in integration test setup voor betrouwbare index-tests"
+    ]
+  },
+
+  "packages": [
+    { "name": "mongodb-memory-server", "version": "^10.4.0", "purpose": "devDependency" }
+  ],
+
+  "tests": {
+    "finalStatus": "PASSED",
+    "sessions": [
+      {
+        "date": "2026-03-04",
+        "type": "post-build",
+        "baseline": "69/69 PASS",
+        "auto": 6,
+        "manual": 0,
+        "fixes": 0
+      }
+    ],
+    "checklist": [
+      {
+        "id": 1,
+        "title": "Track aanmaken met verplichte velden",
+        "requirementId": "REQ-001",
+        "steps": ["POST een track met title en artist naar de API", "Haal de track op uit de database"],
+        "expected": "Track is opgeslagen met correcte title, artist en automatische timestamps",
+        "status": "PASS"
+      },
+      {
+        "id": 2,
+        "title": "genreVector validatie: ongeldige lengte wordt afgewezen",
+        "requirementId": "REQ-002",
+        "steps": ["Probeer een track op te slaan met genreVector van 19 items", "Probeer een track op te slaan met genreVector van 21 items"],
+        "expected": "Beide pogingen geven een validatiefout",
+        "status": "PASS"
+      },
+      {
+        "id": 3,
+        "title": "genreVector validatie: out-of-range waarden worden afgewezen",
+        "requirementId": "REQ-002",
+        "steps": ["Probeer een track op te slaan met een waarde > 1.0 in genreVector", "Probeer een track met een negatieve waarde"],
+        "expected": "Beide pogingen geven een validatiefout",
+        "status": "PASS"
+      },
+      {
+        "id": 4,
+        "title": "Zero-vector is geldig",
+        "requirementId": "REQ-003",
+        "steps": ["Sla een track op met genreVector van 20x 0.0"],
+        "expected": "Track wordt succesvol opgeslagen",
+        "status": "PASS"
+      },
+      {
+        "id": 5,
+        "title": "Duplicate artist+title wordt geblokkeerd",
+        "requirementId": "REQ-004",
+        "steps": ["Sla een track op met artist 'Queen' en title 'Bohemian Rhapsody'", "Probeer dezelfde combinatie nogmaals op te slaan"],
+        "expected": "Tweede poging geeft een duplicate key error (E11000)",
+        "status": "PASS"
+      },
+      {
+        "id": 6,
+        "title": "CRUD: update en delete werken correct",
+        "requirementId": "REQ-006",
+        "steps": ["Maak een track aan", "Wijzig het album veld", "Verwijder de track", "Probeer de track op te halen"],
+        "expected": "Album is gewijzigd na update; track is null na delete",
+        "status": "PASS"
+      }
+    ]
+  },
+
+  "testStrategy": [
+    {
+      "requirementId": "REQ-001",
+      "testFile": "test/unit/track.test.js",
+      "description": "Valideert schema paths, required velden, default types via validateSync"
+    },
+    {
+      "requirementId": "REQ-002",
+      "testFile": "test/unit/track.test.js",
+      "description": "Valideert genreVector: verkeerde lengte faalt, out-of-range waarden falen, geldige vector slaagt"
+    },
+    {
+      "requirementId": "REQ-003",
+      "testFile": "test/unit/track.test.js",
+      "description": "Valideert dat zero-vector (20x 0.0) validatie passeert"
+    },
+    {
+      "requirementId": "REQ-004",
+      "testFile": "test/integration/track.integration.test.js",
+      "description": "Valideert unique compound index: duplicate artist+title → E11000 error"
+    },
+    {
+      "requirementId": "REQ-005",
+      "testFile": "test/integration/track.integration.test.js",
+      "description": "Valideert dat artist index aanwezig is via schema.indexes()"
+    },
+    {
+      "requirementId": "REQ-006",
+      "testFile": "test/integration/track.integration.test.js",
+      "description": "Valideert CRUD: create met timestamps, findById, update, delete"
+    }
+  ],
+
+  "refactor": {
+    "status": "CLEAN",
+    "improvements": {},
+    "decisions": [],
+    "positiveObservations": [
+      "Schema validatie goed ontworpen: lengte + range check, zero-vector expliciet toegestaan",
+      "Compound unique index voorkomt duplicate tracks effectief",
+      "Trim op title en artist voorkomt whitespace bugs"
+    ],
+    "failureAnalysis": null,
+    "pendingImprovements": []
+  }
+}

@@ -372,5 +372,19 @@
     ]
   },
 
-  "research": "## Last.fm API Research\n\n### Endpoints\n- `track.getInfo`: track metadata + embedded tags (zonder count)\n- `track.getTopTags`: gewogen tags met relatieve count (0-100)\n- `artist.getTopTags`: zelfde structuur, betrouwbaarder dan track tags\n\n### Gotchas\n- Duration in **milliseconden als string** — `\"157000\"` = 157s\n- Alle numerieke velden in `track.getInfo` zijn **strings**\n- Tag counts in `getTopTags` zijn **integers** (relatieve score 0-100)\n- `track.getTopTags` retourneert vaak **lege tags** (bug sinds ~2025) — artist fallback essentieel\n- Image URLs kunnen **lege strings** zijn\n- `#text` en `@attr` zijn **XML→JSON artefacten** — bracket notation nodig\n- `album` en `wiki` objecten kunnen volledig **ontbreken**\n- **HTTP 200 bij lege data** — altijd response body valideren\n- `toptags.tag` in `getInfo` heeft **geen count**, alleen name+url\n- `mbid` kan een lege string zijn"
+  "research": "## Last.fm API Research\n\n### Endpoints\n- `track.getInfo`: track metadata + embedded tags (zonder count)\n- `track.getTopTags`: gewogen tags met relatieve count (0-100)\n- `artist.getTopTags`: zelfde structuur, betrouwbaarder dan track tags\n\n### Gotchas\n- Duration in **milliseconden als string** — `\"157000\"` = 157s\n- Alle numerieke velden in `track.getInfo` zijn **strings**\n- Tag counts in `getTopTags` zijn **integers** (relatieve score 0-100)\n- `track.getTopTags` retourneert vaak **lege tags** (bug sinds ~2025) — artist fallback essentieel\n- Image URLs kunnen **lege strings** zijn\n- `#text` en `@attr` zijn **XML→JSON artefacten** — bracket notation nodig\n- `album` en `wiki` objecten kunnen volledig **ontbreken**\n- **HTTP 200 bij lege data** — altijd response body valideren\n- `toptags.tag` in `getInfo` heeft **geen count**, alleen name+url\n- `mbid` kan een lege string zijn",
+
+  "refactor": {
+    "status": "CLEAN",
+    "improvements": {},
+    "decisions": [],
+    "positiveObservations": [
+      "URL constructie via URL API met searchParams (veilig)",
+      "Fetch DI pattern maakt testen zonder global mocking mogelijk",
+      "isRetryable() voorkomt retries op niet-herstellbare fouten (404)",
+      "Mappers handelen ontbrekende Last.fm response velden graceful af"
+    ],
+    "failureAnalysis": null,
+    "pendingImprovements": []
+  }
 }

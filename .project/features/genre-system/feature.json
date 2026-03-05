@@ -1,0 +1,271 @@
+{
+  "name": "genre-system",
+  "status": "DONE",
+  "created": "2026-03-04",
+  "depends": [],
+  "summary": "20 gestandaardiseerde genres, alias mapping van Last.fm tags, genre-vector utilities (creatie, normalisatie, zero-vector guard)",
+
+  "choices": {
+    "coreFunction": "Volledige genre-laag: 20 genres definitie, alias mapping, genre-vector utilities",
+    "dataStorage": "Hardcoded config — genres en aliassen als JS constanten, geen DB",
+    "utilities": "Basis set: createVector, normalizeVector, zero-vector guard, index/naam conversie",
+    "aliasMapping": "Exacte lookup + lowercase, onbekende tags → null"
+  },
+
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "Definieer 20 gestandaardiseerde muziekgenres als constanten",
+      "category": "data",
+      "acceptance": "Array van 20 genres beschikbaar, elk met unieke index (0-19) en naam",
+      "status": "PASS",
+      "technique": "implementation-first",
+      "syncNote": "GENRES[20], GENRE_INDEX, GENRE_COUNT in src/config/genres.js — frozen arrays/objects, basis voor alle genre-gerelateerde lookups"
+    },
+    {
+      "id": "REQ-002",
+      "description": "Alias mapping: Last.fm freeform tags resolven naar standaard genres",
+      "category": "data",
+      "acceptance": "Case-insensitive lookup; 'hip hop', 'hiphop', 'Hip-Hop' → zelfde genre; onbekende tags → null",
+      "status": "PASS",
+      "technique": "tdd",
+      "syncNote": "GENRE_ALIASES + resolveAlias() in src/config/genres.js — 150+ aliases, lowercase+trim, createVector hangt hiervan af"
+    },
+    {
+      "id": "REQ-003",
+      "description": "createVector: array van Last.fm tags omzetten naar genre-vector (20 floats)",
+      "category": "utility",
+      "acceptance": "Tags worden gemapped, gewogen, en genormaliseerd tot array van 20 floats",
+      "status": "PASS",
+      "technique": "tdd",
+      "syncNote": "createVector() in src/utils/genreVector.js — tags → resolveAlias → tel per genre → normalizeVector. Recommender engine gebruikt dit voor track vectors."
+    },
+    {
+      "id": "REQ-004",
+      "description": "normalizeVector: genre-vector normaliseren zodat waarden optellen tot 1.0",
+      "category": "utility",
+      "acceptance": "Input [2,3,5,...] → output waar sum ≈ 1.0; zero-vector input → zero-vector output",
+      "status": "PASS",
+      "technique": "tdd",
+      "syncNote": "normalizeVector() in src/utils/genreVector.js — sum-based normalisatie met zero-vector guard, wordt door createVector aangeroepen"
+    },
+    {
+      "id": "REQ-005",
+      "description": "Zero-vector guard: veilig omgaan met lege of ongeldige input",
+      "category": "utility",
+      "acceptance": "Lege tags array, null input, alle-onbekende tags → zero-vector zonder crash",
+      "status": "PASS",
+      "technique": "tdd",
+      "syncNote": "Guards in createVector + normalizeVector — null/undefined/lege input → zero-vector, geen crashes bij ongeldige data"
+    },
+    {
+      "id": "REQ-006",
+      "description": "Genre index/naam conversie utilities",
+      "category": "utility",
+      "acceptance": "genreNameToIndex('rock') → nummer, genreIndexToName(0) → string, onbekend → null",
+      "status": "PASS",
+      "technique": "tdd",
+      "syncNote": "genreNameToIndex/genreIndexToName in src/config/genres.js — case-insensitive naam→index en index→naam, voor vector operaties"
+    }
+  ],
+
+  "files": [
+    {
+      "path": "src/config/genres.js",
+      "type": "source",
+      "action": "create",
+      "purpose": "20 genres, alias map, GENRE_INDEX, GENRE_COUNT, conversie utilities",
+      "requirements": ["REQ-001", "REQ-002", "REQ-006"]
+    },
+    {
+      "path": "src/utils/genreVector.js",
+      "type": "source",
+      "action": "create",
+      "purpose": "createVector, normalizeVector, zero-vector guard",
+      "requirements": ["REQ-003", "REQ-004", "REQ-005"]
+    },
+    {
+      "path": "test/unit/genres.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Tests voor genre config, alias mapping, index/naam conversie",
+      "requirements": ["REQ-001", "REQ-002", "REQ-006"]
+    },
+    {
+      "path": "test/unit/genreVector.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Tests voor createVector, normalizeVector, zero-vector guard",
+      "requirements": ["REQ-003", "REQ-004", "REQ-005"]
+    }
+  ],
+
+  "architecture": {
+    "componentTree": "src/\n├── config/\n│   └── genres.js          # GENRES, GENRE_INDEX, GENRE_ALIASES, conversies\n└── utils/\n    └── genreVector.js      # createVector, normalizeVector",
+    "interfaces": [
+      {
+        "name": "Genre Config Exports",
+        "definition": "export const GENRES: string[20]\nexport const GENRE_INDEX: Record<string, number>\nexport const GENRE_ALIASES: Record<string, string>\nexport const GENRE_COUNT: 20\nexport function resolveAlias(tag: string): string | null\nexport function genreNameToIndex(name: string): number | null\nexport function genreIndexToName(index: number): string | null"
+      },
+      {
+        "name": "Vector Utility Exports",
+        "definition": "export function createVector(tags: string[]): number[20]\nexport function normalizeVector(vector: number[]): number[]"
+      }
+    ]
+  },
+
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-001", "REQ-002", "REQ-006"],
+      "description": "Genre config: 20 genres array, alias map, GENRE_INDEX lookup, resolveAlias functie, index/naam conversie utilities",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-003", "REQ-004", "REQ-005"],
+      "description": "Vector utilities: createVector (tags → genre-vector), normalizeVector (sum → 1.0), zero-vector guard voor lege/ongeldige input",
+      "dependsOn": [1]
+    }
+  ],
+
+  "testStrategy": [
+    {
+      "requirementId": "REQ-001",
+      "testFile": "test/unit/genres.test.js",
+      "description": "Valideert dat GENRES array exact 20 unieke entries bevat"
+    },
+    {
+      "requirementId": "REQ-002",
+      "testFile": "test/unit/genres.test.js",
+      "description": "Valideert case-insensitive alias lookup en onbekende tag → null"
+    },
+    {
+      "requirementId": "REQ-003",
+      "testFile": "test/unit/genreVector.test.js",
+      "description": "Valideert createVector met bekende tags, gemixte tags, en normalisatie output"
+    },
+    {
+      "requirementId": "REQ-004",
+      "testFile": "test/unit/genreVector.test.js",
+      "description": "Valideert normalizeVector: sum ≈ 1.0, zero-vector guard"
+    },
+    {
+      "requirementId": "REQ-005",
+      "testFile": "test/unit/genreVector.test.js",
+      "description": "Valideert zero-vector guard: lege array, null, alle-onbekende tags"
+    },
+    {
+      "requirementId": "REQ-006",
+      "testFile": "test/unit/genres.test.js",
+      "description": "Valideert genreNameToIndex en genreIndexToName met bekende en onbekende input"
+    }
+  ],
+
+  "build": {
+    "started": "2026-03-04",
+    "completed": "2026-03-04",
+    "techniques": { "tdd": 5, "implementationFirst": 1 },
+    "testsPass": 37,
+    "testsTotal": 37,
+    "decisions": [
+      "REQ-001 Implementation First (pure data config, geen logic)",
+      "Alle aliases lowercase opgeslagen, resolveAlias doet .toLowerCase().trim()",
+      "normalizeVector apart geëxporteerd voor hergebruik door recommender engine",
+      "createVector telt tags per genre (equal weight), geen Last.fm tag-weight mapping"
+    ],
+    "explanation": "Last.fm tags worden via resolveAlias() gemapped naar 20 standaard genres (case-insensitive, 150+ aliases). createVector() telt per tag welk genre het is, bouwt een 20-dim array, en normaliseert naar sum=1.0. Zero-vector guard voorkomt division-by-zero bij onbekende tags. Dit is de basis-laag: tracks, profielen en recommendations gebruiken allemaal deze vectoren voor cosine similarity."
+  },
+
+  "packages": [],
+
+  "tests": {
+    "finalStatus": "VERIFIED",
+    "checklist": [
+      {
+        "id": 1,
+        "title": "GENRES array bevat exact 20 unieke genres",
+        "requirementId": "REQ-001",
+        "steps": ["Importeer GENRES uit src/config/genres.js", "Controleer array lengte en uniciteit"],
+        "expected": "20 unieke genre strings, frozen array",
+        "status": "PASS"
+      },
+      {
+        "id": 2,
+        "title": "Alias lookup resolved variaties van hip-hop en r&b",
+        "requirementId": "REQ-002",
+        "steps": ["Roep resolveAlias('hip hop'), resolveAlias('Hip-Hop'), resolveAlias('rnb') aan"],
+        "expected": "'hip-hop' voor hip-hop variaties, 'r&b' voor r&b variaties",
+        "status": "PASS"
+      },
+      {
+        "id": 3,
+        "title": "Onbekende tags retourneren null",
+        "requirementId": "REQ-002",
+        "steps": ["Roep resolveAlias('xyzgenre') aan"],
+        "expected": "null (geen match)",
+        "status": "PASS"
+      },
+      {
+        "id": 4,
+        "title": "createVector produceert genormaliseerde vector uit tags",
+        "requirementId": "REQ-003",
+        "steps": ["Roep createVector(['rock', 'jazz', 'techno']) aan", "Controleer vector lengte en sum"],
+        "expected": "Array van 20 floats, sum ≈ 1.0, rock/jazz/electronic posities > 0",
+        "status": "PASS"
+      },
+      {
+        "id": 5,
+        "title": "normalizeVector normaliseert naar sum 1.0",
+        "requirementId": "REQ-004",
+        "steps": ["Roep normalizeVector([2,3,5,0,...]) aan", "Controleer sum van output"],
+        "expected": "Output sum ≈ 1.0, verhoudingen behouden (0.2, 0.3, 0.5)",
+        "status": "PASS"
+      },
+      {
+        "id": 6,
+        "title": "Lege/null input produceert zero-vector zonder crash",
+        "requirementId": "REQ-005",
+        "steps": ["Roep createVector([]), createVector(null), createVector(undefined) aan"],
+        "expected": "Zero-vector (20x 0.0), geen errors/crashes",
+        "status": "PASS"
+      },
+      {
+        "id": 7,
+        "title": "genreNameToIndex en genreIndexToName zijn elkaars inverse",
+        "requirementId": "REQ-006",
+        "steps": ["Roep genreNameToIndex('rock') aan", "Gebruik resultaat in genreIndexToName()"],
+        "expected": "genreNameToIndex('rock') → 0, genreIndexToName(0) → 'rock'",
+        "status": "PASS"
+      }
+    ],
+    "sessions": [
+      {
+        "date": "2026-03-04",
+        "type": "hybrid",
+        "baseline": "37/37 PASS",
+        "auto": 8,
+        "manual": 0,
+        "pass": 8,
+        "fail": 0,
+        "fixes": 0
+      }
+    ]
+  },
+
+  "research": "## Stack Research (Express 5 + Mongoose 9)\n\n### Project Structure\n- `src/config/` voor constanten (named exports + Object.freeze)\n- `src/utils/` voor pure utility functies (named exports)\n- `src/models/` voor Mongoose models (default export)\n- `src/routes/` voor Express routers (default export)\n\n### Genre Vector Schema (toekomstig)\n- Mongoose `[Number]` + custom validator voor length + range\n- Geen Schema.Types.Double nodig — Number is correct voor 0.0-1.0 floats\n\n### Testing\n- `node:test` (ingebouwd) — zero deps, ES module native\n- Package.json: `\"test\": \"node --test\"`\n\n### Patterns\n- Named exports + Object.freeze() voor config constanten\n- Named exports voor utilities (tree-shakeable)\n- Default export voor Mongoose models en Express routers",
+
+  "refactor": {
+    "status": "CLEAN",
+    "improvements": {},
+    "decisions": [],
+    "positiveObservations": [
+      "Clean separation: config (GENRES, aliases) vs utilities (vector operations)",
+      "Consistent input validation met null guards en type checks",
+      "Object.freeze() op GENRES en GENRE_INDEX voorkomt onopzettelijke mutaties",
+      "150+ aliases pragmatisch gemapped, zero-vector guard correct geimplementeerd"
+    ],
+    "failureAnalysis": null,
+    "pendingImprovements": []
+  }
+}

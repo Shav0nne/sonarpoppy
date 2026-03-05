@@ -1,0 +1,241 @@
+{
+  "name": "cosine-similarity",
+  "created": "2026-03-04",
+  "status": "DONE",
+  "summary": "Cosine similarity functie voor genre-vectoren: berekent score 0-1, zero-vector guard, input validatie, magnitude-normalisatie.",
+  "depends": [],
+  "choices": [
+    {
+      "question": "Scope",
+      "answer": "Puur similarity — één functie cosineSimilarity(a, b) → score 0-1. Batch scoring bij recommendation-engine."
+    },
+    {
+      "question": "Locatie",
+      "answer": "src/utils/similarity.js — nieuw bestand naast genreVector.js"
+    },
+    {
+      "question": "Edge cases",
+      "answer": "Defensive — zero-vector → 0, ongelijke lengte → Error, niet-numeriek → TypeError"
+    },
+    {
+      "question": "Normalisatie",
+      "answer": "Altijd normaliseren — magnitude-normalisatie intern (L2, inherent aan cosine formule)"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "cosineSimilarity(a, b) berekent cosine similarity en retourneert score 0-1",
+      "category": "core",
+      "acceptanceCriteria": "Identieke vectoren → 1.0, orthogonale vectoren → 0.0",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "dot/(magA*magB) in similarity.js — core formule waar recommendation engine op bouwt"
+    },
+    {
+      "id": "REQ-002",
+      "description": "Zero-vector guard: als één of beide vectoren zero-vector zijn, retourneer 0",
+      "category": "edge-case",
+      "acceptanceCriteria": "cosineSimilarity([0,...], v) → 0, cosineSimilarity([0,...], [0,...]) → 0",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "magnitude === 0 check in similarity.js — voorkomt division by zero, profile service moet hier rekening mee houden"
+    },
+    {
+      "id": "REQ-003",
+      "description": "Input wordt intern genormaliseerd via magnitude (L2) als onderdeel van cosine formule",
+      "category": "normalisatie",
+      "acceptanceCriteria": "Niet-genormaliseerde vectoren geven zelfde resultaat als genormaliseerde equivalenten",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "L2 normalisatie inherent aan cosine formule — callers hoeven niet te pre-normaliseren"
+    },
+    {
+      "id": "REQ-004",
+      "description": "Ongelijke vectorlengtes → throw Error",
+      "category": "validatie",
+      "acceptanceCriteria": "cosineSimilarity([1,2], [1,2,3]) → Error",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "Array length check in similarity.js — throws Error bij a.length !== b.length"
+    },
+    {
+      "id": "REQ-005",
+      "description": "Niet-numerieke waarden in vector → throw TypeError",
+      "category": "validatie",
+      "acceptanceCriteria": "cosineSimilarity(['a',1], [1,2]) → TypeError",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "typeof check per element in similarity.js — throws TypeError bij non-number"
+    }
+  ],
+  "files": [
+    {
+      "path": "src/utils/similarity.js",
+      "type": "utility",
+      "action": "create",
+      "purpose": "Cosine similarity functie met validatie en zero-vector guard",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005"]
+    },
+    {
+      "path": "test/unit/similarity.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Unit tests voor cosineSimilarity",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005"]
+    }
+  ],
+  "architecture": {
+    "componentTree": {
+      "similarity.js": {
+        "exports": ["cosineSimilarity"],
+        "imports": [],
+        "description": "Pure functie, geen externe dependencies. Magnitude-normalisatie intern."
+      }
+    },
+    "interfaces": [
+      {
+        "name": "cosineSimilarity",
+        "signature": "cosineSimilarity(vectorA: Number[], vectorB: Number[]) → Number",
+        "description": "Berekent cosine similarity tussen twee vectoren. Retourneert 0-1. Throws bij ongeldige input."
+      }
+    ]
+  },
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-004", "REQ-005"],
+      "description": "Input validatie: type checks en lengte check",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-002"],
+      "description": "Zero-vector guard: magnitude === 0 → return 0",
+      "dependsOn": [1]
+    },
+    {
+      "step": 3,
+      "requirements": ["REQ-001", "REQ-003"],
+      "description": "Core cosine similarity: dot product / (magnitude_a * magnitude_b)",
+      "dependsOn": [2]
+    }
+  ],
+  "build": {
+    "started": "2026-03-04",
+    "completed": "2026-03-04",
+    "techniques": { "tdd": 5, "implementationFirst": 0 },
+    "testsPass": 15,
+    "testsTotal": 15,
+    "explanation": "cosineSimilarity(a, b) vergelijkt twee genre-vectoren (20 floats) door de hoek ertussen te meten in 20D-ruimte. Kleine hoek = vergelijkbare smaak = hoge score (0-1). De formule: dot product / (magnitude_a × magnitude_b). Magnitude is de lengte van een vector (√Σx²) en zorgt dat schaal niet uitmaakt — alleen de richting (welke genres, in welke verhouding) telt. Zero-vector guard retourneert 0 bij lege profielen. Input validatie gooit Error/TypeError bij ongeldige input.",
+    "decisions": [
+      "Single loop voor dot product + magnitudes (performance)",
+      "typeof check per element i.p.v. Number.isFinite (NaN/Infinity doorlaten als valid numbers)"
+    ]
+  },
+  "packages": [],
+  "tests": {
+    "finalStatus": "VERIFIED",
+    "checklist": [
+      {
+        "id": 1,
+        "title": "Identieke genre-vectoren geven similarity 1.0",
+        "requirementId": "REQ-001",
+        "steps": ["Roep cosineSimilarity([1,0,0], [1,0,0]) aan"],
+        "expected": "Retourneert exact 1.0",
+        "status": "PASS"
+      },
+      {
+        "id": 2,
+        "title": "Orthogonale vectoren geven similarity 0.0",
+        "requirementId": "REQ-001",
+        "steps": ["Roep cosineSimilarity([1,0], [0,1]) aan"],
+        "expected": "Retourneert exact 0.0",
+        "status": "PASS"
+      },
+      {
+        "id": 3,
+        "title": "Zero-vector als input retourneert 0",
+        "requirementId": "REQ-002",
+        "steps": ["Roep cosineSimilarity([0,0,0], [1,2,3]) aan"],
+        "expected": "Retourneert 0 (geen NaN of error)",
+        "status": "PASS"
+      },
+      {
+        "id": 4,
+        "title": "Geschaalde vectoren geven zelfde score als origineel",
+        "requirementId": "REQ-003",
+        "steps": ["Vergelijk cosineSimilarity([1,2,3], [4,5,6]) met cosineSimilarity([10,20,30], [40,50,60])"],
+        "expected": "Beide scores zijn identiek (magnitude-onafhankelijk)",
+        "status": "PASS"
+      },
+      {
+        "id": 5,
+        "title": "Ongelijke vectorlengtes geven Error",
+        "requirementId": "REQ-004",
+        "steps": ["Roep cosineSimilarity([1,2], [1,2,3]) aan"],
+        "expected": "Error wordt gegooid",
+        "status": "PASS"
+      },
+      {
+        "id": 6,
+        "title": "Niet-numerieke input geeft TypeError",
+        "requirementId": "REQ-005",
+        "steps": ["Roep cosineSimilarity(['a',1], [1,2]) aan"],
+        "expected": "TypeError wordt gegooid",
+        "status": "PASS"
+      }
+    ],
+    "sessions": [
+      {
+        "date": "2026-03-04",
+        "type": "hybrid",
+        "autoItems": 6,
+        "manualItems": 0,
+        "pass": 6,
+        "fail": 0,
+        "fixes": 0
+      }
+    ]
+  },
+  "testStrategy": [
+    {
+      "requirement": "REQ-001",
+      "testFile": "test/unit/similarity.test.js",
+      "description": "Identieke vectoren → 1.0, orthogonale → 0.0, bekende waarden vergelijken"
+    },
+    {
+      "requirement": "REQ-002",
+      "testFile": "test/unit/similarity.test.js",
+      "description": "Zero-vector als input a, b, of beide → 0"
+    },
+    {
+      "requirement": "REQ-003",
+      "testFile": "test/unit/similarity.test.js",
+      "description": "Niet-genormaliseerde input geeft zelfde score als genormaliseerde equivalenten"
+    },
+    {
+      "requirement": "REQ-004",
+      "testFile": "test/unit/similarity.test.js",
+      "description": "Vectoren met verschillende lengtes → Error"
+    },
+    {
+      "requirement": "REQ-005",
+      "testFile": "test/unit/similarity.test.js",
+      "description": "Niet-numerieke waarden → TypeError"
+    }
+  ],
+
+  "refactor": {
+    "status": "CLEAN",
+    "improvements": {},
+    "decisions": [],
+    "positiveObservations": [
+      "Single-pass berekening: dot product + magnitudes in een loop (O(n))",
+      "Zero-vector guard voorkomt NaN propagatie",
+      "Input validatie correct op externe boundary (TypeError/Error)"
+    ],
+    "failureAnalysis": null,
+    "pendingImprovements": []
+  }
+}
