@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SonarPoppy Test</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #0d1117;
+        color: #c9d1d9;
+        line-height: 1.5;
+      }
+
+      /* Layout */
+      .app {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        grid-template-rows: auto 1fr;
+        min-height: 100vh;
+      }
+      .header {
+        grid-column: 1 / -1;
+        padding: 16px 24px;
+        border-bottom: 1px solid #21262d;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: #161b22;
+      }
+      .header h1 {
+        font-size: 18px;
+        color: #e6edf3;
+        font-weight: 600;
+      }
+      .header .db-status {
+        margin-left: auto;
+        font-size: 12px;
+        color: #8b949e;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .header .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #3fb950;
+      }
+      .sidebar {
+        border-right: 1px solid #21262d;
+        background: #161b22;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .main {
+        overflow-y: auto;
+        padding: 20px 24px;
+      }
+
+      /* Section headers */
+      .section-title {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #8b949e;
+        margin-bottom: 10px;
+      }
+
+      /* Genre sliders */
+      .genre-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .genre-row {
+        display: grid;
+        grid-template-columns: 72px 1fr 36px;
+        align-items: center;
+        gap: 8px;
+        height: 26px;
+      }
+      .genre-row label {
+        font-size: 12px;
+        color: #8b949e;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .genre-row input[type="range"] {
+        width: 100%;
+        accent-color: #238636;
+        cursor: pointer;
+      }
+      .genre-row .val {
+        font-size: 11px;
+        color: #58a6ff;
+        text-align: right;
+        font-family: monospace;
+      }
+      .genre-row.active label {
+        color: #e6edf3;
+      }
+      .genre-row.active .val {
+        color: #3fb950;
+      }
+
+      /* Buttons */
+      .btn {
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        border: none;
+        font-family: inherit;
+        font-weight: 500;
+        transition: background 0.15s;
+      }
+      .btn-primary {
+        background: #238636;
+        color: #fff;
+        width: 100%;
+      }
+      .btn-primary:hover {
+        background: #2ea043;
+      }
+      .btn-primary:disabled {
+        background: #21262d;
+        color: #484f58;
+        cursor: not-allowed;
+      }
+      .btn-primary.loading {
+        background: #1a6b2b;
+        pointer-events: none;
+      }
+      .btn-sm {
+        padding: 4px 10px;
+        font-size: 12px;
+        background: #21262d;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-sm:hover {
+        background: #30363d;
+      }
+      .btn-row {
+        display: flex;
+        gap: 6px;
+      }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 4px;
+      }
+
+      /* Profile viz */
+      .profile-section {
+        background: #0d1117;
+        border: 1px solid #21262d;
+        border-radius: 6px;
+        padding: 12px;
+      }
+      .profile-bar-row {
+        display: grid;
+        grid-template-columns: 72px 1fr 36px;
+        align-items: center;
+        gap: 8px;
+        height: 20px;
+      }
+      .profile-bar-row .name {
+        font-size: 11px;
+        color: #8b949e;
+      }
+      .profile-bar-row .bar-bg {
+        height: 6px;
+        background: #21262d;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .profile-bar-row .bar-fill {
+        height: 100%;
+        background: #238636;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+      }
+      .profile-bar-row .pct {
+        font-size: 10px;
+        color: #58a6ff;
+        font-family: monospace;
+        text-align: right;
+      }
+      .profile-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: #8b949e;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #21262d;
+      }
+      .profile-meta strong {
+        color: #e6edf3;
+      }
+
+      /* Main content: tracks */
+      .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .results-header h2 {
+        font-size: 16px;
+        color: #e6edf3;
+        font-weight: 600;
+      }
+      .results-stats {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: #8b949e;
+      }
+      .results-stats strong {
+        color: #58a6ff;
+      }
+      .filters-bar {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 10px 14px;
+        background: #161b22;
+        border: 1px solid #21262d;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        font-size: 12px;
+        color: #8b949e;
+      }
+      .filters-bar label {
+        white-space: nowrap;
+      }
+      .filters-bar input[type="range"] {
+        width: 120px;
+        accent-color: #58a6ff;
+      }
+      .filters-bar .val {
+        font-family: monospace;
+        color: #58a6ff;
+        min-width: 28px;
+      }
+      .filters-bar select {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        color: #c9d1d9;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      /* Track cards */
+      .track-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .track-card {
+        display: grid;
+        grid-template-columns: 32px 52px 1fr;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        background: #161b22;
+        border-radius: 6px;
+        transition: background 0.1s;
+      }
+      .track-card:hover {
+        background: #1c2128;
+      }
+      .track-rank {
+        font-size: 12px;
+        color: #484f58;
+        text-align: right;
+        font-family: monospace;
+      }
+      .track-score {
+        font-size: 14px;
+        font-weight: 600;
+        font-family: monospace;
+      }
+      .score-high {
+        color: #3fb950;
+      }
+      .score-mid {
+        color: #d29922;
+      }
+      .score-low {
+        color: #f85149;
+      }
+      .track-info h3 {
+        font-size: 14px;
+        font-weight: 500;
+        color: #e6edf3;
+        display: inline;
+      }
+      .track-info .artist {
+        font-size: 12px;
+        color: #8b949e;
+      }
+      .track-info .track-tags {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+      }
+      .tag {
+        font-size: 10px;
+        background: #0d1117;
+        border: 1px solid #21262d;
+        padding: 1px 6px;
+        border-radius: 8px;
+        color: #8b949e;
+        white-space: nowrap;
+      }
+
+      .empty-state {
+        color: #484f58;
+        font-size: 13px;
+        text-align: center;
+        padding: 40px 20px;
+      }
+
+      /* Ingest panel */
+      .ingest-section {
+        border-top: 1px solid #21262d;
+        padding-top: 12px;
+      }
+      .ingest-row {
+        display: flex;
+        gap: 6px;
+        align-items: end;
+      }
+      .ingest-row .field {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .ingest-row .field label {
+        font-size: 10px;
+        color: #484f58;
+      }
+      .ingest-row input {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        color: #c9d1d9;
+        padding: 5px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: inherit;
+        width: 100%;
+      }
+      .ingest-row input:focus {
+        outline: none;
+        border-color: #58a6ff;
+      }
+      .log {
+        font-family: monospace;
+        font-size: 11px;
+        color: #8b949e;
+        margin-top: 6px;
+        max-height: 80px;
+        overflow-y: auto;
+      }
+      .log .ok {
+        color: #3fb950;
+      }
+      .log .err {
+        color: #f85149;
+      }
+      .log .info {
+        color: #58a6ff;
+      }
+
+      /* Mobile */
+      @media (max-width: 768px) {
+        .app {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto auto 1fr;
+        }
+        .sidebar {
+          border-right: none;
+          border-bottom: 1px solid #21262d;
+          max-height: 50vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- Header -->
+      <div class="header">
+        <h1>SonarPoppy</h1>
+        <div class="db-status">
+          <span class="dot" id="status-dot"></span>
+          <span id="track-count">laden...</span>
+        </div>
+      </div>
+
+      <!-- Sidebar: genres + profile -->
+      <div class="sidebar">
+        <div>
+          <div class="section-title">Genre weights</div>
+          <div class="genre-list" id="genres"></div>
+          <div class="actions">
+            <div class="btn-row">
+              <button class="btn-sm" onclick="randomWeights()">Random</button>
+              <button class="btn-sm" onclick="resetSliders()">Reset</button>
+              <button class="btn-sm" onclick="presetRock()">Rock</button>
+              <button class="btn-sm" onclick="presetElectronic()">Electronic</button>
+            </div>
+            <button class="btn btn-primary" id="btn-compute" onclick="computeAndRecommend()">
+              Bereken &amp; recommend
+            </button>
+          </div>
+        </div>
+
+        <!-- Profile viz -->
+        <div id="profile-section" style="display: none">
+          <div class="section-title">Profielvector</div>
+          <div class="profile-section" id="profile-bars"></div>
+        </div>
+
+        <!-- Ingest -->
+        <div class="ingest-section">
+          <div class="section-title">Track toevoegen</div>
+          <div class="ingest-row">
+            <div class="field">
+              <label>Artist</label>
+              <input type="text" id="ingest-artist" placeholder="Radiohead" />
+            </div>
+            <div class="field">
+              <label>Title</label>
+              <input type="text" id="ingest-title" placeholder="Creep" />
+            </div>
+            <button class="btn-sm" onclick="ingestTrack()" style="margin-bottom: 1px">+</button>
+          </div>
+          <button class="btn-sm" onclick="ingestBatch()" style="margin-top: 6px; width: 100%">
+            Quick batch (5 tracks)
+          </button>
+          <div class="log" id="ingest-log"></div>
+        </div>
+      </div>
+
+      <!-- Main: recommendations -->
+      <div class="main">
+        <div class="results-header">
+          <h2>Recommendations</h2>
+          <div class="results-stats" id="stats"></div>
+        </div>
+        <div class="filters-bar" id="filters-bar" style="display: none">
+          <label>Min score</label>
+          <input
+            type="range"
+            id="min-score"
+            min="0"
+            max="80"
+            value="0"
+            oninput="onFilterChange()"
+          />
+          <span class="val" id="min-score-val">0.00</span>
+          <label style="margin-left: auto">Limit</label>
+          <select id="limit" onchange="onFilterChange()">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="40">40</option>
+            <option value="0">Alles</option>
+          </select>
+        </div>
+        <div class="track-grid" id="tracks">
+          <div class="empty-state">Stel genre weights in en klik op "Bereken &amp; recommend"</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API = "/api";
+      const H = { Accept: "application/json", "Content-Type": "application/json" };
+
+      let genres = [];
+      let currentVector = null;
+      let lastRecsData = null;
+
+      // --- Init ---
+      async function init() {
+        try {
+          const [genreRes, trackRes] = await Promise.all([
+            fetch(`${API}/genres`, { headers: H }),
+            fetch(`${API}/tracks`, { headers: H }),
+          ]);
+          const genreData = await genreRes.json();
+          const trackData = await trackRes.json();
+          genres = genreData.items;
+          renderGenres();
+          document.getElementById("track-count").textContent = `${trackData.items.length} tracks`;
+        } catch {
+          document.getElementById("track-count").textContent = "offline";
+          document.getElementById("status-dot").style.background = "#f85149";
+        }
+      }
+
+      function renderGenres() {
+        document.getElementById("genres").innerHTML = genres
+          .map(
+            (g) => `
+          <div class="genre-row" id="gr-${g.name}">
+            <label>${g.name}</label>
+            <input type="range" min="0" max="100" value="0"
+              data-genre="${g.name}"
+              oninput="onSliderChange(this)" />
+            <span class="val">0</span>
+          </div>`,
+          )
+          .join("");
+      }
+
+      function onSliderChange(el) {
+        const v = parseInt(el.value);
+        const row = el.closest(".genre-row");
+        row.querySelector(".val").textContent = v > 0 ? v : "0";
+        row.classList.toggle("active", v > 0);
+      }
+
+      function getWeights() {
+        const w = {};
+        document.querySelectorAll("#genres input[type=range]").forEach((s) => {
+          const v = parseInt(s.value);
+          if (v > 0) w[s.dataset.genre] = v / 100;
+        });
+        return w;
+      }
+
+      function setSlider(name, val) {
+        const row = document.getElementById(`gr-${name}`);
+        if (!row) return;
+        const input = row.querySelector("input");
+        input.value = val;
+        row.querySelector(".val").textContent = val > 0 ? val : "0";
+        row.classList.toggle("active", val > 0);
+      }
+
+      function resetSliders() {
+        document.querySelectorAll("#genres input[type=range]").forEach((s) => {
+          s.value = 0;
+          onSliderChange(s);
+        });
+      }
+
+      function randomWeights() {
+        resetSliders();
+        const count = 3 + Math.floor(Math.random() * 4);
+        const picks = [...genres].sort(() => Math.random() - 0.5).slice(0, count);
+        picks.forEach((g) => setSlider(g.name, 20 + Math.floor(Math.random() * 80)));
+      }
+
+      function presetRock() {
+        resetSliders();
+        setSlider("rock", 90);
+        setSlider("indie", 60);
+        setSlider("punk", 40);
+        setSlider("metal", 30);
+      }
+
+      function presetElectronic() {
+        resetSliders();
+        setSlider("electronic", 90);
+        setSlider("ambient", 60);
+        setSlider("dance", 50);
+        setSlider("funk", 30);
+      }
+
+      // --- Compute + Recommend (combined) ---
+      async function computeAndRecommend() {
+        const btn = document.getElementById("btn-compute");
+        btn.textContent = "Laden...";
+        btn.classList.add("loading");
+
+        try {
+          const weights = getWeights();
+          const profRes = await fetch(`${API}/profile/compute`, {
+            method: "POST",
+            headers: H,
+            body: JSON.stringify({ weights }),
+          });
+          const profData = await profRes.json();
+          currentVector = profData.vector;
+          renderProfile(profData);
+          await getRecommendations();
+        } catch (e) {
+          document.getElementById("tracks").innerHTML =
+            `<div class="empty-state">Fout: ${esc(e.message)}</div>`;
+        } finally {
+          btn.textContent = "Bereken & recommend";
+          btn.classList.remove("loading");
+        }
+      }
+
+      function renderProfile(data) {
+        const section = document.getElementById("profile-section");
+        section.style.display = "";
+        const maxVal = Math.max(...data.vector);
+
+        let html = data.vector
+          .map((v, i) => {
+            if (v === 0) return "";
+            const pct = maxVal > 0 ? (v / maxVal) * 100 : 0;
+            return `
+            <div class="profile-bar-row">
+              <span class="name">${genres[i]?.name || i}</span>
+              <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+              <span class="pct">${(v * 100).toFixed(0)}%</span>
+            </div>`;
+          })
+          .filter(Boolean)
+          .join("");
+
+        html += `
+          <div class="profile-meta">
+            <span>Actief: <strong>${data.meta.activeGenres}</strong></span>
+            <span>Top: <strong>${data.meta.topGenre || "—"}</strong></span>
+          </div>`;
+
+        document.getElementById("profile-bars").innerHTML = html;
+      }
+
+      // --- Recommendations ---
+      async function getRecommendations() {
+        if (!currentVector) return;
+        const minScore = parseInt(document.getElementById("min-score").value) / 100;
+        const limitVal = parseInt(document.getElementById("limit").value);
+
+        const body = {
+          profileVector: currentVector,
+          filters: { minScore },
+        };
+        if (limitVal > 0) body.limit = limitVal;
+
+        const res = await fetch(`${API}/recommendations`, {
+          method: "POST",
+          headers: H,
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        lastRecsData = data;
+        renderTracks(data);
+      }
+
+      function onFilterChange() {
+        document.getElementById("min-score-val").textContent = (
+          parseInt(document.getElementById("min-score").value) / 100
+        ).toFixed(2);
+        if (currentVector) getRecommendations();
+      }
+
+      function renderTracks(data) {
+        document.getElementById("filters-bar").style.display = "";
+
+        const statsEl = document.getElementById("stats");
+        statsEl.innerHTML = `
+          <span><strong>${data.total}</strong> resultaten</span>
+          <span>avg <strong>${data.meta.avgScore.toFixed(2)}</strong></span>
+          <span>${data.meta.scoreRange.min.toFixed(2)} — ${data.meta.scoreRange.max.toFixed(2)}</span>
+        `;
+
+        const el = document.getElementById("tracks");
+        if (!data.tracks.length) {
+          el.innerHTML =
+            '<div class="empty-state">Geen tracks gevonden met deze filters. Probeer de min score te verlagen.</div>';
+          return;
+        }
+
+        el.innerHTML = data.tracks
+          .map((item, i) => {
+            const t = item.track;
+            const sc =
+              item.score >= 0.6 ? "score-high" : item.score >= 0.3 ? "score-mid" : "score-low";
+            const topG = getTopGenres(t.genreVector, 3);
+            return `
+            <div class="track-card">
+              <span class="track-rank">${i + 1}</span>
+              <span class="track-score ${sc}">${item.score.toFixed(3)}</span>
+              <div class="track-info">
+                <h3>${esc(t.title)}</h3>
+                <span class="artist"> — ${esc(t.artist)}</span>
+                <div class="track-tags">
+                  ${topG.map((g) => `<span class="tag">${g.name} ${(g.weight * 100).toFixed(0)}%</span>`).join("")}
+                </div>
+              </div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      function getTopGenres(vector, n) {
+        if (!vector || !genres.length) return [];
+        return vector
+          .map((w, i) => ({ name: genres[i]?.name || `?${i}`, weight: w }))
+          .filter((g) => g.weight > 0.01)
+          .sort((a, b) => b.weight - a.weight)
+          .slice(0, n);
+      }
+
+      function esc(s) {
+        const d = document.createElement("div");
+        d.textContent = s || "";
+        return d.innerHTML;
+      }
+
+      // --- Ingest ---
+      function ingestLog(msg, cls) {
+        const log = document.getElementById("ingest-log");
+        log.innerHTML += `<div class="${cls || ""}">${msg}</div>`;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      async function ingestTrack() {
+        const artist = document.getElementById("ingest-artist").value.trim();
+        const title = document.getElementById("ingest-title").value.trim();
+        if (!artist || !title) return;
+        ingestLog(`${artist} — ${title}...`, "info");
+        try {
+          const res = await fetch(`${API}/tracks/ingest`, {
+            method: "POST",
+            headers: H,
+            body: JSON.stringify({ artist, title }),
+          });
+          const data = await res.json();
+          ingestLog(data.status, data.status === "failed" ? "err" : "ok");
+          document.getElementById("ingest-artist").value = "";
+          document.getElementById("ingest-title").value = "";
+          refreshTrackCount();
+        } catch (e) {
+          ingestLog(e.message, "err");
+        }
+      }
+
+      async function ingestBatch() {
+        const tracks = [
+          { artist: "Radiohead", title: "Creep" },
+          { artist: "Daft Punk", title: "Get Lucky" },
+          { artist: "Miles Davis", title: "So What" },
+          { artist: "Metallica", title: "Enter Sandman" },
+          { artist: "Bob Marley", title: "No Woman, No Cry" },
+        ];
+        ingestLog("Batch (5 tracks)...", "info");
+        try {
+          const res = await fetch(`${API}/tracks/ingest-batch`, {
+            method: "POST",
+            headers: H,
+            body: JSON.stringify({ tracks }),
+          });
+          const data = await res.json();
+          ingestLog(
+            `${data.summary.created}+ ${data.summary.skipped}= ${data.summary.failed}x`,
+            data.summary.failed > 0 ? "err" : "ok",
+          );
+          refreshTrackCount();
+        } catch (e) {
+          ingestLog(e.message, "err");
+        }
+      }
+
+      async function refreshTrackCount() {
+        try {
+          const res = await fetch(`${API}/tracks`, { headers: H });
+          const data = await res.json();
+          document.getElementById("track-count").textContent = `${data.items.length} tracks`;
+        } catch {}
+      }
+
+      document.getElementById("ingest-artist").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") document.getElementById("ingest-title").focus();
+      });
+      document.getElementById("ingest-title").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") ingestTrack();
+      });
+
+      init();
+    </script>
+  </body>
+</html>
