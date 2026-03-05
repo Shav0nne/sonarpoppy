@@ -383,7 +383,7 @@
     },
     {
       "name": "api-routes",
-      "status": "BLT",
+      "status": "DONE",
       "summary": "HTTP routes die bestaande services blootstellen via Express routers. 6 endpoints onder /api prefix met HATEOAS _links, router-per-resource structuur.",
       "depends": ["recommendation-engine"],
       "created": "2026-03-05"
