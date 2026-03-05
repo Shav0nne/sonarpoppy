@@ -12,7 +12,7 @@
 {
   "project": "SonarPoppy",
   "generated": "2026-03-04",
-  "updated": "2026-03-04",
+  "updated": "2026-03-05T10:00:00Z",
   "source": "/dev-plan",
   "overview": "Shared muziek-aanbevelingsbackend: cosine similarity engine met dial-gebaseerde discovery, genre vectors, en dual-app architectuur (SonarPop + Poppy).",
   "features": [
@@ -46,16 +46,17 @@
     {
       "name": "track-ingestion",
       "type": "API",
-      "status": "DEF",
+      "status": "DONE",
       "phase": "P1",
       "description": "Track import pipeline: Last.fm tags ophalen (met artist fallback), genreVector berekenen, opslaan in MongoDB. Single + batch ingest met skip/force en graceful error handling.",
       "dependency": "track-model",
-      "date": "2026-03-04"
+      "date": "2026-03-05",
+      "assignee": "Martijn"
     },
     {
       "name": "cosine-similarity",
       "type": "FEATURE",
-      "status": "BLT",
+      "status": "DONE",
       "phase": "P1",
       "description": "SimilarityService: cosine similarity op 20-dim vectors, pre-normalisatie, zero-vector guard (return 0 ipv NaN), dot product shortcut.",
       "dependency": null,
@@ -64,10 +65,12 @@
     {
       "name": "profile-service",
       "type": "FEATURE",
-      "status": "TODO",
+      "status": "BLT",
       "phase": "P1",
-      "description": "ProfileService: profiel vector berekenen uit genre selectie (cold start) en listen history + slider overrides. Gescheiden base vector en slider layer.",
-      "dependency": "cosine-similarity"
+      "description": "Pure berekeningsmotor: zet genre weights (object) om naar genormaliseerde 20-dim profielvector + metadata. Cold start = equal weights. Geen persistence, geen side effects.",
+      "dependency": "cosine-similarity",
+      "date": "2026-03-05",
+      "assignee": null
     },
     {
       "name": "recommendation-engine",
@@ -75,7 +78,8 @@
       "status": "TODO",
       "phase": "P1",
       "description": "Volledige recommendation pipeline: retrieve candidates → score via cosine similarity → filter blacklist → rank via dial → serve. Default dial=3.",
-      "dependency": "track-ingestion"
+      "dependency": "track-ingestion",
+      "assignee": null
     },
     {
       "name": "dial-system",
@@ -90,8 +94,8 @@
       "type": "FEATURE",
       "status": "TODO",
       "phase": "P2",
-      "description": "ListenHistory model + endpoints: like/skip/dislike tracking met gewichten. Profiel-evolutie via weighted moving average (alpha 0.05-0.10).",
-      "dependency": null
+      "description": "ListenHistory model + endpoints: play/like/dislike tracking met verschillende impact rates op genre percentages (dislike > like > play). Rates zijn tweakable. Elke actie muteert de genre weights die profile-service consumeert.",
+      "dependency": "genre-sliders"
     },
     {
       "name": "blacklist",
@@ -106,16 +110,16 @@
       "type": "FEATURE",
       "status": "TODO",
       "phase": "P3",
-      "description": "Cold start flow: genre selectie (SonarPop, min 3 genres) + Spotify import (Poppy). Bouw initieel profiel vector uit genre centroids.",
+      "description": "Cold start flow: default = alle genres gelijk gewicht. Onboarding selectie boosted gekozen genres als initiële slider state. SonarPop: min 3 genres + artiesten. Poppy: genre selectie of Spotify import.",
       "dependency": "genre-system"
     },
     {
       "name": "genre-sliders",
       "type": "API",
       "status": "TODO",
-      "phase": "P3",
-      "description": "Genre slider endpoints: weights ophalen/updaten per genre (0.0-2.0 multiplier). Profiel herberekening met slider overrides layer.",
-      "dependency": "genre-system"
+      "phase": "P2",
+      "description": "Dynamic genre sliders die meebewegen met luistergedrag + handmatige override. Locking systeem (percentages vastzetten). Presets (opgeslagen slider configuraties). SonarPop-only — Poppy krijgt auto-only zonder handmatige sliders.",
+      "dependency": "profile-service"
     },
     {
       "name": "spotify-integration",
@@ -124,6 +128,14 @@
       "phase": "P3",
       "description": "Spotify OAuth flow, top artists/tracks import via Spotify API, genre mapping naar initieel profiel vector voor Poppy onboarding.",
       "dependency": null
+    },
+    {
+      "name": "audio-vector",
+      "type": "FEATURE",
+      "status": "TODO",
+      "phase": "P3",
+      "description": "Multi-vector recommendation: 6-dim audio-vector per track (energy, valence, danceability, acousticness, instrumentalness, tempo) via Spotify Audio Features API. Aparte similarity score gewogen gecombineerd met genre similarity. Gebruiker (SonarPop) kan genre/audio gewichtsverhouding aanpassen.",
+      "dependency": "spotify-integration"
     },
     {
       "name": "frontend-api-docs",
