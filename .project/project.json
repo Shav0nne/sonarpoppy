@@ -67,7 +67,7 @@
     ]
   },
   "context": {
-    "structure": "sonarpoppy/\n├── src/\n│   ├── config/\n│   │   └── genres.js       # GENRES[20], GENRE_ALIASES, resolveAlias, conversies\n│   ├── models/\n│   │   └── Track.js        # Track schema + validatie + indexen\n│   ├── services/\n│   │   ├── ingestion/\n│   │   │   └── ingest.js    # ingestTrack, ingestBatch — pipeline met tag fallback\n│   │   ├── lastfm/\n│   │   │   ├── client.js    # createLastfmClient factory + API methods\n│   │   │   ├── errors.js    # LastfmApiError, LastfmRateLimitError, LastfmNotFoundError\n│   │   │   ├── mappers.js   # Response mapping (Last.fm → Track model)\n│   │   │   └── rateLimiter.js # Token bucket rate limiter\n│   │   ├── profile/\n│   │   │   └── computeProfile.js # computeProfileVector: weights → 20-dim vector + metadata\n│   │   └── recommendation/\n│   │       └── recommend.js    # scoreTracks + getRecommendations\n│   └── utils/\n│       ├── genreVector.js  # createVector, normalizeVector\n│       └── similarity.js   # cosineSimilarity (score 0-1, zero-vector guard, input validatie)\n├── test/\n│   ├── unit/\n│   │   ├── genres.test.js\n│   │   ├── genreVector.test.js\n│   │   ├── similarity.test.js\n│   │   ├── track.test.js\n│   │   ├── lastfm-client.test.js\n│   │   ├── lastfm-errors.test.js\n│   │   ├── lastfm-mappers.test.js\n│   │   ├── lastfm-rate-limiter.test.js\n│   │   ├── ingest.test.js\n│   │   ├── compute-profile.test.js\n│   │   └── recommend.test.js\n│   └── integration/\n│       ├── track.integration.test.js\n│       ├── ingest.integration.test.js\n│       ├── lastfm.integration.test.js\n│       └── recommend.integration.test.js\n├── routes/\n│   ├── index.js            # Combineert sub-routers onder /api prefix\n│   ├── genres.js           # GET /api/genres\n│   ├── tracks.js           # GET /api/tracks, POST ingest, POST ingest-batch\n│   ├── profile.js          # POST /api/profile/compute\n│   └── recommendations.js  # POST /api/recommendations\n├── .project/\n│   ├── project.json        # Dashboard\n│   └── backlog.html        # Product backlog\n├── CLAUDE.md\n├── .prettierrc\n└── .env.example",
+    "structure": "sonarpoppy/\n├── src/\n│   ├── config/\n│   │   └── genres.js       # GENRES[20], GENRE_ALIASES, resolveAlias, conversies\n│   ├── models/\n│   │   └── Track.js        # Track schema + validatie + indexen\n│   ├── services/\n│   │   ├── ingestion/\n│   │   │   └── ingest.js    # ingestTrack, ingestBatch — pipeline met tag fallback\n│   │   ├── lastfm/\n│   │   │   ├── client.js    # createLastfmClient factory + API methods\n│   │   │   ├── errors.js    # LastfmApiError, LastfmRateLimitError, LastfmNotFoundError\n│   │   │   ├── mappers.js   # Response mapping (Last.fm → Track model)\n│   │   │   └── rateLimiter.js # Token bucket rate limiter\n│   │   ├── profile/\n│   │   │   └── computeProfile.js # computeProfileVector: weights → 20-dim vector + metadata\n│   │   └── recommendation/\n│   │       └── recommend.js    # scoreTracks + getRecommendations\n│   └── utils/\n│       ├── genreVector.js  # createVector, normalizeVector\n│       └── similarity.js   # cosineSimilarity (score 0-1, zero-vector guard, input validatie)\n├── test/\n│   ├── unit/\n│   │   ├── genres.test.js\n│   │   ├── genreVector.test.js\n│   │   ├── similarity.test.js\n│   │   ├── track.test.js\n│   │   ├── lastfm-client.test.js\n│   │   ├── lastfm-errors.test.js\n│   │   ├── lastfm-mappers.test.js\n│   │   ├── lastfm-rate-limiter.test.js\n│   │   ├── ingest.test.js\n│   │   ├── compute-profile.test.js\n│   │   └── recommend.test.js\n│   └── integration/\n│       ├── track.integration.test.js\n│       ├── ingest.integration.test.js\n│       ├── lastfm.integration.test.js\n│       └── recommend.integration.test.js\n├── routes/\n│   ├── index.js            # Combineert sub-routers onder /api prefix\n│   ├── genres.js           # GET /api/genres\n│   ├── tracks.js           # GET /api/tracks, POST ingest, POST ingest-batch\n│   ├── profile.js          # POST /api/profile/compute\n│   └── recommendations.js  # POST /api/recommendations\n├── docs/\n│   └── api.md              # API documentatie voor frontend-studenten\n├── .project/\n│   ├── project.json        # Dashboard\n│   └── backlog.html        # Product backlog\n├── CLAUDE.md\n├── .prettierrc\n└── .env.example",
     "routing": [
       "GET /api/genres → routes/genres.js → GENRES config",
       "GET /api/tracks → routes/tracks.js → Track.find().lean()",
@@ -88,7 +88,7 @@
       "mongodb-memory-server voor integration tests (geen externe MongoDB nodig)",
       "Default export voor Mongoose models, named exports voor utilities"
     ],
-    "updated": "2026-03-05T10:30:00Z"
+    "updated": "2026-03-05T12:10:00Z"
   },
   "architecture": {
     "diagram": "graph TD\n    classDef done fill:#13261c,stroke:#3fb950,stroke-width:1.5px,color:#c9d1d9\n    classDef planned fill:#1b1530,stroke:#8b5cf6,stroke-dasharray:5 5,color:#8b949e\n    classDef external fill:#1c2128,stroke:#30363d,color:#8b949e\n\n    subgraph API[\"API Laag\"]\n        RT[API Routes<br/>routes/index.js]:::done\n        RG[Genres Route<br/>routes/genres.js]:::done\n        RTR[Tracks Route<br/>routes/tracks.js]:::done\n        RP[Profile Route<br/>routes/profile.js]:::done\n        RR[Recommendations Route<br/>routes/recommendations.js]:::done\n    end\n\n    subgraph Data[\"Data Laag\"]\n        GS[Genre Systeem<br/>genres.js · genreVector.js]:::done\n        TM[Track Model<br/>Track.js]:::done\n        DB[(MongoDB)]:::external\n    end\n\n    subgraph Extern[\"Externe Bronnen\"]\n        LFM[Last.fm Client<br/>lastfm/client.js]:::done\n        LFMAPI{{Last.fm API}}:::external\n    end\n\n    subgraph Verwerking\n        TI[Track Ingestie<br/>ingestion/ingest.js]:::done\n        SIM[Similarity<br/>similarity.js]:::done\n    end\n\n    subgraph Personalisatie\n        PS[Profiel Service<br/>profile/computeProfile.js]:::done\n        RE[Recommendation Engine<br/>recommendation/recommend.js]:::done\n    end\n\n    subgraph Input[\"Gebruiker Input\"]\n        ON[Onboarding]:::planned\n        SL[Genre Sliders]:::planned\n        LH[Listen History]:::planned\n    end\n\n    RT --> RG\n    RT --> RTR\n    RT --> RP\n    RT --> RR\n    RG --> GS\n    RTR --> TM\n    RTR --> TI\n    RTR --> LFM\n    RP --> PS\n    RR --> RE\n    GS --> TM\n    GS --> TI\n    GS --> ON\n    GS --> PS\n    LFM --> TI\n    LFM -.-> LFMAPI\n    TI --> DB\n    TM --> RE\n    SIM --> RE\n    SIM --> PS\n    SL --> PS\n    LH --> SL\n    PS --> RE\n    TM --- DB",
@@ -252,12 +252,36 @@
     ]
   },
   "endpoints": [
-    { "method": "GET", "path": "/api/genres", "status": "done" },
-    { "method": "GET", "path": "/api/tracks", "status": "done" },
-    { "method": "POST", "path": "/api/tracks/ingest", "status": "done" },
-    { "method": "POST", "path": "/api/tracks/ingest-batch", "status": "done" },
-    { "method": "POST", "path": "/api/profile/compute", "status": "done" },
-    { "method": "POST", "path": "/api/recommendations", "status": "done" }
+    {
+      "method": "GET",
+      "path": "/api/genres",
+      "status": "done"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks",
+      "status": "done"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tracks/ingest",
+      "status": "done"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tracks/ingest-batch",
+      "status": "done"
+    },
+    {
+      "method": "POST",
+      "path": "/api/profile/compute",
+      "status": "done"
+    },
+    {
+      "method": "POST",
+      "path": "/api/recommendations",
+      "status": "done"
+    }
   ],
   "features": [
     {
@@ -385,7 +409,16 @@
       "name": "api-routes",
       "status": "DONE",
       "summary": "HTTP routes die bestaande services blootstellen via Express routers. 6 endpoints onder /api prefix met HATEOAS _links, router-per-resource structuur.",
-      "depends": ["recommendation-engine"],
+      "depends": [
+        "recommendation-engine"
+      ],
+      "created": "2026-03-05"
+    },
+    {
+      "name": "frontend-api-docs",
+      "status": "DONE",
+      "summary": "Markdown API-documentatie voor frontend-studenten: quick start, alle endpoints met request/response schemas, en uitbreidbaar template voor teammates.",
+      "depends": [],
       "created": "2026-03-05"
     }
   ],
