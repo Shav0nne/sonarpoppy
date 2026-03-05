@@ -67,8 +67,15 @@
     ]
   },
   "context": {
-    "structure": "sonarpoppy/\n├── src/\n│   ├── config/\n│   │   └── genres.js       # GENRES[20], GENRE_ALIASES, resolveAlias, conversies\n│   ├── models/\n│   │   └── Track.js        # Track schema + validatie + indexen\n│   ├── services/\n│   │   ├── ingestion/\n│   │   │   └── ingest.js    # ingestTrack, ingestBatch — pipeline met tag fallback\n│   │   ├── lastfm/\n│   │   │   ├── client.js    # createLastfmClient factory + API methods\n│   │   │   ├── errors.js    # LastfmApiError, LastfmRateLimitError, LastfmNotFoundError\n│   │   │   ├── mappers.js   # Response mapping (Last.fm → Track model)\n│   │   │   └── rateLimiter.js # Token bucket rate limiter\n│   │   ├── profile/\n│   │   │   └── computeProfile.js # computeProfileVector: weights → 20-dim vector + metadata\n│   │   └── recommendation/\n│   │       └── recommend.js    # scoreTracks + getRecommendations\n│   └── utils/\n│       ├── genreVector.js  # createVector, normalizeVector\n│       └── similarity.js   # cosineSimilarity (score 0-1, zero-vector guard, input validatie)\n├── test/\n│   ├── unit/\n│   │   ├── genres.test.js\n│   │   ├── genreVector.test.js\n│   │   ├── similarity.test.js\n│   │   ├── track.test.js\n│   │   ├── lastfm-client.test.js\n│   │   ├── lastfm-errors.test.js\n│   │   ├── lastfm-mappers.test.js\n│   │   ├── lastfm-rate-limiter.test.js\n│   │   ├── ingest.test.js\n│   │   ├── compute-profile.test.js\n│   │   └── recommend.test.js\n│   └── integration/\n│       ├── track.integration.test.js\n│       ├── ingest.integration.test.js\n│       ├── lastfm.integration.test.js\n│       └── recommend.integration.test.js\n├── routes/\n│   └── index.js            # Main app setup + routes + DB connectie\n├── .project/\n│   ├── project.json        # Dashboard\n│   └── backlog.html        # Product backlog\n├── CLAUDE.md\n├── .prettierrc\n└── .env.example",
-    "routing": [],
+    "structure": "sonarpoppy/\n├── src/\n│   ├── config/\n│   │   └── genres.js       # GENRES[20], GENRE_ALIASES, resolveAlias, conversies\n│   ├── models/\n│   │   └── Track.js        # Track schema + validatie + indexen\n│   ├── services/\n│   │   ├── ingestion/\n│   │   │   └── ingest.js    # ingestTrack, ingestBatch — pipeline met tag fallback\n│   │   ├── lastfm/\n│   │   │   ├── client.js    # createLastfmClient factory + API methods\n│   │   │   ├── errors.js    # LastfmApiError, LastfmRateLimitError, LastfmNotFoundError\n│   │   │   ├── mappers.js   # Response mapping (Last.fm → Track model)\n│   │   │   └── rateLimiter.js # Token bucket rate limiter\n│   │   ├── profile/\n│   │   │   └── computeProfile.js # computeProfileVector: weights → 20-dim vector + metadata\n│   │   └── recommendation/\n│   │       └── recommend.js    # scoreTracks + getRecommendations\n│   └── utils/\n│       ├── genreVector.js  # createVector, normalizeVector\n│       └── similarity.js   # cosineSimilarity (score 0-1, zero-vector guard, input validatie)\n├── test/\n│   ├── unit/\n│   │   ├── genres.test.js\n│   │   ├── genreVector.test.js\n│   │   ├── similarity.test.js\n│   │   ├── track.test.js\n│   │   ├── lastfm-client.test.js\n│   │   ├── lastfm-errors.test.js\n│   │   ├── lastfm-mappers.test.js\n│   │   ├── lastfm-rate-limiter.test.js\n│   │   ├── ingest.test.js\n│   │   ├── compute-profile.test.js\n│   │   └── recommend.test.js\n│   └── integration/\n│       ├── track.integration.test.js\n│       ├── ingest.integration.test.js\n│       ├── lastfm.integration.test.js\n│       └── recommend.integration.test.js\n├── routes/\n│   ├── index.js            # Combineert sub-routers onder /api prefix\n│   ├── genres.js           # GET /api/genres\n│   ├── tracks.js           # GET /api/tracks, POST ingest, POST ingest-batch\n│   ├── profile.js          # POST /api/profile/compute\n│   └── recommendations.js  # POST /api/recommendations\n├── .project/\n│   ├── project.json        # Dashboard\n│   └── backlog.html        # Product backlog\n├── CLAUDE.md\n├── .prettierrc\n└── .env.example",
+    "routing": [
+      "GET /api/genres → routes/genres.js → GENRES config",
+      "GET /api/tracks → routes/tracks.js → Track.find().lean()",
+      "POST /api/tracks/ingest → routes/tracks.js → ingestTrack (Last.fm singleton)",
+      "POST /api/tracks/ingest-batch → routes/tracks.js → ingestBatch (Last.fm singleton)",
+      "POST /api/profile/compute → routes/profile.js → computeProfileVector",
+      "POST /api/recommendations → routes/recommendations.js → getRecommendations"
+    ],
     "patterns": [
       "ES modules (type: module in package.json)",
       "Node --env-file voor .env loading (geen dotenv)",
@@ -81,11 +88,11 @@
       "mongodb-memory-server voor integration tests (geen externe MongoDB nodig)",
       "Default export voor Mongoose models, named exports voor utilities"
     ],
-    "updated": "2026-03-05"
+    "updated": "2026-03-05T10:30:00Z"
   },
   "architecture": {
-    "diagram": "graph TD\n    classDef done fill:#13261c,stroke:#3fb950,stroke-width:1.5px,color:#c9d1d9\n    classDef planned fill:#1b1530,stroke:#8b5cf6,stroke-dasharray:5 5,color:#8b949e\n    classDef external fill:#1c2128,stroke:#30363d,color:#8b949e\n\n    subgraph Data[\"Data Laag\"]\n        GS[Genre Systeem<br/>genres.js · genreVector.js]:::done\n        TM[Track Model<br/>Track.js]:::done\n        DB[(MongoDB)]:::external\n    end\n\n    subgraph Extern[\"Externe Bronnen\"]\n        LFM[Last.fm Client<br/>lastfm/client.js]:::done\n        API{{Last.fm API}}:::external\n    end\n\n    subgraph Verwerking\n        TI[Track Ingestie<br/>ingestion/ingest.js]:::done\n        SIM[Similarity<br/>similarity.js]:::done\n    end\n\n    subgraph Personalisatie\n        PS[Profiel Service<br/>profile/computeProfile.js]:::done\n        RE[Recommendation Engine<br/>recommendation/recommend.js]:::done\n    end\n\n    subgraph Input[\"Gebruiker Input\"]\n        ON[Onboarding]:::planned\n        SL[Genre Sliders]:::planned\n        LH[Listen History]:::planned\n    end\n\n    GS --> TM\n    GS --> TI\n    GS --> ON\n    GS --> PS\n    LFM --> TI\n    LFM -.-> API\n    TI --> DB\n    TM --> RE\n    SIM --> RE\n    SIM --> PS\n    SL --> PS\n    LH --> SL\n    PS --> RE\n    TM --- DB",
-    "description": "## Genre Systeem\n\nData-laag voor het recommendation systeem. Definieert 20 genres met aliassen en biedt utilities om tags om te zetten naar numerieke vectors.\n\n## Track Model\n\nOpslag voor tracks met genre-vector (20 dimensies), Last.fm metadata, en unieke artist+title constraint.\n\n## Last.fm Client\n\nHaalt track- en artist-informatie op van Last.fm met rate limiting (5 req/s) en automatische retry bij fouten.\n\n## Similarity\n\nBerekent de gelijkenis tussen twee genre-vectors via cosine similarity (score 0-1).\n\n## Track Ingestie\n\nImport pipeline: haalt track data op via Last.fm, zet tags om naar genre-vectors, en slaat op in MongoDB. Ondersteunt single en batch import.\n\n## Profiel Service\n\nPure berekeningsmotor: zet genre weights om naar een genormaliseerde 20-dim profielvector + metadata (activeGenres, topGenre). Cold start levert equal weights (alle 20 genres op 0.05). Onbekende genres worden genegeerd, negatieve waarden geclampt op 0. Geen persistence — genre-sliders en listen-history muteren de weights extern.\n\n## Recommendation Engine\n\nPure scoring pipeline: laadt alle tracks uit MongoDB (.lean()), scoort tegen profielvector via cosine similarity, filtert (minScore, excludeIds — extensiepunten voor dial/blacklist), pagineert, en retourneert gesorteerde resultaten met metadata (avgScore, scoreRange, scoredAt). Twee exports: scoreTracks (pure, unit-testbaar) en getRecommendations (orchestrator met DB access, _tracks DI voor testing).",
+    "diagram": "graph TD\n    classDef done fill:#13261c,stroke:#3fb950,stroke-width:1.5px,color:#c9d1d9\n    classDef planned fill:#1b1530,stroke:#8b5cf6,stroke-dasharray:5 5,color:#8b949e\n    classDef external fill:#1c2128,stroke:#30363d,color:#8b949e\n\n    subgraph API[\"API Laag\"]\n        RT[API Routes<br/>routes/index.js]:::done\n        RG[Genres Route<br/>routes/genres.js]:::done\n        RTR[Tracks Route<br/>routes/tracks.js]:::done\n        RP[Profile Route<br/>routes/profile.js]:::done\n        RR[Recommendations Route<br/>routes/recommendations.js]:::done\n    end\n\n    subgraph Data[\"Data Laag\"]\n        GS[Genre Systeem<br/>genres.js · genreVector.js]:::done\n        TM[Track Model<br/>Track.js]:::done\n        DB[(MongoDB)]:::external\n    end\n\n    subgraph Extern[\"Externe Bronnen\"]\n        LFM[Last.fm Client<br/>lastfm/client.js]:::done\n        LFMAPI{{Last.fm API}}:::external\n    end\n\n    subgraph Verwerking\n        TI[Track Ingestie<br/>ingestion/ingest.js]:::done\n        SIM[Similarity<br/>similarity.js]:::done\n    end\n\n    subgraph Personalisatie\n        PS[Profiel Service<br/>profile/computeProfile.js]:::done\n        RE[Recommendation Engine<br/>recommendation/recommend.js]:::done\n    end\n\n    subgraph Input[\"Gebruiker Input\"]\n        ON[Onboarding]:::planned\n        SL[Genre Sliders]:::planned\n        LH[Listen History]:::planned\n    end\n\n    RT --> RG\n    RT --> RTR\n    RT --> RP\n    RT --> RR\n    RG --> GS\n    RTR --> TM\n    RTR --> TI\n    RTR --> LFM\n    RP --> PS\n    RR --> RE\n    GS --> TM\n    GS --> TI\n    GS --> ON\n    GS --> PS\n    LFM --> TI\n    LFM -.-> LFMAPI\n    TI --> DB\n    TM --> RE\n    SIM --> RE\n    SIM --> PS\n    SL --> PS\n    LH --> SL\n    PS --> RE\n    TM --- DB",
+    "description": "## API Routes\n\nExpress router laag die alle services blootstelt via HTTP. Router-per-resource structuur met 4 sub-routers (genres, tracks, profile, recommendations) gecombineerd in index.js onder /api prefix. HATEOAS _links in elke response.\n\n## Genre Systeem\n\nData-laag voor het recommendation systeem. Definieert 20 genres met aliassen en biedt utilities om tags om te zetten naar numerieke vectors.\n\n## Track Model\n\nOpslag voor tracks met genre-vector (20 dimensies), Last.fm metadata, en unieke artist+title constraint.\n\n## Last.fm Client\n\nHaalt track- en artist-informatie op van Last.fm met rate limiting (5 req/s) en automatische retry bij fouten.\n\n## Similarity\n\nBerekent de gelijkenis tussen twee genre-vectors via cosine similarity (score 0-1).\n\n## Track Ingestie\n\nImport pipeline: haalt track data op via Last.fm, zet tags om naar genre-vectors, en slaat op in MongoDB. Ondersteunt single en batch import.\n\n## Profiel Service\n\nPure berekeningsmotor: zet genre weights om naar een genormaliseerde 20-dim profielvector + metadata (activeGenres, topGenre). Cold start levert equal weights (alle 20 genres op 0.05). Onbekende genres worden genegeerd, negatieve waarden geclampt op 0. Geen persistence — genre-sliders en listen-history muteren de weights extern.\n\n## Recommendation Engine\n\nPure scoring pipeline: laadt alle tracks uit MongoDB (.lean()), scoort tegen profielvector via cosine similarity, filtert (minScore, excludeIds — extensiepunten voor dial/blacklist), pagineert, en retourneert gesorteerde resultaten met metadata (avgScore, scoreRange, scoredAt). Twee exports: scoreTracks (pure, unit-testbaar) en getRecommendations (orchestrator met DB access, _tracks DI voor testing).",
     "files": [
       {
         "component": "Genre Systeem",
@@ -161,6 +168,22 @@
           "test/unit/recommend.test.js",
           "test/integration/recommend.integration.test.js"
         ]
+      },
+      {
+        "component": "API Routes",
+        "src": [
+          "routes/index.js",
+          "routes/genres.js",
+          "routes/tracks.js",
+          "routes/profile.js",
+          "routes/recommendations.js"
+        ],
+        "test": [
+          "test/unit/routes-genres.test.js",
+          "test/unit/routes-tracks.test.js",
+          "test/unit/routes-profile.test.js",
+          "test/unit/routes-recommendations.test.js"
+        ]
       }
     ]
   },
@@ -228,7 +251,14 @@
       }
     ]
   },
-  "endpoints": [],
+  "endpoints": [
+    { "method": "GET", "path": "/api/genres", "status": "done" },
+    { "method": "GET", "path": "/api/tracks", "status": "done" },
+    { "method": "POST", "path": "/api/tracks/ingest", "status": "done" },
+    { "method": "POST", "path": "/api/tracks/ingest-batch", "status": "done" },
+    { "method": "POST", "path": "/api/profile/compute", "status": "done" },
+    { "method": "POST", "path": "/api/recommendations", "status": "done" }
+  ],
   "features": [
     {
       "name": "genre-system",
@@ -349,6 +379,13 @@
         "spotify-integration",
         "recommendation-engine"
       ],
+      "created": "2026-03-05"
+    },
+    {
+      "name": "api-routes",
+      "status": "BLT",
+      "summary": "HTTP routes die bestaande services blootstellen via Express routers. 6 endpoints onder /api prefix met HATEOAS _links, router-per-resource structuur.",
+      "depends": ["recommendation-engine"],
       "created": "2026-03-05"
     }
   ],
