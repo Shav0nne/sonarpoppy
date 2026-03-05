@@ -262,7 +262,7 @@
     },
     {
       "name": "profile-service",
-      "status": "BLT",
+      "status": "DONE",
       "summary": "Pure berekeningsmotor: zet genre weights (object) om naar genormaliseerde 20-dim profielvector + metadata (activeGenres, topGenre). Cold start = equal weights. Geen persistence.",
       "depends": [
         "cosine-similarity",

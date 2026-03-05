@@ -1,0 +1,218 @@
+{
+  "name": "profile-service",
+  "created": "2026-03-05",
+  "status": "DONE",
+  "summary": "Pure berekeningsmotor: zet genre weights (object) om naar een genormaliseerde 20-dimensie profielvector met metadata. Geen persistence, geen side effects. Cold start levert equal weights.",
+  "depends": ["cosine-similarity", "genre-system"],
+  "choices": [
+    {
+      "question": "Scope",
+      "answer": "Pure berekeningsmotor — geen User model, geen persistence. Liked tracks passen de weights aan buiten profile-service (in listen-history/genre-sliders)."
+    },
+    {
+      "question": "Mix methode",
+      "answer": "Alleen weights. Liked tracks veranderen de genre sliders zelf, niet een aparte mix in profile-service."
+    },
+    {
+      "question": "Output",
+      "answer": "Vector + metadata (activeGenres, topGenre)"
+    },
+    {
+      "question": "Cold start",
+      "answer": "Equal weights: alle 20 genres op 1/20 (0.05) bij lege of geen input"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "Genre weights omzetten naar 20-dimensie vector",
+      "category": "core",
+      "acceptance": "{ rock: 0.8, jazz: 0.2 } → array[20] met 0.8 op index 0, 0.2 op index 5, rest 0",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "computeProfileVector in computeProfile.js — GENRE_INDEX lookup plaatst weights op correcte array positie"
+    },
+    {
+      "id": "REQ-002",
+      "description": "Output vector is genormaliseerd",
+      "category": "core",
+      "acceptance": "Waarden in de output vector tellen op tot 1.0 (via bestaande normalizeVector)",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "normalizeVector uit genreVector.js hergebruikt — sum / total normalisatie"
+    },
+    {
+      "id": "REQ-003",
+      "description": "Metadata in return object",
+      "category": "output",
+      "acceptance": "Return { vector, meta: { activeGenres, topGenre } }. activeGenres = count genres > 0, topGenre = genre met hoogste waarde",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "meta.activeGenres = filter > 0 count, meta.topGenre = GENRES[maxIdx], null bij cold start"
+    },
+    {
+      "id": "REQ-004",
+      "description": "Cold start: equal weights bij lege input",
+      "category": "edge-case",
+      "acceptance": "computeProfileVector() of computeProfileVector({}) retourneert alle 20 genres op 1/20 (0.05)",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "sum === 0 → fill(1/GENRE_COUNT) ipv normalizeVector (die zero-vector retourneert)"
+    },
+    {
+      "id": "REQ-005",
+      "description": "Input validatie",
+      "category": "edge-case",
+      "acceptance": "Onbekende genre-namen worden genegeerd. Negatieve waarden worden op 0 gezet.",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "GENRE_INDEX[genre] === undefined → skip. Math.max(0, weight) → clamp negatieven."
+    }
+  ],
+  "files": [
+    {
+      "path": "src/services/profile/computeProfile.js",
+      "type": "module",
+      "action": "create",
+      "purpose": "Core berekening: genre weights → genormaliseerde 20-dim vector + metadata",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005"]
+    },
+    {
+      "path": "test/unit/compute-profile.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Unit tests voor alle requirements",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005"]
+    }
+  ],
+  "architecture": {
+    "componentTree": ["src/services/profile/computeProfile.js"],
+    "interfaces": [
+      {
+        "name": "computeProfileVector",
+        "input": "weights?: Record<string, number> — genre naam → gewicht (bijv. { rock: 0.8, jazz: 0.2 })",
+        "output": "{ vector: number[20], meta: { activeGenres: number, topGenre: string | null } }",
+        "imports": ["GENRES, GENRE_INDEX, GENRE_COUNT from config/genres.js", "normalizeVector from utils/genreVector.js"]
+      }
+    ]
+  },
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-001", "REQ-002"],
+      "description": "Core: genre weights object → 20-dim array via GENRE_INDEX lookup + normalizeVector",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-004", "REQ-005"],
+      "description": "Edge cases: cold start (lege input → equal weights) + validatie (onbekende genres, negatieve waarden)",
+      "dependsOn": [1]
+    },
+    {
+      "step": 3,
+      "requirements": ["REQ-003"],
+      "description": "Metadata wrapper: activeGenres count + topGenre lookup via GENRES array",
+      "dependsOn": [1]
+    }
+  ],
+  "testStrategy": [
+    {
+      "requirement": "REQ-001",
+      "testFile": "test/unit/compute-profile.test.js",
+      "description": "Test met bekende genre weights, verifieer correcte array posities via GENRE_INDEX"
+    },
+    {
+      "requirement": "REQ-002",
+      "testFile": "test/unit/compute-profile.test.js",
+      "description": "Test dat output vector waarden optellen tot 1.0"
+    },
+    {
+      "requirement": "REQ-003",
+      "testFile": "test/unit/compute-profile.test.js",
+      "description": "Test meta object: activeGenres count, topGenre naam"
+    },
+    {
+      "requirement": "REQ-004",
+      "testFile": "test/unit/compute-profile.test.js",
+      "description": "Test lege input, undefined, {} → equal weights vector (alle 0.05)"
+    },
+    {
+      "requirement": "REQ-005",
+      "testFile": "test/unit/compute-profile.test.js",
+      "description": "Test onbekende genre namen (genegeerd), negatieve waarden (→ 0)"
+    }
+  ],
+  "build": {
+    "started": "2026-03-05",
+    "completed": "2026-03-05",
+    "techniques": {
+      "tdd": 5,
+      "implementationFirst": 0
+    },
+    "testsPass": 16,
+    "testsTotal": 16,
+    "decisions": [
+      "Cold start: fill(1/GENRE_COUNT) ipv normalizeVector bij sum=0 — normalizeVector retourneert zero-vector bij sum=0",
+      "topGenre = null bij cold start — alle genres gelijk, geen winnaar aanwijzen"
+    ],
+    "explanation": "computeProfileVector zet genre-voorkeuren (object met genre-namen en gewichten) om naar een vaste 20-dim vector. Werkt via GENRE_INDEX lookup, normaliseert naar som=1.0, en voegt metadata toe (activeGenres count, topGenre). Cold start (geen/lege input) levert equal weights (alle 0.05) ipv zero-vector."
+  },
+  "packages": [],
+  "tests": {
+    "finalStatus": "PASSED",
+    "checklist": [
+      {
+        "id": 1,
+        "title": "Genre weights worden correct op array posities geplaatst",
+        "requirementId": "REQ-001",
+        "steps": ["Roep computeProfileVector({ rock: 0.8, jazz: 0.2 }) aan", "Inspecteer de output vector"],
+        "expected": "Vector[0] (rock) bevat een waarde > 0, vector[5] (jazz) bevat een waarde > 0, rest is 0",
+        "status": "PASS"
+      },
+      {
+        "id": 2,
+        "title": "Output vector is genormaliseerd (som = 1.0)",
+        "requirementId": "REQ-002",
+        "steps": ["Roep computeProfileVector met willekeurige weights aan", "Tel alle waarden in de vector op"],
+        "expected": "Som van alle vector waarden is 1.0",
+        "status": "PASS"
+      },
+      {
+        "id": 3,
+        "title": "Metadata bevat activeGenres en topGenre",
+        "requirementId": "REQ-003",
+        "steps": ["Roep computeProfileVector({ rock: 0.8, jazz: 0.2 }) aan", "Inspecteer result.meta"],
+        "expected": "meta.activeGenres = 2, meta.topGenre = 'rock'",
+        "status": "PASS"
+      },
+      {
+        "id": 4,
+        "title": "Cold start levert equal weights",
+        "requirementId": "REQ-004",
+        "steps": ["Roep computeProfileVector() aan zonder argumenten", "Inspecteer alle 20 vector waarden"],
+        "expected": "Alle 20 waarden zijn 0.05 (1/20)",
+        "status": "PASS"
+      },
+      {
+        "id": 5,
+        "title": "Onbekende genres en negatieve waarden worden correct afgehandeld",
+        "requirementId": "REQ-005",
+        "steps": ["Roep computeProfileVector({ rock: 0.8, 'fake-genre': 0.5, jazz: -0.3 }) aan", "Inspecteer de vector"],
+        "expected": "Fake-genre is genegeerd, jazz (negatief) is 0, rock is de enige actieve genre",
+        "status": "PASS"
+      }
+    ],
+    "sessions": [
+      {
+        "date": "2026-03-05",
+        "type": "hybrid",
+        "autoItems": 5,
+        "manualItems": 0,
+        "passed": 5,
+        "failed": 0,
+        "fixes": 0
+      }
+    ]
+  }
+}
