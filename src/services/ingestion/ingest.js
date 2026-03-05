@@ -1,5 +1,5 @@
 import Track from "../../models/Track.js";
-import {createVector} from "../../utils/genreVector.js";
+import { createVector } from "../../utils/genreVector.js";
 
 const SPARSE_GENRE_THRESHOLD = 3;
 
@@ -7,7 +7,7 @@ const SPARSE_GENRE_THRESHOLD = 3;
  * Counts the number of non-zero entries in a genre vector (mapped genres).
  */
 function countMappedGenres(vector) {
-    return vector.filter((v) => v > 0).length;
+  return vector.filter((v) => v > 0).length;
 }
 
 /**
@@ -17,30 +17,25 @@ function countMappedGenres(vector) {
  * Returns an array of tag name strings.
  */
 async function fetchTagsWithFallback(client, artist, title) {
-    // 1. Try track-level top tags first
-    const trackTopTags = await client.getTrackTopTags(artist, title);
-    const trackTagNames = trackTopTags.map((t) => t.name);
-    const trackVector = createVector(trackTagNames);
+  // 1. Try track-level top tags first
+  const trackTopTags = await client.getTrackTopTags(artist, title);
+  const trackTagNames = trackTopTags.map((t) => t.name);
+  const trackVector = createVector(trackTagNames);
 
-    if (countMappedGenres(trackVector) >= SPARSE_GENRE_THRESHOLD) {
-        return trackTagNames;
-    }
+  if (countMappedGenres(trackVector) >= SPARSE_GENRE_THRESHOLD) {
+    return trackTagNames;
+  }
 
-    // 2. Fallback: artist-level top tags
-    const artistTopTags = await client.getArtistTopTags(artist);
-    const artistTagNames = artistTopTags.map((t) => t.name);
+  // 2. Fallback: artist-level top tags — choose best source, don't merge
+  const artistTopTags = await client.getArtistTopTags(artist);
+  const artistTagNames = artistTopTags.map((t) => t.name);
+  const artistVector = createVector(artistTagNames);
 
-    // Merge: track tags first, then artist tags (no duplicates)
-    const seen = new Set(trackTagNames.map((t) => t.toLowerCase()));
-    const merged = [...trackTagNames];
-    for (const tag of artistTagNames) {
-        if (!seen.has(tag.toLowerCase())) {
-            merged.push(tag);
-            seen.add(tag.toLowerCase());
-        }
-    }
+  if (countMappedGenres(artistVector) > countMappedGenres(trackVector)) {
+    return artistTagNames;
+  }
 
-    return merged;
+  return trackTagNames;
 }
 
 /**
@@ -55,71 +50,76 @@ async function fetchTagsWithFallback(client, artist, title) {
  * @param {string} title
  * @param {object} [opts]
  * @param {boolean} [opts.force=false]  - overwrite existing track
- * @returns {{ status: 'saved'|'updated'|'skipped', track?: object, error?: Error }}
+ * @returns {{ status: 'created'|'updated'|'skipped'|'failed', track?: object, error?: string }}
  */
 export async function ingestTrack(client, artist, title, opts = {}) {
-    const {force = false} = opts;
+  const { force = false } = opts;
 
-    try {
-        // REQ-003: skip check
-        const existing = await Track.findOne({artist, title});
-        if (existing && !force) {
-            return {status: "skipped", track: existing};
-        }
-
-        // REQ-001: fetch track info from Last.fm
-        const trackInfo = await client.getTrackInfo(artist, title);
-
-        // REQ-002 + REQ-006: fetch tags with artist fallback, build genreVector
-        const tags = await fetchTagsWithFallback(client, trackInfo.artist, trackInfo.title);
-        const genreVector = createVector(tags);
-
-        const doc = {
-            title: trackInfo.title,
-            artist: trackInfo.artist,
-            album: trackInfo.album ?? undefined,
-            duration: trackInfo.duration ?? undefined,
-            genreVector,
-            lastfmUrl: trackInfo.lastfmUrl ?? undefined,
-            lastfmTags: tags,
-            mbid: trackInfo.mbid ?? undefined,
-            imageUrl: trackInfo.imageUrl ?? undefined,
-        };
-
-        if (existing && force) {
-            // Update existing document
-            Object.assign(existing, doc);
-            await existing.save();
-            return {status: "updated", track: existing};
-        }
-
-        const track = await Track.create(doc);
-        return {status: "saved", track};
-    } catch (err) {
-        return {status: "error", error: err};
+  try {
+    // REQ-003: skip check
+    const existing = await Track.findOne({ artist, title });
+    if (existing && !force) {
+      return { status: "skipped", track: existing };
     }
+
+    // REQ-001: fetch track info from Last.fm
+    const trackInfo = await client.getTrackInfo(artist, title);
+
+    // REQ-002 + REQ-006: fetch tags with artist fallback, build genreVector
+    const tags = await fetchTagsWithFallback(client, trackInfo.artist, trackInfo.title);
+    const genreVector = createVector(tags);
+
+    const doc = {
+      title: trackInfo.title,
+      artist: trackInfo.artist,
+      album: trackInfo.album ?? undefined,
+      duration: trackInfo.duration ?? undefined,
+      genreVector,
+      lastfmUrl: trackInfo.lastfmUrl ?? undefined,
+      lastfmTags: tags,
+      mbid: trackInfo.mbid ?? undefined,
+      imageUrl: trackInfo.imageUrl ?? undefined,
+    };
+
+    if (existing && force) {
+      // Update existing document
+      Object.assign(existing, doc);
+      await existing.save();
+      return { status: "updated", track: existing };
+    }
+
+    const track = await Track.create(doc);
+    return { status: "created", track };
+  } catch (err) {
+    return { status: "failed", error: err.message || String(err) };
+  }
 }
 
 /**
  * Ingests multiple tracks sequentially.
  *
  * REQ-004: Processes an array of { artist, title } objects one by one.
- * REQ-005: Graceful error handling — never throws; failed tracks get status "error".
+ * REQ-005: Graceful error handling — never throws; failed tracks get status "failed".
  *
  * @param {object} client
  * @param {Array<{ artist: string, title: string }>} tracks
  * @param {object} [opts]
  * @param {boolean} [opts.force=false]
- * @returns {Promise<Array<{ artist, title, status, track?, error? }>>}
+ * @returns {Promise<{ results: Array<{ artist, title, status, track?, error? }>, summary: { created: number, skipped: number, failed: number } }>}
  */
 export async function ingestBatch(client, tracks, opts = {}) {
-    const results = [];
+  const results = [];
 
-    for (const {artist, title} of tracks) {
-        const result = await ingestTrack(client, artist, title, opts);
-        results.push({artist, title, ...result});
-    }
+  for (const { artist, title } of tracks) {
+    const result = await ingestTrack(client, artist, title, opts);
+    results.push({ artist, title, ...result });
+  }
 
-    return results;
+  const summary = {
+    created: results.filter((r) => r.status === "created").length,
+    skipped: results.filter((r) => r.status === "skipped").length,
+    failed: results.filter((r) => r.status === "failed").length,
+  };
+
+  return { results, summary };
 }
-
