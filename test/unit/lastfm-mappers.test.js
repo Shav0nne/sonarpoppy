@@ -1,6 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mapTrackInfo, mapTopTags } from "../../src/services/lastfm/mappers.js";
+import {
+  mapTrackInfo,
+  mapTopTags,
+  mapSimilarTracks,
+  mapSimilarArtists,
+} from "../../src/services/lastfm/mappers.js";
 
 describe("mapTrackInfo", () => {
   const fullResponse = {
@@ -155,5 +160,136 @@ describe("mapTopTags", () => {
     const result = mapTopTags(response);
     assert.equal(result[0].count, 100);
     assert.equal(typeof result[0].count, "number");
+  });
+});
+
+describe("mapSimilarTracks", () => {
+  const fullResponse = {
+    similartracks: {
+      track: [
+        {
+          name: "Under Pressure",
+          match: "0.85",
+          artist: { name: "Queen", "#text": "Queen" },
+        },
+        {
+          name: "We Will Rock You",
+          match: "0.72",
+          artist: { name: "Queen", "#text": "Queen" },
+        },
+      ],
+    },
+  };
+
+  it("maps similar tracks with artist, title, match", () => {
+    const result = mapSimilarTracks(fullResponse);
+    assert.equal(result.length, 2);
+    assert.deepEqual(result[0], { artist: "Queen", title: "Under Pressure", match: 0.85 });
+    assert.deepEqual(result[1], { artist: "Queen", title: "We Will Rock You", match: 0.72 });
+  });
+
+  it("coerces match from string to number", () => {
+    const result = mapSimilarTracks(fullResponse);
+    assert.equal(typeof result[0].match, "number");
+  });
+
+  it("uses #text fallback for artist name", () => {
+    const response = {
+      similartracks: {
+        track: [{ name: "Song", match: "0.5", artist: { "#text": "ArtistViaText" } }],
+      },
+    };
+    const result = mapSimilarTracks(response);
+    assert.equal(result[0].artist, "ArtistViaText");
+  });
+
+  it("returns empty array for missing similartracks", () => {
+    assert.deepEqual(mapSimilarTracks({}), []);
+    assert.deepEqual(mapSimilarTracks({ similartracks: {} }), []);
+    assert.deepEqual(mapSimilarTracks({ similartracks: { track: [] } }), []);
+  });
+
+  it("filters out entries with invalid match", () => {
+    const response = {
+      similartracks: {
+        track: [
+          { name: "Good", match: "0.5", artist: { name: "A" } },
+          { name: "Bad", match: "", artist: { name: "B" } },
+          { name: "Missing", artist: { name: "C" } },
+        ],
+      },
+    };
+    const result = mapSimilarTracks(response);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].title, "Good");
+  });
+
+  it("filters out entries without artist", () => {
+    const response = {
+      similartracks: {
+        track: [
+          { name: "Good", match: "0.5", artist: { name: "A" } },
+          { name: "NoArtist", match: "0.5" },
+          { name: "EmptyArtist", match: "0.5", artist: {} },
+        ],
+      },
+    };
+    const result = mapSimilarTracks(response);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].title, "Good");
+  });
+});
+
+describe("mapSimilarArtists", () => {
+  const fullResponse = {
+    similarartists: {
+      artist: [
+        { name: "David Bowie", match: "0.92" },
+        { name: "Led Zeppelin", match: "0.78" },
+      ],
+    },
+  };
+
+  it("maps similar artists with artist and match", () => {
+    const result = mapSimilarArtists(fullResponse);
+    assert.equal(result.length, 2);
+    assert.deepEqual(result[0], { artist: "David Bowie", match: 0.92 });
+    assert.deepEqual(result[1], { artist: "Led Zeppelin", match: 0.78 });
+  });
+
+  it("coerces match from string to number", () => {
+    const result = mapSimilarArtists(fullResponse);
+    assert.equal(typeof result[0].match, "number");
+  });
+
+  it("returns empty array for missing similarartists", () => {
+    assert.deepEqual(mapSimilarArtists({}), []);
+    assert.deepEqual(mapSimilarArtists({ similarartists: {} }), []);
+    assert.deepEqual(mapSimilarArtists({ similarartists: { artist: [] } }), []);
+  });
+
+  it("filters out entries with invalid match", () => {
+    const response = {
+      similarartists: {
+        artist: [
+          { name: "Good", match: "0.5" },
+          { name: "Bad", match: "" },
+        ],
+      },
+    };
+    const result = mapSimilarArtists(response);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].artist, "Good");
+  });
+
+  it("filters out entries without name", () => {
+    const response = {
+      similarartists: {
+        artist: [{ name: "Good", match: "0.5" }, { match: "0.5" }, { name: "", match: "0.5" }],
+      },
+    };
+    const result = mapSimilarArtists(response);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].artist, "Good");
   });
 });

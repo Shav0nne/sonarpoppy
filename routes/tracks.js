@@ -4,6 +4,7 @@ import { createLastfmClient } from "../src/services/lastfm/client.js";
 import { createSpotifyClient } from "../src/services/spotify/client.js";
 import { ingestTrack, ingestBatch } from "../src/services/ingestion/ingest.js";
 import { enrichTracks } from "../src/services/spotify/enrichSpotify.js";
+import { enrichCfData } from "../src/services/cf/enrichCf.js";
 
 const router = Router();
 
@@ -76,6 +77,23 @@ router.post("/enrich-spotify", async (req, res) => {
       ...result,
       _links: {
         self: { href: "/api/tracks/enrich-spotify" },
+        tracks: { href: "/api/tracks" },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/enrich-cf", async (req, res) => {
+  try {
+    const { batchSize } = req.body || {};
+    const result = await enrichCfData(client, { batchSize });
+
+    res.json({
+      ...result,
+      _links: {
+        self: { href: "/api/tracks/enrich-cf" },
         tracks: { href: "/api/tracks" },
       },
     });
