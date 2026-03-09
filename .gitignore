@@ -3,4 +3,5 @@
 node_modules
 .project
 .claude
-CLAUDE.md.playwright-mcp/
+CLAUDE.md
+.playwright-mcp/
