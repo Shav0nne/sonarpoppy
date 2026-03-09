@@ -29,7 +29,7 @@ const v = (primary) => {
 };
 
 describe("getRecommendations — integration met MongoDB", () => {
-  it("laadt tracks uit MongoDB en scoort ze", async () => {
+  it("laadt tracks uit MongoDB en scoort ze met hybride scoring", async () => {
     await Track.create([
       { title: "Rock Hit", artist: "A", genreVector: v(0) },
       { title: "Pop Song", artist: "B", genreVector: v(1) },
@@ -40,7 +40,9 @@ describe("getRecommendations — integration met MongoDB", () => {
 
     assert.equal(result.total, 3);
     assert.equal(result.tracks[0].track.title, "Rock Hit");
-    assert.equal(result.tracks[0].score, 1);
+    assert.equal(result.tracks[0].finalScore, 1);
+    assert.ok("signals" in result.tracks[0]);
+    assert.ok("appliedWeights" in result.tracks[0]);
   });
 
   it("skipt tracks zonder genreVector in MongoDB", async () => {
@@ -71,5 +73,13 @@ describe("getRecommendations — integration met MongoDB", () => {
     assert.equal(result.total, 0);
     assert.equal(result.tracks.length, 0);
     assert.equal(result.meta.avgScore, 0);
+  });
+
+  it("meta bevat configuredWeights en activeSignals", async () => {
+    await Track.create([{ title: "Rock", artist: "A", genreVector: v(0) }]);
+
+    const result = await getRecommendations({ profileVector: v(0) });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.3, cf: 0.4, audio: 0.3 });
+    assert.ok(result.meta.activeSignals.includes("genre"));
   });
 });

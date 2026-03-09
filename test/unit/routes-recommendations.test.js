@@ -60,7 +60,7 @@ describe("POST /api/recommendations", () => {
     const body = await res.json();
     assert.ok(Array.isArray(body.tracks));
     assert.equal(body.tracks.length, 3);
-    assert.ok(body.tracks[0].score >= body.tracks[1].score);
+    assert.ok(body.tracks[0].finalScore >= body.tracks[1].finalScore);
   });
 
   it("retourneert total count", async () => {

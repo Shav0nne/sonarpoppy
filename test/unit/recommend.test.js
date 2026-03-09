@@ -6,7 +6,7 @@ import { scoreTracks, getRecommendations } from "../../src/services/recommendati
 describe("scoreTracks — scoring via cosine similarity", () => {
   const profileVector = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-  it("retourneert een array van { track, score } objecten", () => {
+  it("retourneert een array met track breakdown objecten", () => {
     const tracks = [
       {
         _id: "t1",
@@ -18,10 +18,13 @@ describe("scoreTracks — scoring via cosine similarity", () => {
     const result = scoreTracks(profileVector, tracks);
     assert.equal(result.length, 1);
     assert.ok("track" in result[0]);
-    assert.ok("score" in result[0]);
+    assert.ok("finalScore" in result[0]);
+    assert.ok("signals" in result[0]);
+    assert.ok("appliedWeights" in result[0]);
+    assert.ok("feedbackMultiplier" in result[0]);
   });
 
-  it("berekent correcte cosine similarity scores", () => {
+  it("berekent correcte scores", () => {
     const tracks = [
       {
         _id: "t1",
@@ -37,11 +40,12 @@ describe("scoreTracks — scoring via cosine similarity", () => {
       },
     ];
     const result = scoreTracks(profileVector, tracks);
-    assert.equal(result[0].score, 1);
-    assert.equal(result[1].score, 0);
+    // Genre is het enige actieve signaal → 100% gewicht → finalScore = genre score
+    assert.equal(result[0].finalScore, 1);
+    assert.equal(result[1].finalScore, 0);
   });
 
-  it("sorteert op score desc", () => {
+  it("sorteert op finalScore desc", () => {
     const tracks = [
       {
         _id: "t1",
@@ -57,7 +61,7 @@ describe("scoreTracks — scoring via cosine similarity", () => {
       },
     ];
     const result = scoreTracks(profileVector, tracks);
-    assert.ok(result[0].score >= result[1].score, "eerste score moet >= tweede zijn");
+    assert.ok(result[0].finalScore >= result[1].finalScore, "eerste score moet >= tweede zijn");
     assert.equal(result[0].track.title, "High");
   });
 
@@ -188,13 +192,13 @@ describe("getRecommendations — pagination", () => {
 describe("getRecommendations — filters", () => {
   const profileVector = v(0);
 
-  it("filtert tracks met score onder minScore", async () => {
+  it("filtert tracks met finalScore onder minScore", async () => {
     const result = await getRecommendations({
       profileVector,
       filters: { minScore: 0.5 },
       _tracks: testTracks,
     });
-    assert.ok(result.tracks.every((t) => t.score >= 0.5));
+    assert.ok(result.tracks.every((t) => t.finalScore >= 0.5));
     assert.ok(result.tracks.length < 5);
   });
 
@@ -230,7 +234,7 @@ describe("getRecommendations — filters", () => {
   });
 });
 
-// REQ-005: Retourneer metadata
+// REQ-005: Retourneer metadata + breakdown
 describe("getRecommendations — metadata", () => {
   const profileVector = v(0);
 
@@ -242,7 +246,7 @@ describe("getRecommendations — metadata", () => {
 
   it("berekent avgScore correct", async () => {
     const result = await getRecommendations({ profileVector, _tracks: testTracks });
-    const expectedAvg = result.tracks.reduce((s, t) => s + t.score, 0) / result.tracks.length;
+    const expectedAvg = result.tracks.reduce((s, t) => s + t.finalScore, 0) / result.tracks.length;
     assert.equal(result.meta.avgScore, expectedAvg);
   });
 
@@ -258,5 +262,54 @@ describe("getRecommendations — metadata", () => {
     assert.equal(result.meta.avgScore, 0);
     assert.equal(result.meta.scoreRange.min, 0);
     assert.equal(result.meta.scoreRange.max, 0);
+  });
+
+  it("meta bevat configuredWeights (Stand 3 default)", async () => {
+    const result = await getRecommendations({ profileVector, _tracks: testTracks });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.3, cf: 0.4, audio: 0.3 });
+  });
+
+  it("meta bevat activeSignals", async () => {
+    const result = await getRecommendations({ profileVector, _tracks: testTracks });
+    assert.ok(Array.isArray(result.meta.activeSignals));
+    assert.ok(result.meta.activeSignals.includes("genre"));
+  });
+
+  it("meta activeSignals is leeg bij geen tracks", async () => {
+    const result = await getRecommendations({ profileVector, _tracks: [] });
+    assert.deepEqual(result.meta.activeSignals, []);
+  });
+});
+
+// REQ-005: Score breakdown per track
+describe("getRecommendations — score breakdown", () => {
+  const profileVector = v(0);
+
+  it("elke track bevat finalScore, signals, appliedWeights, feedbackMultiplier", async () => {
+    const result = await getRecommendations({ profileVector, _tracks: testTracks });
+    for (const item of result.tracks) {
+      assert.ok("finalScore" in item);
+      assert.ok("signals" in item);
+      assert.ok("appliedWeights" in item);
+      assert.ok("feedbackMultiplier" in item);
+    }
+  });
+
+  it("signals bevat genre score, cf en audio als null", async () => {
+    const result = await getRecommendations({ profileVector, _tracks: testTracks });
+    const first = result.tracks[0];
+    assert.equal(typeof first.signals.genre, "number");
+    assert.equal(first.signals.cf, null);
+    assert.equal(first.signals.audio, null);
+  });
+
+  it("accepteert custom weights via parameter", async () => {
+    const custom = { genre: 0.5, cf: 0.2, audio: 0.3 };
+    const result = await getRecommendations({
+      profileVector,
+      weights: custom,
+      _tracks: testTracks,
+    });
+    assert.deepEqual(result.meta.configuredWeights, custom);
   });
 });

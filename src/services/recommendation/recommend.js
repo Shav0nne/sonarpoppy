@@ -1,20 +1,33 @@
 import Track from "../../models/Track.js";
 import { cosineSimilarity } from "../../utils/similarity.js";
+import { hybridScore, DEFAULT_WEIGHTS } from "../scoring/hybridScore.js";
 
 function hasValidGenreVector(track) {
   return Array.isArray(track.genreVector) && track.genreVector.length > 0;
 }
 
-export function scoreTracks(profileVector, tracks) {
+export function scoreTracks(profileVector, tracks, weights) {
   const scored = [];
 
   for (const track of tracks) {
     if (!hasValidGenreVector(track)) continue;
-    const score = cosineSimilarity(profileVector, track.genreVector);
-    scored.push({ track, score });
+
+    const genreScore = cosineSimilarity(profileVector, track.genreVector);
+
+    // cf and audio are null until their features are built
+    const signals = { genre: genreScore, cf: null, audio: null };
+    const result = hybridScore(signals, weights);
+
+    scored.push({
+      track,
+      finalScore: result.finalScore,
+      signals: result.signals,
+      appliedWeights: result.appliedWeights,
+      feedbackMultiplier: result.feedbackMultiplier,
+    });
   }
 
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => b.finalScore - a.finalScore);
   return scored;
 }
 
@@ -23,13 +36,15 @@ export async function getRecommendations({
   limit,
   offset = 0,
   filters = {},
+  weights,
   _tracks,
 }) {
+  const w = weights ?? DEFAULT_WEIGHTS;
   const candidates = _tracks ?? (await Track.find().lean());
-  let scored = scoreTracks(profileVector, candidates);
+  let scored = scoreTracks(profileVector, candidates, w);
 
   if (filters.minScore != null) {
-    scored = scored.filter((s) => s.score >= filters.minScore);
+    scored = scored.filter((s) => s.finalScore >= filters.minScore);
   }
   if (filters.excludeIds?.length) {
     const excluded = new Set(filters.excludeIds.map(String));
@@ -39,7 +54,16 @@ export async function getRecommendations({
   const total = scored.length;
   const paged = limit != null ? scored.slice(offset, offset + limit) : scored.slice(offset);
 
-  const scores = scored.map((s) => s.score);
+  const scores = scored.map((s) => s.finalScore);
+  const activeSignals =
+    scored.length > 0
+      ? [
+          ...new Set(
+            scored.flatMap((s) => Object.keys(s.signals).filter((k) => s.signals[k] != null)),
+          ),
+        ]
+      : [];
+
   const meta = {
     scoredAt: new Date().toISOString(),
     avgScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
@@ -47,6 +71,8 @@ export async function getRecommendations({
       min: scores.length > 0 ? Math.min(...scores) : 0,
       max: scores.length > 0 ? Math.max(...scores) : 0,
     },
+    configuredWeights: w,
+    activeSignals,
   };
 
   return { tracks: paged, total, meta };
