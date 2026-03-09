@@ -1,6 +1,8 @@
 import express from "express";
 import mongoose from "mongoose";
 import router from "./routes/userRoute.js";
+// import loginRouter from "./routes/loginRoute.js";
+// import setupRouter from "./routes/setupRoute.js";
 
 const app = express();
 
@@ -29,7 +31,9 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use("/", router);
+app.use("/users", router);
+// app.use("/login", loginRouter);
+// app.use("/setup", setupRouter);
 
 // Database connectie
 if (!process.env.MONGODB_URI) {

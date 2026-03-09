@@ -12,6 +12,13 @@ router.options("/", (req, res) => {
     res.sendStatus(204);
 });
 
+router.options("/:id", (req, res) => {
+    res.setHeader("Allow", "GET, OPTIONS, PUT, DELETE");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS, PUT, DELETE");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+    res.sendStatus(204);
+});
+
 //get all users
 router.get("/",  async (req, res) => {
     const user =await User.find({},'-password -__v');
@@ -33,7 +40,7 @@ router.get("/",  async (req, res) => {
 
 //post create new user
 router.post("/", async (req, res) => {
-    const { username, email, password, role, spotifyId } = req.body;
+    const { username, email, password, role, spotify_id: spotify_id } = req.body;
 
     if (!username || !email || !password) {
         return res.status(400).json({ message: "Missing required fields: username, email, password" });
@@ -50,7 +57,7 @@ router.post("/", async (req, res) => {
             email,
             password,
             role: role || "user",
-            spotifyId
+            spotify_id: spotify_id
         });
 
         await user.save();
@@ -59,7 +66,7 @@ router.post("/", async (req, res) => {
             username: user.username,
             email: user.email,
             role: user.role,
-            spotifyId: user.spotifyId,
+            spotify_id: user.spotify_id,
             _links: {
                 self: {
                     href: `${process.env.BASE_URI}/users/${user._id}`,
@@ -79,7 +86,7 @@ router.post("/", async (req, res) => {
 router.post("/seed", async (req, res) => {
     try {
         await User.deleteMany({});
-        const amount = req.body.amount || 10;
+        const amount = req.body?.amount ?? 10;
 
         const users = [];
         for (let i = 0; i < amount; i++) {
@@ -88,7 +95,8 @@ router.post("/seed", async (req, res) => {
                 email: faker.internet.email(),
                 password: faker.internet.password(),
                 role: faker.helpers.arrayElement(["user", "admin"]),
-                spotifyId: faker.string.alphanumeric(10),
+                spotify_id: faker.string.alphanumeric(10),
+                status: faker.helpers.arrayElement(["active", "warned", "banned"])
             });
         }
 
@@ -103,42 +111,34 @@ router.post("/seed", async (req, res) => {
     }
 });
 
-// router.put("/:id", async (req, res) => {
-//     const userId = req.params.id;
-//     const { username, email, password, role, spotify_id } = req.body;
-//
-//     // Validate required fields (adjust based on your requirements)
-//     if (!username || !email || !role) {
-//         return res.status(400).json({
-//             error: "Required fields missing. Username, email, and role are required for update"
-//         });
-//     }
-//
-//     const updateData = {
-//         username,
-//         email,
-//         role
-//     };
-//
-//     const updatedUser = await User.findByIdAndUpdate(
-//         userId,
-//         updateData,
-//         {
-//             new: true,           // Return updated document
-//             runValidators: true,  // Run schema validators
-//             context: 'query'      // Important for certain validators
-//         }
-//     ).select('-__v'); // Optionally exclude version field
-//
-//     if (!updatedUser) {
-//         return res.status(404).json({ error: "User not found" });
-//     }});
-//options for detail
-router.options("/:id", (req, res) => {
-    res.setHeader("Allow", "GET, OPTIONS");
-    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
-    res.sendStatus(204);
+router.put("/:id", async (req, res) => {
+    const trainId = req.params.id;
+    const { username: username, email, role, status } = req.body;
+
+    if (!username || !email || !role || !status) {
+        return res.status(400).json({
+            error: "Alle velden (username, email, role, status) zijn verplicht voor update"
+        });
+    }
+
+    try {
+        const updatedUser = await User.findByIdAndUpdate(
+            trainId,
+            { username, email, role, status},
+            {
+                new: true,
+                runValidators: true
+            }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.status(200).json(updatedUser);
+    } catch (error) {
+        res.status(404).send()
+    }
 });
 
 //get user by id
@@ -160,6 +160,17 @@ router.all("/", (req, res, next) => {
         return res.sendStatus(405);
     }
     next();
+});
+
+router.delete("/:id", async (req, res) => {
+    const userId = req.params.id;
+    try {
+        const deleted = await User.findByIdAndDelete(userId);
+        if (!deleted) return res.status(404).send();
+        res.status(204).send();
+    } catch (e) {
+        res.status(404).send();
+    }
 });
 
 // Forbidden methods for detail
