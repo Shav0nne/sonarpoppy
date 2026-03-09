@@ -1,6 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
-import router from "./routes/index.js";
+import router from "./routes/userRoute.js";
 
 const app = express();
 
@@ -30,9 +30,15 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use("/users", router);
 app.use("/api", router);
 
 // Database connectie
+if (!process.env.MONGODB_URI) {
+    console.error("MONGODB_URI is not defined in environment variables");
+    process.exit(1);
+}
+
 try {
   await mongoose.connect(process.env.MONGODB_URI);
   console.log("Connected to MongoDB");
