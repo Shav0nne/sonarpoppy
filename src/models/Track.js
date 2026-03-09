@@ -32,6 +32,20 @@ const trackSchema = new mongoose.Schema(
         width: { type: Number },
       },
     ],
+    similarTracks: [
+      {
+        artist: { type: String, required: true },
+        title: { type: String, required: true },
+        match: { type: Number, required: true, min: 0, max: 1 },
+      },
+    ],
+    similarArtists: [
+      {
+        artist: { type: String, required: true },
+        match: { type: Number, required: true, min: 0, max: 1 },
+      },
+    ],
+    cfEnrichedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

@@ -26,3 +26,35 @@ export function mapTopTags(response) {
     .map((t) => ({ name: t.name, count: Number(t.count) }))
     .sort((a, b) => b.count - a.count);
 }
+
+export function mapSimilarTracks(response) {
+  const tracks = response.similartracks?.track;
+  if (!tracks?.length) return [];
+
+  return tracks
+    .filter((t) => {
+      const artist = t.artist?.name || t.artist?.["#text"];
+      const match = Number(t.match);
+      return artist && t.name && !isNaN(match) && match > 0;
+    })
+    .map((t) => ({
+      artist: t.artist.name || t.artist["#text"],
+      title: t.name,
+      match: Number(t.match),
+    }));
+}
+
+export function mapSimilarArtists(response) {
+  const artists = response.similarartists?.artist;
+  if (!artists?.length) return [];
+
+  return artists
+    .filter((a) => {
+      const match = Number(a.match);
+      return a.name && !isNaN(match) && match > 0;
+    })
+    .map((a) => ({
+      artist: a.name,
+      match: Number(a.match),
+    }));
+}

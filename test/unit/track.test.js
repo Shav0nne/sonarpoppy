@@ -190,3 +190,69 @@ describe("genreVector zero-vector guard", () => {
     assert.equal(err, undefined);
   });
 });
+
+// CF enrichment velden
+describe("CF enrichment velden", () => {
+  const baseTrack = { title: "Test", artist: "Test" };
+
+  it("heeft similarTracks, similarArtists, cfEnrichedAt paden", () => {
+    const paths = Object.keys(Track.schema.paths);
+    assert.ok(paths.includes("cfEnrichedAt"), "missing: cfEnrichedAt");
+    assert.ok(Track.schema.path("similarTracks"), "missing: similarTracks");
+    assert.ok(Track.schema.path("similarArtists"), "missing: similarArtists");
+  });
+
+  it("accepteert similarTracks met artist, title, match", () => {
+    const track = new Track({
+      ...baseTrack,
+      similarTracks: [{ artist: "Queen", title: "Under Pressure", match: 0.85 }],
+    });
+    const err = track.validateSync();
+    assert.equal(err, undefined);
+    assert.equal(track.similarTracks[0].artist, "Queen");
+    assert.equal(track.similarTracks[0].title, "Under Pressure");
+    assert.equal(track.similarTracks[0].match, 0.85);
+  });
+
+  it("accepteert similarArtists met artist, match", () => {
+    const track = new Track({
+      ...baseTrack,
+      similarArtists: [{ artist: "David Bowie", match: 0.92 }],
+    });
+    const err = track.validateSync();
+    assert.equal(err, undefined);
+    assert.equal(track.similarArtists[0].artist, "David Bowie");
+    assert.equal(track.similarArtists[0].match, 0.92);
+  });
+
+  it("cfEnrichedAt defaults to null", () => {
+    const track = new Track(baseTrack);
+    assert.equal(track.cfEnrichedAt, null);
+  });
+
+  it("accepteert cfEnrichedAt als Date", () => {
+    const now = new Date();
+    const track = new Track({ ...baseTrack, cfEnrichedAt: now });
+    const err = track.validateSync();
+    assert.equal(err, undefined);
+    assert.deepEqual(track.cfEnrichedAt, now);
+  });
+
+  it("faalt bij similarTracks match buiten 0-1", () => {
+    const track = new Track({
+      ...baseTrack,
+      similarTracks: [{ artist: "A", title: "B", match: 1.5 }],
+    });
+    const err = track.validateSync();
+    assert.ok(err);
+  });
+
+  it("faalt bij similarArtists match buiten 0-1", () => {
+    const track = new Track({
+      ...baseTrack,
+      similarArtists: [{ artist: "A", match: -0.1 }],
+    });
+    const err = track.validateSync();
+    assert.ok(err);
+  });
+});

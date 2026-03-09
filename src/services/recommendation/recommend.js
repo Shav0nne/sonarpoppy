@@ -4,12 +4,13 @@ import { cosineSimilarity } from "../../utils/similarity.js";
 import { hybridScore, DEFAULT_WEIGHTS } from "../scoring/hybridScore.js";
 import { getFeedbackMultiplier } from "../feedback/feedbackMultiplier.js";
 import { getDialPreset } from "../../config/dial.js";
+import { computeCfScore } from "../cf/cfScore.js";
 
 function hasValidGenreVector(track) {
   return Array.isArray(track.genreVector) && track.genreVector.length > 0;
 }
 
-export function scoreTracks(profileVector, tracks, weights, feedbackMap = null) {
+export function scoreTracks(profileVector, tracks, weights, feedbackMap = null, cfContext = null) {
   const scored = [];
 
   for (const track of tracks) {
@@ -17,8 +18,11 @@ export function scoreTracks(profileVector, tracks, weights, feedbackMap = null) 
 
     const genreScore = cosineSimilarity(profileVector, track.genreVector);
 
-    // cf is null until that feature is built
-    const signals = { genre: genreScore, cf: null };
+    const cfScore = cfContext
+      ? computeCfScore(track, cfContext.likedTrackKeys, cfContext.likedArtists)
+      : null;
+
+    const signals = { genre: genreScore, cf: cfScore };
 
     const trackId = String(track._id);
     const feedback = feedbackMap?.get(trackId) ?? null;
@@ -72,7 +76,25 @@ export async function getRecommendations({
   }
 
   const candidates = _tracks ?? (await Track.find().lean());
-  let scored = scoreTracks(profileVector, candidates, w, feedbackMap);
+
+  // Build CF context from liked tracks for CF scoring
+  let cfContext = null;
+  if (feedbackMap) {
+    const likedTrackKeys = new Set();
+    const likedArtists = new Set();
+    for (const track of candidates) {
+      const fb = feedbackMap.get(String(track._id));
+      if (fb && (fb.action === "like" || fb.action === "library")) {
+        likedTrackKeys.add(`${track.artist.toLowerCase()}|${track.title.toLowerCase()}`);
+        likedArtists.add(track.artist.toLowerCase());
+      }
+    }
+    if (likedTrackKeys.size > 0) {
+      cfContext = { likedTrackKeys, likedArtists };
+    }
+  }
+
+  let scored = scoreTracks(profileVector, candidates, w, feedbackMap, cfContext);
 
   if (filters.minScore != null) {
     scored = scored.filter((s) => s.finalScore >= filters.minScore);
