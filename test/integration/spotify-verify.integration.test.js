@@ -94,13 +94,12 @@ test("Spotify Verify Integration", async (t) => {
           albumImages: [],
         };
       },
-      getAudioFeatures: async () => ({}),
     };
 
     const result = await enrichTracks(mockClient);
 
     assert.strictEqual(result.total, 1, "Should only find 1 unenriched track");
-    assert.strictEqual(result.matched, 1);
+    assert.strictEqual(result.enriched, 1);
     assert.strictEqual(searchCallCount, 1, "searchTrack called exactly once");
 
     // Verify original track untouched
@@ -132,15 +131,14 @@ test("Spotify Verify Integration", async (t) => {
           albumImages: [],
         };
       },
-      getAudioFeatures: async () => ({}),
     };
 
     const result = await enrichTracks(mockClient);
 
     // All 3 tracks should be attempted
     assert.strictEqual(callCount, 3, "All 3 tracks should be searched");
-    assert.strictEqual(result.errors, 1, "1 error (A2)");
-    assert.strictEqual(result.matched, 2, "2 matched (A1 + A3)");
+    assert.strictEqual(result.failed, 1, "1 error (A2)");
+    assert.strictEqual(result.enriched, 2, "2 enriched (A1 + A3)");
 
     // Verify A1 and A3 are enriched, A2 is not
     const a1 = await Track.findOne({ artist: "A1" }).lean();

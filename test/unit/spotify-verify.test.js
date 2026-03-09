@@ -41,24 +41,24 @@ const searchOk = () => ({
   }),
 });
 
-const credentials = { clientId: "test_id", clientSecret: "test_secret", rateLimit: false };
+const credentials = {
+  clientId: "test_id",
+  clientSecret: "test_secret",
+  rateLimit: false,
+  maxRetries: 0,
+};
 
 // --- Test 1: Auth 401 bij runtime (REQ-001) ---
 
 test("REQ-001: Auth 401 bij runtime — token fetch faalt met SpotifyApiError", async (t) => {
-  const originalFetch = global.fetch;
-  t.afterEach(() => {
-    global.fetch = originalFetch;
-  });
-
   await t.test(
     "should throw SpotifyApiError with status 401 when token endpoint rejects",
     async () => {
-      global.fetch = mockFetchSequence([
+      const mockFetch = mockFetchSequence([
         () => ({ ok: false, status: 401, text: async () => "Unauthorized" }),
       ]);
 
-      const client = createSpotifyClient(credentials);
+      const client = createSpotifyClient({ ...credentials, fetch: mockFetch });
 
       await assert.rejects(
         () => client.searchTrack("Artist", "Title"),
@@ -71,8 +71,8 @@ test("REQ-001: Auth 401 bij runtime — token fetch faalt met SpotifyApiError", 
       );
 
       // Verify no search call was made
-      assert.strictEqual(global.fetch.calls.length, 1);
-      assert.ok(global.fetch.calls[0].url.includes("token"));
+      assert.strictEqual(mockFetch.calls.length, 1);
+      assert.ok(mockFetch.calls[0].url.includes("token"));
     },
   );
 });
@@ -80,95 +80,36 @@ test("REQ-001: Auth 401 bij runtime — token fetch faalt met SpotifyApiError", 
 // --- Test 2: Token refresh bij expiry < 60s buffer (REQ-001) ---
 
 test("REQ-001: Token proactief refreshed wanneer remaining lifetime < 60s", async (t) => {
-  const originalFetch = global.fetch;
-  t.afterEach(() => {
-    global.fetch = originalFetch;
-  });
-
   await t.test("should re-fetch token when expires_in is within 60s window", async () => {
     // First token expires in 59 seconds — immediately within the 60s buffer
-    global.fetch = mockFetchSequence([
+    const mockFetch = mockFetchSequence([
       tokenOk(59), // first token: expires in 59s (< 60s buffer)
       () => searchOk(), // first search
       tokenOk(3600), // re-fetched token: expires in 1h
       () => searchOk(), // second search
     ]);
 
-    const client = createSpotifyClient(credentials);
+    const client = createSpotifyClient({ ...credentials, fetch: mockFetch });
 
     await client.searchTrack("A1", "T1");
     await client.searchTrack("A2", "T2");
 
     // Token endpoint should be called TWICE (refresh triggered on second call)
-    const tokenCalls = global.fetch.calls.filter((c) => c.url.includes("token"));
+    const tokenCalls = mockFetch.calls.filter((c) => c.url.includes("token"));
     assert.strictEqual(tokenCalls.length, 2, "Token should be fetched twice due to 60s buffer");
   });
 });
 
-// --- Test 6: getAudioFeatures 403 → silent fallback {} (REQ-006) ---
-
-test("REQ-006: getAudioFeatures retourneert {} bij 403 Forbidden", async (t) => {
-  const originalFetch = global.fetch;
-  t.afterEach(() => {
-    global.fetch = originalFetch;
-  });
-
-  await t.test("should return empty object when audio features endpoint returns 403", async () => {
-    global.fetch = mockFetchSequence([
-      tokenOk(),
-      () => ({
-        ok: false,
-        status: 403,
-        text: async () => "Forbidden - Audio Features not available",
-      }),
-    ]);
-
-    const client = createSpotifyClient(credentials);
-    const result = await client.getAudioFeatures("some_id");
-
-    assert.deepStrictEqual(result, {}, "Should return empty object for 403");
-  });
-
-  await t.test("should return empty object when audio features endpoint returns 404", async () => {
-    global.fetch = mockFetchSequence([
-      tokenOk(),
-      () => ({ ok: false, status: 404, text: async () => "Not Found" }),
-    ]);
-
-    const client = createSpotifyClient(credentials);
-    const result = await client.getAudioFeatures("nonexistent_id");
-
-    assert.deepStrictEqual(result, {}, "Should return empty object for 404");
-  });
-
-  await t.test("should throw for non-403/404 errors in audio features", async () => {
-    global.fetch = mockFetchSequence([
-      tokenOk(),
-      () => ({ ok: false, status: 500, text: async () => "Internal Server Error" }),
-    ]);
-
-    const client = createSpotifyClient(credentials);
-
-    await assert.rejects(
-      () => client.getAudioFeatures("some_id"),
-      (err) => {
-        assert.ok(err instanceof SpotifyApiError);
-        assert.strictEqual(err.status, 500);
-        return true;
-      },
-    );
-  });
-});
-
-// --- Test 8: enrichTracks response format (REQ-005) ---
+// --- Test 3: enrichTracks response format (REQ-005) ---
 
 test("REQ-005: enrichTracks response bevat verwachte velden", async (t) => {
-  // Dynamic import to get the module for mocking Track
   const { enrichTracks } = await import("../../src/services/spotify/enrichSpotify.js");
   const Track = (await import("../../src/models/Track.js")).default;
 
   t.beforeEach(() => {
-    Track.find = mock.fn(async () => [{ _id: "id1", artist: "A1", title: "T1" }]);
+    Track.find = () => ({
+      limit: async () => [{ _id: "id1", artist: "A1", title: "T1" }],
+    });
     Track.findByIdAndUpdate = mock.fn(async () => {});
   });
 
@@ -176,36 +117,30 @@ test("REQ-005: enrichTracks response bevat verwachte velden", async (t) => {
     mock.restoreAll();
   });
 
-  await t.test(
-    "response should have total, processed, matched, errors, matches fields",
-    async () => {
-      const mockClient = {
-        searchTrack: mock.fn(async () => ({ spotifyId: "sp1", spotifyUri: "spotify:track:sp1" })),
-        getAudioFeatures: mock.fn(async () => ({ danceability: 0.8 })),
-      };
+  await t.test("response should have total, enriched, skipped, failed, errors fields", async () => {
+    const mockClient = {
+      searchTrack: mock.fn(async () => ({ spotifyId: "sp1", spotifyUri: "spotify:track:sp1" })),
+    };
 
-      const result = await enrichTracks(mockClient);
+    const result = await enrichTracks(mockClient);
 
-      // Verify all expected fields exist
-      assert.ok("total" in result, "should have total");
-      assert.ok("processed" in result, "should have processed");
-      assert.ok("matched" in result, "should have matched");
-      assert.ok("errors" in result, "should have errors");
-      assert.ok("matches" in result, "should have matches");
+    // Verify all expected fields exist
+    assert.ok("total" in result, "should have total");
+    assert.ok("enriched" in result, "should have enriched");
+    assert.ok("skipped" in result, "should have skipped");
+    assert.ok("failed" in result, "should have failed");
+    assert.ok("errors" in result, "should have errors");
 
-      // Verify types
-      assert.strictEqual(typeof result.total, "number");
-      assert.strictEqual(typeof result.processed, "number");
-      assert.strictEqual(typeof result.matched, "number");
-      assert.strictEqual(typeof result.errors, "number");
-      assert.ok(Array.isArray(result.matches));
+    // Verify types
+    assert.strictEqual(typeof result.total, "number");
+    assert.strictEqual(typeof result.enriched, "number");
+    assert.strictEqual(typeof result.skipped, "number");
+    assert.strictEqual(typeof result.failed, "number");
+    assert.ok(Array.isArray(result.errors));
 
-      // Verify match entry shape
-      assert.strictEqual(result.matches.length, 1);
-      assert.ok("id" in result.matches[0]);
-      assert.ok("artist" in result.matches[0]);
-      assert.ok("title" in result.matches[0]);
-      assert.ok("spotifyId" in result.matches[0]);
-    },
-  );
+    // Verify counts
+    assert.strictEqual(result.enriched, 1);
+    assert.strictEqual(result.skipped, 0);
+    assert.strictEqual(result.failed, 0);
+  });
 });

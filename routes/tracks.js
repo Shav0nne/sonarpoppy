@@ -9,6 +9,14 @@ const router = Router();
 
 const client = createLastfmClient({ apiKey: process.env.LASTFM_API_KEY });
 
+const spotifyClient =
+  process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET
+    ? createSpotifyClient({
+        clientId: process.env.SPOTIFY_CLIENT_ID,
+        clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+      })
+    : null;
+
 router.get("/", async (req, res) => {
   const tracks = await Track.find().lean();
   res.json({
@@ -57,12 +65,12 @@ router.post("/ingest-batch", async (req, res) => {
 
 router.post("/enrich-spotify", async (req, res) => {
   try {
-    const spotifyClient = createSpotifyClient({
-      clientId: process.env.SPOTIFY_CLIENT_ID,
-      clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-    });
+    if (!spotifyClient) {
+      return res.status(503).json({ error: "Spotify credentials not configured" });
+    }
 
-    const result = await enrichTracks(spotifyClient);
+    const { batchSize } = req.body || {};
+    const result = await enrichTracks(spotifyClient, { batchSize });
 
     res.json({
       ...result,
