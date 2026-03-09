@@ -313,3 +313,97 @@ describe("getRecommendations — score breakdown", () => {
     assert.deepEqual(result.meta.configuredWeights, custom);
   });
 });
+
+// REQ-004: dial parameter resolved naar weights
+describe("getRecommendations — dial parameter", () => {
+  const profileVector = v(0);
+
+  it("dial: 1 resolved naar Stand 1 gewichten", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      dial: 1,
+      _tracks: testTracks,
+    });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.5, cf: 0.2, audio: 0.3 });
+  });
+
+  it("dial: 5 resolved naar Stand 5 gewichten", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      dial: 5,
+      _tracks: testTracks,
+    });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.1, cf: 0.6, audio: 0.3 });
+  });
+
+  it("dial overschrijft weights als beide aanwezig", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      dial: 1,
+      weights: { genre: 0.9, cf: 0.05, audio: 0.05 },
+      _tracks: testTracks,
+    });
+    // dial wint: Stand 1 gewichten
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.5, cf: 0.2, audio: 0.3 });
+  });
+
+  it("geen dial + geen weights → default Stand 3", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      _tracks: testTracks,
+    });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.3, cf: 0.4, audio: 0.3 });
+  });
+
+  it("ongeldige dial gooit error", async () => {
+    await assert.rejects(
+      () => getRecommendations({ profileVector, dial: 0, _tracks: testTracks }),
+      RangeError,
+    );
+  });
+});
+
+// REQ-005: dialPosition in meta
+describe("getRecommendations — dialPosition in meta", () => {
+  const profileVector = v(0);
+
+  it("dialPosition = dial stand bij dial parameter", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      dial: 4,
+      _tracks: testTracks,
+    });
+    assert.equal(result.meta.dialPosition, 4);
+  });
+
+  it("dialPosition = 3 bij geen dial en geen weights (default)", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      _tracks: testTracks,
+    });
+    assert.equal(result.meta.dialPosition, 3);
+  });
+
+  it("dialPosition = null bij custom weights", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      weights: { genre: 0.5, cf: 0.2, audio: 0.3 },
+      _tracks: testTracks,
+    });
+    assert.equal(result.meta.dialPosition, null);
+  });
+
+  it("bestaande meta velden blijven intact", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      dial: 2,
+      _tracks: testTracks,
+    });
+    assert.ok(result.meta.scoredAt);
+    assert.ok("avgScore" in result.meta);
+    assert.ok("scoreRange" in result.meta);
+    assert.ok("configuredWeights" in result.meta);
+    assert.ok("activeSignals" in result.meta);
+    assert.ok("dialPosition" in result.meta);
+  });
+});

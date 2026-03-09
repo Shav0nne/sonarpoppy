@@ -1,6 +1,7 @@
 import Track from "../../models/Track.js";
 import { cosineSimilarity } from "../../utils/similarity.js";
 import { hybridScore, DEFAULT_WEIGHTS } from "../scoring/hybridScore.js";
+import { getDialPreset } from "../../config/dial.js";
 
 function hasValidGenreVector(track) {
   return Array.isArray(track.genreVector) && track.genreVector.length > 0;
@@ -37,9 +38,23 @@ export async function getRecommendations({
   offset = 0,
   filters = {},
   weights,
+  dial,
   _tracks,
 }) {
-  const w = weights ?? DEFAULT_WEIGHTS;
+  // dial overschrijft weights; geen dial + geen weights → default Stand 3
+  let w;
+  let dialPosition;
+  if (dial != null) {
+    const preset = getDialPreset(dial);
+    w = preset.weights;
+    dialPosition = preset.position;
+  } else if (weights != null) {
+    w = weights;
+    dialPosition = null;
+  } else {
+    w = DEFAULT_WEIGHTS;
+    dialPosition = 3;
+  }
   const candidates = _tracks ?? (await Track.find().lean());
   let scored = scoreTracks(profileVector, candidates, w);
 
@@ -73,6 +88,7 @@ export async function getRecommendations({
     },
     configuredWeights: w,
     activeSignals,
+    dialPosition,
   };
 
   return { tracks: paged, total, meta };
