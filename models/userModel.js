@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema(
     {
@@ -7,22 +8,7 @@ const userSchema = new mongoose.Schema(
         password: {
             type: String,
             required: true,
-            // validate: {
-            //     validator: function (value) {
-            //         // if (typeof value !== 'string') return false;
-            //         // if (value.length < 8) {
-            //         //     return false;
-            //         // }
-            //         // if (!/[0-9]/.test(value)) {
-            //         //     return false;
-            //         // }
-            //         // if (!/[@$!%*?&]/.test(value)) {
-            //         //     return false;
-            //         // }
-            //         return true;
-            //     },
-            //     message: 'Password must be at least 8 characters and contain a number and a special character (@, $, !, %, *, ?, &).'
-            // }
+            select: false,
         },
         role: { type: String, enum: ["user", "admin"], default: "user" },
         spotifyId: { type: String },
@@ -34,7 +20,7 @@ const userSchema = new mongoose.Schema(
             virtuals: true,
             versionKey: false,
             transform: (doc, ret) => {
-                // expose `id` as a string and include HATEOAS links
+                // expose `id` as a string
                 ret.id = ret._id ? ret._id.toString() : undefined;
 
                 ret._links = {
@@ -46,11 +32,26 @@ const userSchema = new mongoose.Schema(
                     },
                 };
 
+                // remove internal fields before sending to client
                 delete ret._id;
+                delete ret.password;
             },
         },
     }
 );
+
+// Pre-save hook: hash password if modified
+userSchema.pre("save", async function () {
+    if (!this.isModified("password")) return;
+    const saltRounds = Number(process.env.BCRYPT_ROUNDS) || 10;
+    this.password = await bcrypt.hash(this.password, saltRounds);
+});
+
+// Instance method to compare password
+userSchema.methods.comparePassword = async function (candidatePassword) {
+    if (!this.password) return false;
+    return bcrypt.compare(candidatePassword, this.password);
+};
 
 const User = mongoose.model("User", userSchema);
 
