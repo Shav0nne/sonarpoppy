@@ -21,8 +21,8 @@ router.options("/:id", (req, res) => {
 
 //get all users
 router.get("/",  async (req, res) => {
-    const user =await User.find({},'-password -__v');
-    const trainCollection = {
+    const user =await User.find();
+    const userCollection = {
         items: user,
         _links: {
             self: {
@@ -35,7 +35,7 @@ router.get("/",  async (req, res) => {
 
 
     }
-    res.json(trainCollection);
+    res.json(userCollection);
 });
 
 //post create new user
