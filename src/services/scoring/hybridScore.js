@@ -1,12 +1,12 @@
-const DEFAULT_WEIGHTS = Object.freeze({ genre: 0.3, cf: 0.4, audio: 0.3 });
-const SIGNAL_KEYS = ["genre", "cf", "audio"];
+const DEFAULT_WEIGHTS = Object.freeze({ genre: 0.5, cf: 0.5 });
+const SIGNAL_KEYS = ["genre", "cf"];
 
 /**
- * Hybride scoring: (alpha*genre + beta*cf + gamma*audio) × delta*feedback
+ * Hybride scoring: (alpha*genre + beta*cf) × delta*feedback
  * Re-normaliseert gewichten over beschikbare signalen (som=1.0).
  *
- * @param {{ genre?: number|null, cf?: number|null, audio?: number|null }} signals
- * @param {{ genre?: number, cf?: number, audio?: number }} [weights]
+ * @param {{ genre?: number|null, cf?: number|null }} signals
+ * @param {{ genre?: number, cf?: number }} [weights]
  * @param {number} [feedbackMultiplier=1.0]
  * @returns {{ finalScore: number, signals: object, appliedWeights: object, feedbackMultiplier: number }}
  */

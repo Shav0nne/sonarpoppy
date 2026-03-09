@@ -16,7 +16,6 @@ describe("DIAL_PRESETS — structure", () => {
       assert.ok(preset.weights);
       assert.equal(typeof preset.weights.genre, "number");
       assert.equal(typeof preset.weights.cf, "number");
-      assert.equal(typeof preset.weights.audio, "number");
     }
   });
 
@@ -27,7 +26,7 @@ describe("DIAL_PRESETS — structure", () => {
 
   it("gewichten sommeren tot 1.0 per preset", () => {
     for (const preset of DIAL_PRESETS) {
-      const sum = preset.weights.genre + preset.weights.cf + preset.weights.audio;
+      const sum = preset.weights.genre + preset.weights.cf;
       assert.ok(
         Math.abs(sum - 1.0) < 0.001,
         `Stand ${preset.position}: weights sum ${sum} !== 1.0`,
@@ -50,27 +49,27 @@ describe("DIAL_PRESETS — structure", () => {
 describe("DIAL_PRESETS — gewichten per stand", () => {
   it("Stand 1 (Strikt): genre-zwaar", () => {
     const s = DIAL_PRESETS[0];
-    assert.deepEqual(s.weights, { genre: 0.5, cf: 0.2, audio: 0.3 });
+    assert.deepEqual(s.weights, { genre: 0.7, cf: 0.3 });
   });
 
   it("Stand 2 (Dichtbij): herkenbaar met variatie", () => {
     const s = DIAL_PRESETS[1];
-    assert.deepEqual(s.weights, { genre: 0.4, cf: 0.3, audio: 0.3 });
+    assert.deepEqual(s.weights, { genre: 0.6, cf: 0.4 });
   });
 
   it("Stand 3 (Gebalanceerd): gelijke mix", () => {
     const s = DIAL_PRESETS[2];
-    assert.deepEqual(s.weights, { genre: 0.3, cf: 0.4, audio: 0.3 });
+    assert.deepEqual(s.weights, { genre: 0.5, cf: 0.5 });
   });
 
   it("Stand 4 (Ontdekking): CF-zwaar", () => {
     const s = DIAL_PRESETS[3];
-    assert.deepEqual(s.weights, { genre: 0.2, cf: 0.5, audio: 0.3 });
+    assert.deepEqual(s.weights, { genre: 0.4, cf: 0.6 });
   });
 
   it("Stand 5 (Anti-bubbel): maximaal buiten bubbel", () => {
     const s = DIAL_PRESETS[4];
-    assert.deepEqual(s.weights, { genre: 0.1, cf: 0.6, audio: 0.3 });
+    assert.deepEqual(s.weights, { genre: 0.3, cf: 0.7 });
   });
 
   it("genre daalt monotoon van Stand 1→5", () => {

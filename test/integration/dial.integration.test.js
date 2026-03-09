@@ -52,7 +52,7 @@ describe("Item 2: Dial presets zijn read-only", () => {
     const originalPresets = JSON.parse(JSON.stringify(body1.presets));
 
     // (2) Muteer een weight in de JSON response
-    body1.presets[0].weights = { genre: 0.99, cf: 0.005, audio: 0.005 };
+    body1.presets[0].weights = { genre: 0.99, cf: 0.01 };
     body1.presets[1].name = "GEHACKT";
 
     // (3) GET /api/dial opnieuw
@@ -118,7 +118,7 @@ describe("Item I2: dial vs custom weights → dialPosition", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         profileVector: v(1),
-        weights: { genre: 0.5, cf: 0.2, audio: 0.3 },
+        weights: { genre: 0.7, cf: 0.3 },
       }),
     });
     const body2 = await res2.json();
