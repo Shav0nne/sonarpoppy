@@ -1,13 +1,15 @@
 import Track from "../../models/Track.js";
+import Feedback from "../../models/Feedback.js";
 import { cosineSimilarity } from "../../utils/similarity.js";
 import { hybridScore, DEFAULT_WEIGHTS } from "../scoring/hybridScore.js";
+import { getFeedbackMultiplier } from "../feedback/feedbackMultiplier.js";
 import { getDialPreset } from "../../config/dial.js";
 
 function hasValidGenreVector(track) {
   return Array.isArray(track.genreVector) && track.genreVector.length > 0;
 }
 
-export function scoreTracks(profileVector, tracks, weights) {
+export function scoreTracks(profileVector, tracks, weights, feedbackMap = null) {
   const scored = [];
 
   for (const track of tracks) {
@@ -15,9 +17,14 @@ export function scoreTracks(profileVector, tracks, weights) {
 
     const genreScore = cosineSimilarity(profileVector, track.genreVector);
 
-    // cf and audio are null until their features are built
-    const signals = { genre: genreScore, cf: null, audio: null };
-    const result = hybridScore(signals, weights);
+    // cf is null until that feature is built
+    const signals = { genre: genreScore, cf: null };
+
+    const trackId = String(track._id);
+    const feedback = feedbackMap?.get(trackId) ?? null;
+    const multiplier = getFeedbackMultiplier(feedback);
+
+    const result = hybridScore(signals, weights, multiplier);
 
     scored.push({
       track,
@@ -39,6 +46,7 @@ export async function getRecommendations({
   filters = {},
   weights,
   dial,
+  userId,
   _tracks,
 }) {
   // dial overschrijft weights; geen dial + geen weights → default Stand 3
@@ -55,8 +63,16 @@ export async function getRecommendations({
     w = DEFAULT_WEIGHTS;
     dialPosition = 3;
   }
+
+  // Build feedback map per track voor deze user
+  let feedbackMap = null;
+  if (userId) {
+    const feedbackDocs = await Feedback.find({ userId }).lean();
+    feedbackMap = new Map(feedbackDocs.map((fb) => [String(fb.trackId), fb]));
+  }
+
   const candidates = _tracks ?? (await Track.find().lean());
-  let scored = scoreTracks(profileVector, candidates, w);
+  let scored = scoreTracks(profileVector, candidates, w, feedbackMap);
 
   if (filters.minScore != null) {
     scored = scored.filter((s) => s.finalScore >= filters.minScore);
