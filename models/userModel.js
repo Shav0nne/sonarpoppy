@@ -13,6 +13,11 @@ const userSchema = new mongoose.Schema(
         role: { type: String, enum: ["user", "admin"], default: "user" },
         spotifyId: { type: String },
         status: { type: String, enum: ["active", "warned", "banned"], default: "active" },
+        accessibility: { type:Boolean, default: false},
+        image: {
+            data: Buffer,
+            contentType: String
+        }
     },
     {
         timestamps: true,
