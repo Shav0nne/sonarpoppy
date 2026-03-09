@@ -266,7 +266,7 @@ describe("getRecommendations — metadata", () => {
 
   it("meta bevat configuredWeights (Stand 3 default)", async () => {
     const result = await getRecommendations({ profileVector, _tracks: testTracks });
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.3, cf: 0.4, audio: 0.3 });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.5, cf: 0.5 });
   });
 
   it("meta bevat activeSignals", async () => {
@@ -295,16 +295,15 @@ describe("getRecommendations — score breakdown", () => {
     }
   });
 
-  it("signals bevat genre score, cf en audio als null", async () => {
+  it("signals bevat genre score en cf als null", async () => {
     const result = await getRecommendations({ profileVector, _tracks: testTracks });
     const first = result.tracks[0];
     assert.equal(typeof first.signals.genre, "number");
     assert.equal(first.signals.cf, null);
-    assert.equal(first.signals.audio, null);
   });
 
   it("accepteert custom weights via parameter", async () => {
-    const custom = { genre: 0.5, cf: 0.2, audio: 0.3 };
+    const custom = { genre: 0.7, cf: 0.3 };
     const result = await getRecommendations({
       profileVector,
       weights: custom,
@@ -324,7 +323,7 @@ describe("getRecommendations — dial parameter", () => {
       dial: 1,
       _tracks: testTracks,
     });
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.5, cf: 0.2, audio: 0.3 });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.7, cf: 0.3 });
   });
 
   it("dial: 5 resolved naar Stand 5 gewichten", async () => {
@@ -333,18 +332,18 @@ describe("getRecommendations — dial parameter", () => {
       dial: 5,
       _tracks: testTracks,
     });
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.1, cf: 0.6, audio: 0.3 });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.3, cf: 0.7 });
   });
 
   it("dial overschrijft weights als beide aanwezig", async () => {
     const result = await getRecommendations({
       profileVector,
       dial: 1,
-      weights: { genre: 0.9, cf: 0.05, audio: 0.05 },
+      weights: { genre: 0.9, cf: 0.1 },
       _tracks: testTracks,
     });
     // dial wint: Stand 1 gewichten
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.5, cf: 0.2, audio: 0.3 });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.7, cf: 0.3 });
   });
 
   it("geen dial + geen weights → default Stand 3", async () => {
@@ -352,7 +351,7 @@ describe("getRecommendations — dial parameter", () => {
       profileVector,
       _tracks: testTracks,
     });
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.3, cf: 0.4, audio: 0.3 });
+    assert.deepEqual(result.meta.configuredWeights, { genre: 0.5, cf: 0.5 });
   });
 
   it("ongeldige dial gooit error", async () => {
@@ -387,7 +386,7 @@ describe("getRecommendations — dialPosition in meta", () => {
   it("dialPosition = null bij custom weights", async () => {
     const result = await getRecommendations({
       profileVector,
-      weights: { genre: 0.5, cf: 0.2, audio: 0.3 },
+      weights: { genre: 0.7, cf: 0.3 },
       _tracks: testTracks,
     });
     assert.equal(result.meta.dialPosition, null);
