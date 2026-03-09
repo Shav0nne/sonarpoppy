@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import User from "../models/userModel.js";
+import User from "../src/models/User.js";
 
 const router = express.Router();
 
@@ -34,7 +34,9 @@ router.post("/signup", async (req, res) => {
       email: user.email,
       role: user.role,
       _links: {
-        self: { href: `${process.env.BASE_URI}/users/${user.id || (user._id ? user._id.toString() : "")}` },
+        self: {
+          href: `${process.env.BASE_URI}/users/${user.id || (user._id ? user._id.toString() : "")}`,
+        },
         collection: { href: `${process.env.BASE_URI}/users` },
       },
     });
@@ -65,7 +67,9 @@ router.post("/login", async (req, res) => {
     }
 
     const payload = { sub: user._id.toString(), role: user.role };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || "1h" });
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "1h",
+    });
 
     res.json({
       token,

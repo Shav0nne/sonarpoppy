@@ -1,7 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
-import usersRouter from "./routes/userRoute.js";
-import authRouter from "./routes/authRoute.js";
+import usersRouter from "./routes/users.js";
+import authRouter from "./routes/auth.js";
 
 const app = express();
 
@@ -37,8 +37,8 @@ app.use("/auth", authRouter);
 
 // Database connectie
 if (!process.env.MONGODB_URI) {
-    console.error("MONGODB_URI is not defined in environment variables");
-    process.exit(1);
+  console.error("MONGODB_URI is not defined in environment variables");
+  process.exit(1);
 }
 
 try {
