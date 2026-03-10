@@ -22,21 +22,26 @@ router.options("/:id", (req, res) => {
 
 //get all users
 router.get("/",  async (req, res) => {
-    const user =await User.find();
-    const userCollection = {
-        items: user,
-        _links: {
-            self: {
-                href: process.env.BASE_URI,
-            },
-            collection: {
-                href: process.env.BASE_URI,
-            },
-        }
+    const users = await User.find();
+    const items = users.map(u => {
+        const id = u.id || (u._id ? u._id.toString() : undefined);
+        const hasImage = !!(u.image && (u.image.data || u.image._id));
+        return {
+            id,
+            username: u.username,
+            email: u.email,
+            role: u.role,
+            spotifyId: u.spotifyId,
+            status: u.status,
+            imageUrl: hasImage ? `${process.env.BASE_URI}/users/${id}/image` : null,
+            _links: {
+                self: { href: `${process.env.BASE_URI}/users/${id}` },
+                collection: { href: `${process.env.BASE_URI}/users` }
+            }
+        };
+    });
 
-
-    }
-    res.json(userCollection);
+    res.json({ items, _links: { self: { href: `${process.env.BASE_URI}/users` } } });
 });
 
 //post create new user (accept multipart/form-data)
@@ -76,22 +81,20 @@ router.post("/", upload.single('image'), async (req, res) => {
         }
 
         const user = new User(userData);
-
         await user.save();
 
+        const id = user.id || (user._id ? user._id.toString() : undefined);
         res.status(201).json({
+            id,
             username: user.username,
             email: user.email,
             role: user.role,
-            spotify_id: user.spotify_id,
+            spotifyId: user.spotifyId,
+            imageUrl: user.image ? `${process.env.BASE_URI}/users/${id}/image` : null,
             _links: {
-                self: {
-                    href: `${process.env.BASE_URI}/users/${user._id}`,
-                },
-                collection: {
-                    href: `${process.env.BASE_URI}/users`,
-                },
-            },
+                self: { href: `${process.env.BASE_URI}/users/${id}` },
+                collection: { href: `${process.env.BASE_URI}/users` }
+            }
         });
     } catch (error) {
         console.error(error);
@@ -161,28 +164,59 @@ router.put("/:id", upload.single('image'), async (req, res) => {
             return res.status(404).json({ error: "User not found" });
         }
 
-        res.status(200).json(updatedUser);
-    } catch (error) {
-        res.status(404).send();
-    }
+        // sanitize response: don't include binary image buffer
+        const id = updatedUser.id || (updatedUser._id ? updatedUser._id.toString() : undefined);
+        res.status(200).json({
+            id,
+            username: updatedUser.username,
+            email: updatedUser.email,
+            role: updatedUser.role,
+            status: updatedUser.status,
+            imageUrl: updatedUser.image ? `${process.env.BASE_URI}/users/${id}/image` : null,
+            _links: { self: { href: `${process.env.BASE_URI}/users/${id}` } }
+        });
+     } catch (error) {
+         res.status(404).send();
+     }
 });
 
 //get user by id
 router.get("/:id", async (req, res) => {
     const userId = req.params.id;
-
     try {
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).send(); // not found after deletion
-        res.json(user);
-    } catch (e) {res.status(404).send();
-    }
+        const user = await User.findById(userId).select('+image');
+        if (!user) return res.status(404).send();
+
+        const id = user.id || (user._id ? user._id.toString() : undefined);
+        const hasImage = !!(user.image && user.image.data);
+
+        // If client explicitly requests base64 embedding, return data URL
+        if (req.query.embed === 'base64' && hasImage) {
+            const b64 = user.image.data.toString('base64');
+            const mime = user.image.contentType || user.image.mimetype || 'image/jpeg';
+            return res.json({ id, username: user.username, email: user.email, role: user.role, image: `data:${mime};base64,${b64}` });
+        }
+
+        // Otherwise return metadata + imageUrl link
+        res.json({
+            id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            status: user.status,
+            imageUrl: hasImage ? `${process.env.BASE_URI}/users/${id}/image` : null,
+            _links: { self: { href: `${process.env.BASE_URI}/users/${id}` } }
+        });
+    } catch (e) { res.status(404).send(); }
 });
 
 router.get('/:id/image', async (req, res) => {
     const user = await User.findById(req.params.id).select('image');
     if (!user || !user.image || !user.image.data) return res.status(404).send();
-    res.contentType(user.image.contentType || 'image/jpeg');
+    const mime = user.image.contentType || user.image.mimetype || 'image/jpeg';
+    res.setHeader('Content-Type', mime);
+    // Cache for 24 hours by default
+    res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(user.image.data);
 });
 

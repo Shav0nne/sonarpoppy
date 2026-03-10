@@ -20,18 +20,17 @@ app.use((req, res, next) => {
 
 //accept header middleware
 app.use((req, res, next) => {
-  if (req.method === "OPTIONS") return next();
-  const accept = req.headers.accept;
-  const contentType = (req.headers["content-type"] || "").toLowerCase();
-
-  // Allow multipart/form-data (file uploads) and requests that explicitly accept JSON.
-  if (contentType.startsWith("multipart/form-data")) return next();
-
-  // If the client explicitly accepts JSON, allow. Also allow image requests and wildcard */*.
-  if (!accept || accept.includes("application/json") || accept.includes("*/*") || accept.includes("image/")) {
+  if (req.method === "OPTIONS") {
     return next();
   }
-  return res.status(406).json({ message: "Only application/json is allowed in Accept header" });
+  const accept = req.headers.accept;
+
+  if (!accept || !accept.includes("application/json")) {
+    return res.status(406).json({
+      message: "Only application/json is allowed in Accept header",
+    });
+  }
+  next();
 });
 
 // Routes
