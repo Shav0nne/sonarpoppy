@@ -6,6 +6,7 @@ import recommendationsRouter from "./recommendations.js";
 import dialRouter from "./dial.js";
 import feedbackRouter from "./feedback.js";
 import slidersRouter from "./sliders.js";
+import onboardingRouter from "./onboarding.js";
 import usersRouter from "./users.js";
 import authRouter from "./auth.js";
 
@@ -18,6 +19,7 @@ router.use("/recommendations", recommendationsRouter);
 router.use("/dial", dialRouter);
 router.use("/feedback", feedbackRouter);
 router.use("/sliders", slidersRouter);
+router.use("/onboarding", onboardingRouter);
 router.use("/users", usersRouter);
 router.use("/auth", authRouter);
 
