@@ -2,12 +2,15 @@ import express from "express";
 import mongoose from "mongoose";
 import usersRouter from "./routes/userRoute.js";
 import authRouter from "./routes/authRoute.js";
+import bodyParser from "body-parser";
 
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 //CORS MIDDLEWARE
 app.use((req, res, next) => {
@@ -17,17 +20,18 @@ app.use((req, res, next) => {
 
 //accept header middleware
 app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
+  if (req.method === "OPTIONS") return next();
+  const accept = req.headers.accept;
+  const contentType = (req.headers["content-type"] || "").toLowerCase();
+
+  // Allow multipart/form-data (file uploads) and requests that explicitly accept JSON.
+  if (contentType.startsWith("multipart/form-data")) return next();
+
+  // If the client explicitly accepts JSON, allow. Also allow image requests and wildcard */*.
+  if (!accept || accept.includes("application/json") || accept.includes("*/*") || accept.includes("image/")) {
     return next();
   }
-  const accept = req.headers.accept;
-
-  if (!accept || !accept.includes("application/json")) {
-    return res.status(406).json({
-      message: "Only application/json is allowed in Accept header",
-    });
-  }
-  next();
+  return res.status(406).json({ message: "Only application/json is allowed in Accept header" });
 });
 
 // Routes

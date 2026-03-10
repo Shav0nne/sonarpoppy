@@ -16,7 +16,9 @@ const userSchema = new mongoose.Schema(
         accessibility: { type:Boolean, default: false},
         image: {
             data: Buffer,
-            contentType: String
+            contentType: String,
+            filename: String,
+            mimetype: String
         }
     },
     {

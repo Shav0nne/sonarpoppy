@@ -1,6 +1,7 @@
 import express from "express";
 import { faker } from "@faker-js/faker";
 import User from "../models/userModel.js";
+import { upload } from "../middleware/multerSetup.js";
 
 const router = express.Router();
 
@@ -38,9 +39,14 @@ router.get("/",  async (req, res) => {
     res.json(userCollection);
 });
 
-//post create new user
-router.post("/", async (req, res) => {
-    const { username, email, password, role, spotify_id: spotify_id } = req.body;
+//post create new user (accept multipart/form-data)
+router.post("/", upload.single('image'), async (req, res) => {
+    // Multer populates req.body (string fields) and req.file (file)
+    console.log('POST /users content-type:', req.headers['content-type']);
+    console.log('POST /users has req.file:', !!req.file);
+    console.log('POST /users req.body:', req.body);
+    const body = req.body || {};
+    const { username, email, password, role, spotifyId, spotify_id } = body;
 
     if (!username || !email || !password) {
         return res.status(400).json({ message: "Missing required fields: username, email, password" });
@@ -52,13 +58,24 @@ router.post("/", async (req, res) => {
             return res.status(409).json({ message: "Username already exists" });
         }
 
-        const user = new User({
+        const userData = {
             username,
             email,
             password,
             role: role || "user",
-            spotify_id: spotify_id
-        });
+            spotifyId: spotifyId || spotify_id
+        };
+
+        if (req.file) {
+            userData.image = {
+                data: req.file.buffer,
+                contentType: req.file.mimetype,
+                filename: req.file.originalname,
+                mimetype: req.file.mimetype
+            };
+        }
+
+        const user = new User(userData);
 
         await user.save();
 
@@ -111,9 +128,13 @@ router.post("/seed", async (req, res) => {
     }
 });
 
-router.put("/:id", async (req, res) => {
-    const trainId = req.params.id;
-    const { username: username, email, role, status } = req.body;
+router.put("/:id", upload.single('image'), async (req, res) => {
+    const userId = req.params.id;
+    console.log('PUT /users/:id content-type:', req.headers['content-type']);
+    console.log('PUT /users/:id has req.file:', !!req.file);
+    console.log('PUT /users/:id req.body:', req.body);
+    const body = req.body || {};
+    const { username: username, email, role, status } = body;
 
     if (!username || !email || !role || !status) {
         return res.status(400).json({
@@ -122,9 +143,14 @@ router.put("/:id", async (req, res) => {
     }
 
     try {
+        const updateData = { username, email, role, status };
+        if (req.file) {
+            updateData.image = { data: req.file.buffer, contentType: req.file.mimetype, filename: req.file.originalname, mimetype: req.file.mimetype };
+        }
+
         const updatedUser = await User.findByIdAndUpdate(
-            trainId,
-            { username, email, role, status},
+            userId,
+            updateData,
             {
                 new: true,
                 runValidators: true
@@ -137,7 +163,7 @@ router.put("/:id", async (req, res) => {
 
         res.status(200).json(updatedUser);
     } catch (error) {
-        res.status(404).send()
+        res.status(404).send();
     }
 });
 
@@ -152,6 +178,14 @@ router.get("/:id", async (req, res) => {
     } catch (e) {res.status(404).send();
     }
 });
+
+router.get('/:id/image', async (req, res) => {
+    const user = await User.findById(req.params.id).select('image');
+    if (!user || !user.image || !user.image.data) return res.status(404).send();
+    res.contentType(user.image.contentType || 'image/jpeg');
+    res.send(user.image.data);
+});
+
 
 //forbidden methods for collection
 router.all("/", (req, res, next) => {

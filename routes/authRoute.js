@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
+import { upload } from "../middleware/multerSetup.js"
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.options("/", (req, res) => {
 });
 
 // POST /auth/signup
-router.post("/signup", async (req, res) => {
+router.post("/signup", upload.single('image'), async (req, res) => {
   const { username, email, password, role } = req.body;
   if (!username || !email || !password) {
     return res.status(400).json({ message: "Missing required fields: username, email, password" });
@@ -26,6 +27,14 @@ router.post("/signup", async (req, res) => {
 
     // Let the model pre-save hook hash the password
     const user = new User({ username, email, password, role: role || "user" });
+      if (req.file) {
+          userData.image = {
+              data: req.file.buffer,
+              contentType: req.file.mimetype,
+              filename: req.file.originalname,
+              mimetype: req.file.mimetype
+          };
+      }
     await user.save();
 
     res.status(201).json({

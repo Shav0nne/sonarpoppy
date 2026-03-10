@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>User Images Tester</title>
+</head>
+<body>
+  <h1>User Images Tester (no CSS)</h1>
+
+  <section>
+    <h2>Create account</h2>
+    <form id="createForm">
+      <label>Username: <input name="username" required></label><br>
+      <label>Email: <input name="email" type="email" required></label><br>
+      <label>Password: <input name="password" type="password" required></label><br>
+      <label>Role: <select name="role"><option value="user">user</option><option value="admin">admin</option></select></label><br>
+      <label>Image: <input name="image" type="file" accept="image/*"></label><br>
+      <button type="submit">Create</button>
+    </form>
+    <div id="createMessage"></div>
+  </section>
+
+  <section>
+    <h2>Users</h2>
+    <div id="usersContainer">Loading...</div>
+  </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const usersContainer = document.getElementById('usersContainer');
+  const createForm = document.getElementById('createForm');
+  const createMessage = document.getElementById('createMessage');
+
+  async function fetchUsers() {
+    usersContainer.textContent = 'Loading...';
+    try {
+      const res = await fetch('/users', { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const data = await res.json();
+      const items = data.items || data;
+      renderUsers(items);
+    } catch (err) {
+      usersContainer.textContent = 'Error: ' + err.message;
+    }
+  }
+
+  function renderUsers(users) {
+    if (!Array.isArray(users) || users.length === 0) {
+      usersContainer.innerHTML = '<div>No users found</div>';
+      return;
+    }
+    usersContainer.innerHTML = '';
+    users.forEach(user => {
+      const id = user.id || user._id;
+      const wrapper = document.createElement('div');
+      wrapper.style.border = '1px solid #ccc';
+      wrapper.style.padding = '8px';
+      wrapper.style.marginBottom = '8px';
+
+      const title = document.createElement('div');
+      title.textContent = user.username + ' (' + user.email + ')';
+      wrapper.appendChild(title);
+
+      const img = document.createElement('img');
+      img.width = 200;
+      img.height = 150;
+      img.alt = 'avatar';
+      img.onerror = function() { this.src = ''; };
+      img.src = id ? ('/users/' + id + '/image') : '';
+      wrapper.appendChild(img);
+
+      // Update form
+      const form = document.createElement('form');
+      form.enctype = 'multipart/form-data';
+      form.innerHTML = '\n        <label>Replace image: <input type="file" name="image" accept="image/*"></label>\n        <input type="hidden" name="username" value="' + escapeHtml(user.username) + '">\n        <input type="hidden" name="email" value="' + escapeHtml(user.email) + '">\n        <input type="hidden" name="role" value="' + (user.role || 'user') + '">\n        <input type="hidden" name="status" value="' + (user.status || 'active') + '">\n        <button type="submit">Upload</button>\n      ';
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        handleReplaceImage(e.target, id);
+      });
+      wrapper.appendChild(form);
+
+      usersContainer.appendChild(wrapper);
+    });
+  }
+
+  async function handleReplaceImage(form, userId) {
+    const fileInput = form.querySelector('input[name="image"]');
+    if (!fileInput || !fileInput.files[0]) {
+      alert('Please pick a file');
+      return;
+    }
+    const fd = new FormData();
+    fd.append('username', form.username.value);
+    fd.append('email', form.email.value);
+    fd.append('role', form.role.value);
+    fd.append('status', form.status.value);
+    fd.append('image', fileInput.files[0]);
+
+    try {
+      const res = await fetch('/users/' + userId, { method: 'PUT', body: fd,
+          headers: {
+              Accept: 'application/json'
+          } });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || ('Status ' + res.status));
+      }
+      alert('Image updated');
+      fetchUsers();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  createForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    createMessage.textContent = '';
+    const fd = new FormData(createForm);
+    try {
+      const res = await fetch('/users', { method: 'POST', body: fd,
+          headers: {
+              Accept: 'application/json'
+          } });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || ('Status ' + res.status));
+      }
+      createMessage.textContent = 'User created';
+      createForm.reset();
+      fetchUsers();
+    } catch (err) {
+      createMessage.textContent = 'Error: ' + err.message;
+    }
+  });
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]; });
+  }
+
+  fetchUsers();
+});
+</script>
+</body>
+</html>
