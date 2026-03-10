@@ -10,6 +10,7 @@ let mongod;
 before(async () => {
   mongod = await MongoMemoryServer.create();
   await mongoose.connect(mongod.getUri());
+  await GenreSliders.syncIndexes();
 });
 
 after(async () => {
