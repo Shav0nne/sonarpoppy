@@ -10,6 +10,7 @@ import onboardingRouter from "./onboarding.js";
 import usersRouter from "./users.js";
 import authRouter from "./auth.js";
 import apiKeysRouter from "./api-keys.js";
+import blacklistRouter from "./blacklist.js";
 import { validateApiKey } from "../src/middleware/apiKeyMiddleware.js";
 
 const router = Router();
@@ -30,5 +31,6 @@ router.use("/dial", dialRouter);
 router.use("/feedback", feedbackRouter);
 router.use("/sliders", slidersRouter);
 router.use("/onboarding", onboardingRouter);
+router.use("/blacklist", blacklistRouter);
 
 export default router;
