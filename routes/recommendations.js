@@ -4,7 +4,7 @@ import { getRecommendations } from "../src/services/recommendation/recommend.js"
 const router = Router();
 
 router.post("/", async (req, res) => {
-  const { profileVector, limit, offset, filters, weights, dial, userId } = req.body;
+  const { profileVector, limit, offset, filters, weights, dial, userId, overrides } = req.body;
   if (!Array.isArray(profileVector)) {
     return res.status(400).json({ error: "profileVector array is required" });
   }
@@ -17,6 +17,7 @@ router.post("/", async (req, res) => {
     weights,
     dial,
     userId,
+    overrides,
   });
 
   res.json({

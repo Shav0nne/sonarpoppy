@@ -30,7 +30,12 @@ Zie [getting-started.md](getting-started.md) voor account aanmaken, API key opha
 | POST   | `/api/v1/tracks/enrich-spotify`          | Spotify metadata toevoegen (beheer)   |
 | POST   | `/api/v1/tracks/enrich-cf`               | CF data toevoegen (beheer)            |
 
-Alle endpoints vereisen `X-API-Key` header. Zie [getting-started.md](getting-started.md).
+Alle endpoints (behalve auth) vereisen twee headers:
+
+- **`Authorization: Bearer <token>`** — JWT token van de ingelogde gebruiker (per user, uit login response)
+- **`X-API-Key: sk_live_...`** — API key van de app (per app, door developer eenmalig aangemaakt)
+
+De API key identificeert de **app**, niet de gebruiker. Eén key wordt gedeeld door alle eindgebruikers van dezelfde frontend. De server haalt `userId` automatisch uit het JWT token — je hoeft dit niet mee te sturen. Zie [getting-started.md](getting-started.md).
 
 ---
 
@@ -87,7 +92,6 @@ Cold start voor nieuwe gebruikers. Laat de gebruiker genres kiezen en optioneel 
 
 ```json
 {
-  "userId": "user123",
   "genres": ["rock", "electronic", "jazz"],
   "artists": ["Radiohead", "Daft Punk"],
   "app": "sonarpop"
@@ -96,10 +100,11 @@ Cold start voor nieuwe gebruikers. Laat de gebruiker genres kiezen en optioneel 
 
 | Veld      | Type     | Verplicht | Beschrijving                                                |
 | --------- | -------- | --------- | ----------------------------------------------------------- |
-| `userId`  | string   | ja        | Unieke user identifier                                      |
 | `genres`  | string[] | ja        | Gekozen genres (min 3 voor SonarPop, min 3 voor Poppy)      |
 | `artists` | string[] | nee       | Favoriete artiesten — hun Last.fm tags boosten genres extra |
 | `app`     | string   | nee       | `"sonarpop"` of `"poppy"` — bepaalt validatieregels         |
+
+> `userId` wordt automatisch uit het JWT token gehaald. Niet meesturen.
 
 **Response (201):**
 
@@ -131,17 +136,14 @@ Berekent een profielvector. Dit is de input voor `/recommendations`.
 **Request:**
 
 ```json
-{
-  "userId": "user123"
-}
+{}
 ```
 
-| Veld      | Type   | Verplicht | Beschrijving                                                                                                    |
-| --------- | ------ | --------- | --------------------------------------------------------------------------------------------------------------- |
-| `userId`  | string | nee       | Laadt slider weights uit DB. Zonder userId → gebruik `weights`                                                  |
-| `weights` | object | nee       | Handmatige genre weights, bijv. `{"rock": 0.8, "jazz": 0.3}`. Fallback als geen userId of geen sliders gevonden |
+| Veld      | Type   | Verplicht | Beschrijving                                                                                                  |
+| --------- | ------ | --------- | ------------------------------------------------------------------------------------------------------------- |
+| `weights` | object | nee       | Handmatige genre weights, bijv. `{"rock": 0.8, "jazz": 0.3}`. Fallback als geen sliders gevonden voor de user |
 
-> Geen `userId` en geen `weights`? → cold start vector (alle genres gelijk).
+> `userId` wordt automatisch uit het JWT token gehaald. Zonder sliders en zonder `weights` → cold start vector (alle genres gelijk).
 
 **Response:**
 
@@ -172,8 +174,7 @@ Het hoofdendpoint. Retourneert gepersonaliseerde track-aanbevelingen gesorteerd 
   ],
   "limit": 10,
   "offset": 0,
-  "dial": 3,
-  "userId": "user123"
+  "dial": 3
 }
 ```
 
@@ -183,10 +184,11 @@ Het hoofdendpoint. Retourneert gepersonaliseerde track-aanbevelingen gesorteerd 
 | `limit`              | number   | nee       | Max resultaten (default: alle)                                                |
 | `offset`             | number   | nee       | Skip eerste N (voor paginatie)                                                |
 | `dial`               | number   | nee       | Stand 1-5. 1=voorspelbaar, 5=verrassend                                       |
-| `userId`             | string   | nee       | Voor feedback multiplier + blacklist filtering                                |
 | `weights`            | object   | nee       | Custom `{"genre": 0.6, "cf": 0.4}` (wordt genegeerd als `dial` is meegegeven) |
 | `filters.minScore`   | number   | nee       | Minimum score (0.0-1.0)                                                       |
 | `filters.excludeIds` | string[] | nee       | Track IDs om over te slaan                                                    |
+
+> `userId` wordt automatisch uit het JWT token gehaald (voor feedback multiplier + blacklist filtering).
 
 > **Prioriteit:** `dial` > `weights` > default (stand 3)
 
@@ -328,7 +330,6 @@ Registreert een like, dislike, library-add of skip. Upsert: maakt nieuw aan of u
 
 ```json
 {
-  "userId": "user123",
   "trackId": "507f1f77bcf86cd799439011",
   "action": "like"
 }
@@ -336,9 +337,10 @@ Registreert een like, dislike, library-add of skip. Upsert: maakt nieuw aan of u
 
 | Veld      | Type   | Verplicht | Beschrijving                                    |
 | --------- | ------ | --------- | ----------------------------------------------- |
-| `userId`  | string | ja        | User identifier                                 |
 | `trackId` | string | ja        | Track `_id`                                     |
 | `action`  | string | nee       | `"like"`, `"dislike"`, `"library"`, of `"skip"` |
+
+> `userId` wordt automatisch uit het JWT token gehaald.
 
 **Response (201):**
 
@@ -519,15 +521,16 @@ Verrijkt tracks met Last.fm collaborative filtering data (similarTracks, similar
 ### Helper functie
 
 ```js
-const API_KEY = "sk_live_...";
-const BASE = "http://localhost:8000/api/v1";
+const TOKEN = "eyJhbG..."; // JWT uit login response
+const API_KEY = "sk_live_..."; // API key uit api-keys response
+const BASE = "http://145.24.237.95:8000/api/v1";
 
 async function api(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      Accept: "application/json",
       "Content-Type": "application/json",
+      Authorization: `Bearer ${TOKEN}`,
       "X-API-Key": API_KEY,
       ...options.headers,
     },
@@ -542,10 +545,10 @@ async function api(path, options = {}) {
 ### Onboarding
 
 ```js
+// userId wordt automatisch uit JWT gehaald — niet meesturen
 const { profile, sliders } = await api("/onboarding", {
   method: "POST",
   body: {
-    userId: "user123",
     genres: ["rock", "electronic", "jazz"],
     artists: ["Radiohead"],
     app: "sonarpop",
@@ -556,20 +559,19 @@ const { profile, sliders } = await api("/onboarding", {
 ### Recommendations ophalen
 
 ```js
-// Profiel berekenen (gebruikt opgeslagen sliders)
+// Profiel berekenen (userId uit JWT, sliders uit DB)
 const { vector } = await api("/profile/compute", {
   method: "POST",
-  body: { userId: "user123" },
+  body: {},
 });
 
-// Aanbevelingen ophalen
+// Aanbevelingen ophalen (userId uit JWT voor feedback/blacklist filtering)
 const { tracks, total } = await api("/recommendations", {
   method: "POST",
   body: {
     profileVector: vector,
     limit: 10,
     dial: 3,
-    userId: "user123",
   },
 });
 
@@ -584,14 +586,16 @@ tracks.forEach(({ track, finalScore }) => {
 ```js
 await api("/feedback", {
   method: "POST",
-  body: { userId: "user123", trackId: tracks[0].track._id, action: "like" },
+  body: { trackId: tracks[0].track._id, action: "like" },
 });
 ```
 
 ### Artiest blokkeren
 
 ```js
-await api("/blacklist/user123", {
+// userId in het pad moet matchen met de JWT user
+const userId = "abc123"; // uit login response user.id
+await api(`/blacklist/${userId}`, {
   method: "POST",
   body: { type: "artist", value: "Nickelback" },
 });

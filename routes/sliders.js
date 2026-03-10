@@ -1,8 +1,10 @@
 import { Router } from "express";
 import GenreSliders from "../src/models/GenreSliders.js";
 import { GENRES } from "../src/config/genres.js";
+import { validateUserParam } from "../src/middleware/apiKeyMiddleware.js";
 
 const router = Router();
+router.param("userId", validateUserParam);
 
 const GENRE_SET = new Set(GENRES);
 

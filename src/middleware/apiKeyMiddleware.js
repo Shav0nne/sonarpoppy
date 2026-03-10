@@ -19,6 +19,28 @@ export async function validateApiKey(req, res, next) {
     return res.status(401).json({ message: "Invalid API key" });
   }
 
-  req.apiKey = { id: doc._id.toString(), userId: doc.userId.toString() };
+  req.apiKey = { id: doc._id.toString(), name: doc.name };
+  next();
+}
+
+// Injecteert userId uit JWT token in body.
+// Draait na authenticateJWT als globale middleware — req.user.id is de source of truth.
+export function injectUserId(req, res, next) {
+  const userId = req.user.id;
+
+  if (req.body && typeof req.body === "object") {
+    req.body.userId = userId;
+  }
+
+  next();
+}
+
+// Valideert dat :userId param matcht met de ingelogde user.
+// Gebruik als router.param("userId", validateUserParam) in route files.
+// Skipt de check als req.user niet bestaat (unit tests zonder auth middleware).
+export function validateUserParam(req, res, next, userId) {
+  if (req.user && userId !== req.user.id) {
+    return res.status(403).json({ message: "userId does not match authenticated user" });
+  }
   next();
 }

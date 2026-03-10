@@ -2,107 +2,288 @@
 
 ## Voor wie is dit?
 
-Dit document legt uit hoe je als frontend-developer toegang krijgt tot de SonarPoppy API. Eenmalige setup — daarna gebruik je alleen je API key.
+Dit document legt uit hoe je als frontend-developer de SonarPoppy API gebruikt vanuit een React app. Het beschrijft de volledige flow: van account aanmaken tot recommendations ophalen.
 
 ## Base URL
 
 ```
-http://localhost:8000/api/v1
+http://145.24.237.95:8000/api/v1
 ```
 
 Poortnummer kan anders zijn — check `.env` → `EXPRESS_PORT`.
 
-## Vereiste headers
+## Authenticatie
 
-```
-Accept: application/json              ← altijd meesturen
-Content-Type: application/json        ← alleen bij POST/PUT
-X-API-Key: sk_live_jouw_key_hier      ← voor alle /api/v1/* endpoints
-```
+SonarPoppy gebruikt **twee lagen** authenticatie:
 
-> Zonder `Accept: application/json` krijg je altijd `406 Not Acceptable`.
+| Laag          | Header                          | Doel                           | Wanneer nodig          |
+| ------------- | ------------------------------- | ------------------------------ | ---------------------- |
+| **JWT token** | `Authorization: Bearer <token>` | Identificeert de **gebruiker** | Alle beschermde routes |
+| **API key**   | `X-API-Key: sk_live_...`        | Identificeert de **app**       | Alle beschermde routes |
+
+### Waarom twee lagen?
+
+- **JWT** → wie is de gebruiker? De server haalt `userId` uit het token. Je hoeft userId nooit zelf mee te sturen.
+- **API key** → welke app maakt het request? Handig voor rate limiting, key rotation en als je later externe toegang wilt bieden.
+
+### Welke routes zijn publiek?
+
+| Route                           | Bescherming    |
+| ------------------------------- | -------------- |
+| `POST /api/v1/auth/signup`      | Geen (publiek) |
+| `POST /api/v1/auth/login`       | Geen (publiek) |
+| `POST /api/v1/api-keys`         | Alleen JWT     |
+| `GET /api/v1/api-keys`          | Alleen JWT     |
+| `DELETE /api/v1/api-keys/:id`   | Alleen JWT     |
+| Alle overige `/api/v1/*` routes | JWT + API key  |
 
 ---
 
-## API Key aanvragen (eenmalig)
+## Vereiste headers
 
-### 1. Account aanmaken
+**Publieke routes** (auth):
+
+```
+Content-Type: application/json
+```
+
+**Key management** (api-keys):
+
+```
+Content-Type: application/json
+Authorization: Bearer <jwt-token>
+```
+
+**Beschermde routes** (genres, onboarding, recommendations, etc.):
+
+```
+Content-Type: application/json        ← alleen bij POST/PUT
+Authorization: Bearer <jwt-token>
+X-API-Key: sk_live_jouw_key_hier
+```
+
+> `Accept: application/json` of `*/*` (de default van `fetch()`) worden beide geaccepteerd.
+
+---
+
+## Developer setup (eenmalig, via Postman)
+
+Dit doe je als frontend-developer, niet de eindgebruiker. Je maakt een account en API key aan die je in je React app configureert.
+
+### 1. Developer account aanmaken
 
 ```bash
-curl -X POST http://localhost:8000/auth/signup \
+curl -X POST http://145.24.237.95:8000/api/v1/auth/signup \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{"username": "mijnapp", "email": "dev@example.com", "password": "wachtwoord123"}'
+  -d '{"username": "dev-sonarpop", "email": "dev@sonarpop.nl", "password": "devwachtwoord"}'
 ```
 
 ### 2. Inloggen (JWT token ophalen)
 
 ```bash
-curl -X POST http://localhost:8000/auth/login \
+curl -X POST http://145.24.237.95:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{"username": "mijnapp", "password": "wachtwoord123"}'
+  -d '{"username": "dev-sonarpop", "password": "devwachtwoord"}'
 ```
 
-Response:
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "tokenType": "Bearer",
-  "expiresIn": "1h",
-  "user": { "id": "...", "username": "mijnapp", "role": "user" }
-}
-```
+Response: `{ "token": "eyJhbG...", "user": { "id": "...", ... } }`
 
 ### 3. API key aanmaken
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/api-keys \
+curl -X POST http://145.24.237.95:8000/api/v1/api-keys \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
   -H "Authorization: Bearer JOUW_JWT_TOKEN" \
-  -d '{"name": "Mijn Frontend App"}'
+  -d '{"name": "SonarPop Web App"}'
 ```
 
-Response (201):
+Response: `{ "key": "sk_live_1234abcd5678efgh90ijklmn12opqr", ... }`
 
-```json
-{
-  "id": "...",
-  "name": "Mijn Frontend App",
-  "prefix": "sk_live_1234abcd",
-  "key": "sk_live_1234abcd5678efgh90ijklmn12opqr",
-  "active": true,
-  "createdAt": "2026-03-10T12:00:00.000Z"
+> **Bewaar de `key`!** Dit is de enige keer dat je de volledige key te zien krijgt.
+
+### 4. Key in je React app configureren
+
+Zet de key in je `.env` of config — deze is voor de hele app, niet per gebruiker:
+
+```
+# .env (React app)
+REACT_APP_API_KEY=sk_live_1234abcd5678efgh90ijklmn12opqr
+```
+
+---
+
+## Eindgebruiker flow (in de React app)
+
+De eindgebruiker maakt een eigen account aan en logt in. De API key is al in de app ingebakken — daar merkt de gebruiker niks van.
+
+### 1. Account aanmaken
+
+De app stuurt:
+
+```
+POST /api/v1/auth/signup
+Body: { "username": "lisa", "email": "lisa@email.com", "password": "..." }
+```
+
+Response (201): `{ "id": "user456", "username": "lisa", ... }`
+
+### 2. Inloggen
+
+De app stuurt:
+
+```
+POST /api/v1/auth/login
+Body: { "username": "lisa", "password": "..." }
+```
+
+Response (200): `{ "token": "eyJhbG...", "user": { "id": "user456", ... } }`
+
+> Sla `token` en `user.id` op (localStorage, state, etc.). De API key zit al in de app config.
+
+---
+
+## User identity (automatisch)
+
+De server bepaalt automatisch wie je bent op basis van je **JWT token**. Je hoeft **geen `userId` mee te sturen** in request bodies of URL parameters.
+
+Hoe het werkt:
+
+- Bij elke request naar een beschermde route haalt de server `userId` uit het JWT token
+- `req.body.userId` wordt automatisch overschreven — zelfs als je het meestuurt, wordt het genegeerd
+- Routes met `:userId` in het pad (bijv. `/sliders/:userId`) valideren dat het pad matcht met de ingelogde user — een mismatch geeft `403 Forbidden`
+
+Dit betekent dat je frontend bij onboarding, feedback, profile/compute, en recommendations **geen userId hoeft mee te sturen**. De server regelt het.
+
+---
+
+## Typische app flow
+
+**Developer (eenmalig, via Postman):**
+
+```
+1. POST /api/v1/auth/signup    → Developer account aanmaken
+2. POST /api/v1/auth/login     → JWT token ophalen
+3. POST /api/v1/api-keys       → API key aanmaken → in app .env zetten
+```
+
+**Eindgebruiker (in de React app):**
+
+```
+1. POST /api/v1/auth/signup          → Account aanmaken
+2. POST /api/v1/auth/login           → JWT token ophalen
+3. GET  /api/v1/genres               → 20 genres tonen
+4. POST /api/v1/onboarding           → Genres + artiesten kiezen (cold start)
+5. POST /api/v1/profile/compute      → Profielvector berekenen
+6. POST /api/v1/recommendations      → Aanbevelingen ophalen
+7. POST /api/v1/feedback             → Like/dislike/skip registreren
+```
+
+---
+
+## React voorbeeld
+
+### Helper functie
+
+```js
+const BASE = "http://145.24.237.95:8000/api/v1";
+const API_KEY = process.env.REACT_APP_API_KEY; // vaste key, door developer ingesteld
+
+async function api(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    "X-API-Key": API_KEY, // altijd dezelfde key voor alle users
+    ...options.headers,
+  };
+
+  const token = localStorage.getItem("token");
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+    return;
+  }
+
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  if (res.status === 204) return null;
+  return res.json();
 }
 ```
 
-> **Bewaar de `key`!** Dit is de enige keer dat je de volledige key te zien krijgt. Max 5 keys per account.
-
-### 4. API key gebruiken
-
-Voeg `X-API-Key` toe aan alle data-requests:
-
-```bash
-curl http://localhost:8000/api/v1/genres \
-  -H "Accept: application/json" \
-  -H "X-API-Key: sk_live_1234abcd5678efgh90ijklmn12opqr"
-```
-
-In JavaScript (fetch):
+### Login (eindgebruiker)
 
 ```js
-const API_KEY = "sk_live_...";
-const BASE = "http://localhost:8000/api/v1";
+const { token, user } = await api("/auth/login", {
+  method: "POST",
+  body: { username: "lisa", password: "wachtwoord123" },
+});
+localStorage.setItem("token", token);
+localStorage.setItem("userId", user.id);
+```
 
-const res = await fetch(`${BASE}/genres`, {
-  headers: {
-    Accept: "application/json",
-    "X-API-Key": API_KEY,
+### Onboarding
+
+```js
+// userId wordt NIET meegestuurd — de server haalt het uit het JWT token
+const { profile, sliders } = await api("/onboarding", {
+  method: "POST",
+  body: {
+    genres: ["rock", "electronic", "jazz"],
+    artists: ["Radiohead", "Daft Punk", "Beyonce"],
+    app: "sonarpop",
   },
 });
-const data = await res.json();
+```
+
+### Recommendations ophalen
+
+```js
+const { vector } = await api("/profile/compute", {
+  method: "POST",
+  body: {}, // userId komt uit JWT
+});
+
+const { tracks, total } = await api("/recommendations", {
+  method: "POST",
+  body: {
+    profileVector: vector,
+    limit: 10,
+    dial: 3,
+    // userId komt uit JWT — niet meesturen
+  },
+});
+```
+
+### Feedback geven
+
+```js
+await api("/feedback", {
+  method: "POST",
+  body: { trackId: tracks[0].track._id, action: "like" },
+});
+```
+
+### Sliders ophalen
+
+```js
+const userId = localStorage.getItem("userId");
+const sliders = await api(`/sliders/${userId}`);
+```
+
+### Artiest blokkeren
+
+```js
+const userId = localStorage.getItem("userId");
+await api(`/blacklist/${userId}`, {
+  method: "POST",
+  body: { type: "artist", value: "Nickelback" },
+});
 ```
 
 ---
@@ -131,9 +312,9 @@ Key intrekken (soft delete → `active: false`). Vereist JWT.
 
 ## Auth endpoints
 
-### POST /auth/signup
+### POST /api/v1/auth/signup
 
-Account aanmaken.
+Account aanmaken. Publiek — geen headers vereist.
 
 | Veld       | Type   | Verplicht | Beschrijving   |
 | ---------- | ------ | --------- | -------------- |
@@ -141,9 +322,9 @@ Account aanmaken.
 | `email`    | string | ja        | E-mailadres    |
 | `password` | string | ja        | Wachtwoord     |
 
-### POST /auth/login
+### POST /api/v1/auth/login
 
-Inloggen, JWT token ophalen.
+Inloggen, JWT token ophalen. Publiek — geen headers vereist.
 
 | Veld       | Type   | Verplicht | Beschrijving   |
 | ---------- | ------ | --------- | -------------- |
@@ -154,24 +335,17 @@ Inloggen, JWT token ophalen.
 
 ## Veelgemaakte fouten
 
-| Fout                                  | Oorzaak                                  | Oplossing                                           |
-| ------------------------------------- | ---------------------------------------- | --------------------------------------------------- |
-| `406 Not Acceptable`                  | `Accept` header ontbreekt                | Voeg `Accept: application/json` toe aan elk request |
-| `401 Unauthorized`                    | Geen of ongeldige API key                | Check `X-API-Key` header                            |
-| `400 profileVector array is required` | Body mist of profileVector is geen array | Stuur een array van 20 getallen                     |
-| `409 Entry already exists`            | Duplicate blacklist entry                | Check eerst of het item al geblokkeerd is           |
-| Lege recommendations                  | Geen tracks in database                  | Vraag backend-beheerder om tracks te ingesten       |
+| Fout                                  | Oorzaak                                   | Oplossing                                                            |
+| ------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------- |
+| `401 Missing Authorization header`    | JWT token ontbreekt                       | Voeg `Authorization: Bearer <token>` toe                             |
+| `401 Invalid or expired token`        | JWT verlopen                              | Login opnieuw, sla nieuw token op                                    |
+| `401 Missing X-API-Key header`        | API key ontbreekt                         | Voeg `X-API-Key` header toe                                          |
+| `401 Invalid API key`                 | Key ongeldig of ingetrokken               | Check of de key actief is via `GET /api/v1/api-keys`                 |
+| `403 Forbidden`                       | `:userId` in URL matcht niet met JWT user | Gebruik je eigen userId (uit login response `user.id`)               |
+| `406 Not Acceptable`                  | `Accept` header is ongeldig               | Gebruik `Accept: application/json` of laat weg (default `*/*` werkt) |
+| `400 profileVector array is required` | Body mist profileVector                   | Stuur een array van 20 getallen (uit `/profile/compute`)             |
+| `409 Entry already exists`            | Duplicate blacklist entry                 | Check eerst of het item al geblokkeerd is                            |
 
 ---
 
-## Typische app flow
-
-```
-1. GET  /api/v1/genres                → 20 genres tonen aan gebruiker
-2. POST /api/v1/onboarding           → genres + artiesten kiezen (cold start)
-3. POST /api/v1/profile/compute      → profielvector berekenen
-4. POST /api/v1/recommendations      → aanbevelingen ophalen
-5. POST /api/v1/feedback             → like/dislike/skip registreren
-```
-
-Zie [api.md](api.md) voor alle endpoint details.
+Zie [api-v1.md](api-v1.md) voor alle endpoint details.

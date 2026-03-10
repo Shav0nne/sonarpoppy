@@ -2,7 +2,7 @@
   "name": "developer-portal-api-keys",
   "created": "2026-03-10",
   "status": "DONE",
-  "summary": "App-level API key systeem: developers registreren via JWT, maken API keys aan (sk_live_ prefix + 32 hex), alle /api/v1 endpoints vereisen een geldige X-API-Key header. Key management via CRUD endpoints, max 5 actieve keys per user.",
+  "summary": "App-level API key systeem: developers registreren via JWT, maken API keys aan (sk_live_ prefix + 32 hex), alle /api/v1 endpoints vereisen een geldige X-API-Key header. Key management via CRUD endpoints, max 5 actieve keys per user. req.apiKey = { id, name } — geen userId (app-level credential, niet user-level).",
   "depends": [],
   "choices": [
     {
@@ -71,7 +71,7 @@
       "id": "REQ-005",
       "description": "API key validatie middleware: extract X-API-Key header, prefix lookup, bcrypt compare, active check",
       "category": "Core",
-      "acceptanceCriteria": "Geldige key -> req.apiKey populated, ongeldige/ontbrekende key -> 401, gerevokede key -> 401",
+      "acceptanceCriteria": "Geldige key -> req.apiKey = { id, name } populated, ongeldige/ontbrekende key -> 401, gerevokede key -> 401",
       "status": "PASS",
       "technique": "TDD",
       "syncNote": "validateApiKey in src/middleware/apiKeyMiddleware.js — prefix lookup + bcrypt compare"

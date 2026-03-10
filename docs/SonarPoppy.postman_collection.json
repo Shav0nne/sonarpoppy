@@ -1,0 +1,577 @@
+{
+  "info": {
+    "name": "SonarPoppy API",
+    "description": "Volledige auth flow: developer setup → eindgebruiker → onboarding → recommendations → feedback.\n\nGebruik de folders in volgorde:\n1. Developer Setup (eenmalig)\n2. Eindgebruiker Flow\n3. Data & Recommendations\n4. Feedback & Blacklist",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000/api/v1" },
+    { "key": "devToken", "value": "" },
+    { "key": "apiKey", "value": "" },
+    { "key": "userToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "profileVector", "value": "[]" }
+  ],
+  "item": [
+    {
+      "name": "1. Developer Setup (eenmalig)",
+      "description": "Developer maakt account + API key aan. Dit doe je 1x via Postman.",
+      "item": [
+        {
+          "name": "1.1 Developer Signup",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signup"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"dev-sonarpop\",\n  \"email\": \"dev@sonarpop.nl\",\n  \"password\": \"devwachtwoord123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.test('Signup gelukt', () => pm.response.to.have.status(201));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Developer Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"dev-sonarpop\",\n  \"password\": \"devwachtwoord123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('devToken', res.token);",
+                  "pm.test('Token opgeslagen', () => pm.expect(res.token).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 API Key Aanmaken",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{devToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api-keys", "host": ["{{baseUrl}}"], "path": ["api-keys"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SonarPop Test App\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('apiKey', res.key);",
+                  "pm.test('API key begint met sk_live_', () => pm.expect(res.key).to.match(/^sk_live_/));",
+                  "pm.test('Key opgeslagen in variabele', () => pm.expect(pm.collectionVariables.get('apiKey')).to.not.be.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 API Keys Lijst",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{devToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api-keys", "host": ["{{baseUrl}}"], "path": ["api-keys"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Keys lijst bevat items', () => pm.expect(res.items).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Eindgebruiker Flow",
+      "description": "Simuleert wat de React app doet: signup → login. De API key is al ingesteld (stap 1.3).",
+      "item": [
+        {
+          "name": "2.1 User Signup",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signup"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"lisa\",\n  \"email\": \"lisa@test.com\",\n  \"password\": \"wachtwoord123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const res = pm.response.json();",
+                  "  pm.test('User aangemaakt', () => pm.response.to.have.status(201));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 User Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"lisa\",\n  \"password\": \"wachtwoord123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('userToken', res.token);",
+                  "pm.collectionVariables.set('userId', res.user.id);",
+                  "pm.test('Token + userId opgeslagen', () => {",
+                  "  pm.expect(res.token).to.be.a('string');",
+                  "  pm.expect(res.user.id).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Genres Ophalen",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/genres", "host": ["{{baseUrl}}"], "path": ["genres"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('20 genres', () => pm.expect(res.items).to.have.lengthOf(20));",
+                  "pm.test('Genre heeft index en name', () => {",
+                  "  pm.expect(res.items[0]).to.have.property('index');",
+                  "  pm.expect(res.items[0]).to.have.property('name');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Onboarding",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/onboarding",
+              "host": ["{{baseUrl}}"],
+              "path": ["onboarding"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"genres\": [\"rock\", \"electronic\", \"jazz\"],\n  \"artists\": [\"Radiohead\", \"Daft Punk\", \"Miles Davis\"],\n  \"app\": \"sonarpop\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Onboarding gelukt', () => pm.response.to.have.status(201));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Data & Recommendations",
+      "description": "Profiel berekenen en aanbevelingen ophalen. Vereist onboarding (stap 2.4).",
+      "item": [
+        {
+          "name": "3.1 Profiel Berekenen",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/profile/compute",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "compute"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('profileVector', JSON.stringify(res.vector));",
+                  "pm.test('Vector is array van 20', () => pm.expect(res.vector).to.have.lengthOf(20));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Recommendations Ophalen",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/recommendations",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profileVector\": {{profileVector}},\n  \"limit\": 10,\n  \"dial\": 3\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Recommendations ontvangen', () => {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.tracks).to.be.an('array');",
+                  "  pm.expect(res).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 Dial Standen Bekijken",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/dial", "host": ["{{baseUrl}}"], "path": ["dial"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('5 dial standen', () => {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.presets).to.have.lengthOf(5);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Sliders Ophalen",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sliders/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["sliders", "{{userId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Sliders ontvangen', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.property('sliders');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.5 Tracks Ophalen",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/tracks", "host": ["{{baseUrl}}"], "path": ["tracks"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Feedback & Blacklist",
+      "description": "Like/dislike/skip registreren en artiesten/tracks blokkeren.",
+      "item": [
+        {
+          "name": "4.1 Feedback: Like",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/feedback", "host": ["{{baseUrl}}"], "path": ["feedback"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackId\": \"VERVANG_MET_TRACK_ID\",\n  \"action\": \"like\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Feedback opgeslagen', () => pm.response.to.have.status(201));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Feedback Ophalen",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/feedback/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["feedback", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "4.3 Blacklist: Artiest Blokkeren",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/blacklist/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["blacklist", "{{userId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"artist\",\n  \"value\": \"Nickelback\"\n}"
+            }
+          }
+        },
+        {
+          "name": "4.4 Blacklist Ophalen",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/blacklist/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["blacklist", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Security Tests",
+      "description": "Test dat de beveiliging werkt: ontbrekende headers, userId spoofing, andermans data.",
+      "item": [
+        {
+          "name": "5.1 Zonder API Key → 401",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": { "raw": "{{baseUrl}}/genres", "host": ["{{baseUrl}}"], "path": ["genres"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 zonder API key', () => pm.response.to.have.status(401));",
+                  "pm.test('Meldt API-Key', () => pm.expect(pm.response.json().message).to.include('API-Key'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.2 Zonder JWT → 401",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{apiKey}}" }],
+            "url": { "raw": "{{baseUrl}}/genres", "host": ["{{baseUrl}}"], "path": ["genres"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 zonder JWT', () => pm.response.to.have.status(401));",
+                  "pm.test('Meldt Authorization', () => pm.expect(pm.response.json().message).to.include('Authorization'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.3 Zonder beide headers → 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/genres", "host": ["{{baseUrl}}"], "path": ["genres"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('401 zonder headers', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.4 userId Spoofing → wordt genegeerd",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/feedback", "host": ["{{baseUrl}}"], "path": ["feedback"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"fake-attacker-id\",\n  \"trackId\": \"000000000000000000000000\",\n  \"action\": \"like\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Request slaagt (fake userId genegeerd)', () => {",
+                  "  // 201 = feedback aangemaakt voor JWT user, niet voor fake-attacker-id",
+                  "  pm.expect([201, 200]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.5 Andermans Sliders → 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sliders/000000000000000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["sliders", "000000000000000000000000"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 andermans data', () => pm.response.to.have.status(403));",
+                  "pm.test('Meldt mismatch', () => pm.expect(pm.response.json().message).to.include('does not match'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

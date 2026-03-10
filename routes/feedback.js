@@ -1,7 +1,9 @@
 import { Router } from "express";
 import Feedback from "../src/models/Feedback.js";
+import { validateUserParam } from "../src/middleware/apiKeyMiddleware.js";
 
 const router = Router();
+router.param("userId", validateUserParam);
 
 // POST /api/feedback — create of update feedback voor een user-track paar
 router.post("/", async (req, res) => {

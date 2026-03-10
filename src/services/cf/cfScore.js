@@ -10,10 +10,14 @@ const ARTIST_WEIGHT = 0.3;
  * @param {object} candidateTrack - Track met similarTracks, similarArtists, cfEnrichedAt
  * @param {Set<string>} likedTrackKeys - Set van "artist|title" keys (lowercase)
  * @param {Set<string>} likedArtists - Set van artist names (lowercase)
+ * @param {{ trackWeight?: number, artistWeight?: number } | null} config - Optional overrides
  * @returns {number|null} Score 0-1, of null
  */
-export function computeCfScore(candidateTrack, likedTrackKeys, likedArtists) {
+export function computeCfScore(candidateTrack, likedTrackKeys, likedArtists, config = null) {
   if (!candidateTrack.cfEnrichedAt) return null;
+
+  const tw = config?.trackWeight ?? TRACK_WEIGHT;
+  const aw = config?.artistWeight ?? ARTIST_WEIGHT;
 
   const { similarTracks = [], similarArtists = [] } = candidateTrack;
 
@@ -43,7 +47,7 @@ export function computeCfScore(candidateTrack, likedTrackKeys, likedArtists) {
 
   // Re-normalize weights over available signals
   if (trackScore !== null && artistScore !== null) {
-    return TRACK_WEIGHT * trackScore + ARTIST_WEIGHT * artistScore;
+    return tw * trackScore + aw * artistScore;
   }
   // Only one signal → full weight to that signal
   return trackScore ?? artistScore;

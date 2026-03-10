@@ -1,8 +1,10 @@
 import { Router } from "express";
 import Blacklist from "../src/models/Blacklist.js";
 import { resolveAlias } from "../src/config/genres.js";
+import { validateUserParam } from "../src/middleware/apiKeyMiddleware.js";
 
 const router = Router();
+router.param("userId", validateUserParam);
 
 // GET /api/v1/blacklist/:userId -> Get the blacklist for a user
 router.get("/:userId", async (req, res, next) => {

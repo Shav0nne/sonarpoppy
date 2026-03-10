@@ -11,7 +11,15 @@ function hasValidGenreVector(track) {
   return Array.isArray(track.genreVector) && track.genreVector.length > 0;
 }
 
-export function scoreTracks(profileVector, tracks, weights, feedbackMap = null, cfContext = null, blockedGenres = []) {
+export function scoreTracks(
+  profileVector,
+  tracks,
+  weights,
+  feedbackMap = null,
+  cfContext = null,
+  blockedGenres = [],
+  overrides = {},
+) {
   const scored = [];
 
   for (const track of tracks) {
@@ -24,14 +32,14 @@ export function scoreTracks(profileVector, tracks, weights, feedbackMap = null, 
     const genreScore = cosineSimilarity(profileVector, track.genreVector);
 
     const cfScore = cfContext
-      ? computeCfScore(track, cfContext.likedTrackKeys, cfContext.likedArtists)
+      ? computeCfScore(track, cfContext.likedTrackKeys, cfContext.likedArtists, overrides.cfConfig)
       : null;
 
     const signals = { genre: genreScore, cf: cfScore };
 
     const trackId = String(track._id);
     const feedback = feedbackMap?.get(trackId) ?? null;
-    const multiplier = getFeedbackMultiplier(feedback);
+    const multiplier = getFeedbackMultiplier(feedback, overrides.feedbackConfig);
 
     const result = hybridScore(signals, weights, multiplier);
 
@@ -56,6 +64,7 @@ export async function getRecommendations({
   weights,
   dial,
   userId,
+  overrides = {},
   _tracks,
 }) {
   // dial overschrijft weights; geen dial + geen weights → default Stand 3
@@ -111,7 +120,15 @@ export async function getRecommendations({
     }
   }
 
-  let scored = scoreTracks(profileVector, candidates, w, feedbackMap, cfContext, blockedGenres);
+  let scored = scoreTracks(
+    profileVector,
+    candidates,
+    w,
+    feedbackMap,
+    cfContext,
+    blockedGenres,
+    overrides,
+  );
 
   if (filters.minScore != null) {
     scored = scored.filter((s) => s.finalScore >= filters.minScore);
@@ -128,10 +145,10 @@ export async function getRecommendations({
   const activeSignals =
     scored.length > 0
       ? [
-        ...new Set(
-          scored.flatMap((s) => Object.keys(s.signals).filter((k) => s.signals[k] != null)),
-        ),
-      ]
+          ...new Set(
+            scored.flatMap((s) => Object.keys(s.signals).filter((k) => s.signals[k] != null)),
+          ),
+        ]
       : [];
 
   const meta = {
