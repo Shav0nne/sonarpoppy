@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import usersRouter from "./routes/users.js";
 import authRouter from "./routes/auth.js";
+import apiRouter from "./routes/index.js";
 
 const app = express();
 
@@ -32,7 +33,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/users", usersRouter);
-app.use("/api", usersRouter);
+app.use("/api", apiRouter);
 app.use("/auth", authRouter);
 
 // Database connectie
