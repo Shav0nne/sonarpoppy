@@ -8,6 +8,7 @@ import feedbackRouter from "./feedback.js";
 import slidersRouter from "./sliders.js";
 import usersRouter from "./users.js";
 import authRouter from "./auth.js";
+import blacklistRouter from "./blacklist.js";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use("/feedback", feedbackRouter);
 router.use("/sliders", slidersRouter);
 router.use("/users", usersRouter);
 router.use("/auth", authRouter);
+router.use("/blacklist", blacklistRouter);
 
 export default router;

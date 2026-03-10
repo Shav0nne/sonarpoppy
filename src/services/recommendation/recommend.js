@@ -5,16 +5,21 @@ import { hybridScore, DEFAULT_WEIGHTS } from "../scoring/hybridScore.js";
 import { getFeedbackMultiplier } from "../feedback/feedbackMultiplier.js";
 import { getDialPreset } from "../../config/dial.js";
 import { computeCfScore } from "../cf/cfScore.js";
+import { getBlacklistFilters, isGenreBlocked } from "../blacklist/blacklistFilter.js";
 
 function hasValidGenreVector(track) {
   return Array.isArray(track.genreVector) && track.genreVector.length > 0;
 }
 
-export function scoreTracks(profileVector, tracks, weights, feedbackMap = null, cfContext = null) {
+export function scoreTracks(profileVector, tracks, weights, feedbackMap = null, cfContext = null, blockedGenres = []) {
   const scored = [];
 
   for (const track of tracks) {
     if (!hasValidGenreVector(track)) continue;
+
+    if (isGenreBlocked(track.genreVector, blockedGenres)) {
+      continue;
+    }
 
     const genreScore = cosineSimilarity(profileVector, track.genreVector);
 
@@ -75,7 +80,19 @@ export async function getRecommendations({
     feedbackMap = new Map(feedbackDocs.map((fb) => [String(fb.trackId), fb]));
   }
 
-  const candidates = _tracks ?? (await Track.find().lean());
+  // Get blacklist filters
+  const { blockedTracks, blockedArtists, blockedGenres } = await getBlacklistFilters(userId);
+
+  // Build the MongoDB pre-score query
+  const query = {};
+  if (blockedTracks.length > 0) {
+    query._id = { $nin: blockedTracks };
+  }
+  if (blockedArtists.length > 0) {
+    query.artist = { $nin: blockedArtists };
+  }
+
+  const candidates = _tracks ?? (await Track.find(query).lean());
 
   // Build CF context from liked tracks for CF scoring
   let cfContext = null;
@@ -94,7 +111,7 @@ export async function getRecommendations({
     }
   }
 
-  let scored = scoreTracks(profileVector, candidates, w, feedbackMap, cfContext);
+  let scored = scoreTracks(profileVector, candidates, w, feedbackMap, cfContext, blockedGenres);
 
   if (filters.minScore != null) {
     scored = scored.filter((s) => s.finalScore >= filters.minScore);
@@ -111,10 +128,10 @@ export async function getRecommendations({
   const activeSignals =
     scored.length > 0
       ? [
-          ...new Set(
-            scored.flatMap((s) => Object.keys(s.signals).filter((k) => s.signals[k] != null)),
-          ),
-        ]
+        ...new Set(
+          scored.flatMap((s) => Object.keys(s.signals).filter((k) => s.signals[k] != null)),
+        ),
+      ]
       : [];
 
   const meta = {
