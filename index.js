@@ -20,17 +20,23 @@ app.use((req, res, next) => {
 
 //accept header middleware
 app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    return next();
-  }
-  const accept = req.headers.accept;
+ if (req.method === "OPTIONS") return next();
 
-  if (!accept || !accept.includes("application/json")) {
-    return res.status(406).json({
-      message: "Only application/json is allowed in Accept header",
-    });
+ const accept = (req.headers.accept || '').toLowerCase();
+ const contentType = (req.headers['content-type'] || '').toLowerCase();
+
+ if (contentType.startsWith('multipart/form-data')) return next();
+
+ if (accept.includes('application/json') || accept.includes('text/html') || accept.includes('image/') || accept.includes('*/*')) {
+   return next();
+ }
+ return res.status(406).json({ message: 'Only application/json is allowed in Accept header' });
+});
+app.use((req, res, next) => {
+  if (req.path.startsWith('/users') || req.path.startsWith('/auth')) {
+    console.debug('REQ HEADERS:', { path: req.path, accept: req.headers.accept, contentType: req.headers['content-type'] });
   }
-  next();
+  return next();
 });
 
 // Routes

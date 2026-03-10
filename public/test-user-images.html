@@ -6,7 +6,7 @@
   <title>User Images Tester</title>
 </head>
 <body>
-  <h1>User Images Tester (no CSS)</h1>
+  <h1>User Images Tester</h1>
 
   <section>
     <h2>Create account</h2>
@@ -66,8 +66,54 @@ document.addEventListener('DOMContentLoaded', function() {
       img.width = 200;
       img.height = 150;
       img.alt = 'avatar';
-      img.onerror = function() { this.src = ''; };
-      img.src = id ? ('/users/' + id + '/image') : '';
+      img.onerror = function() {
+        // show a simple inline SVG placeholder on error
+        this.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="100%" height="100%" fill="#f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#888" font-size="14">No image</text></svg>');
+      };
+      const statusDiv = document.createElement('div');
+      statusDiv.style.fontSize = '12px';
+      statusDiv.style.color = '#555';
+      statusDiv.textContent = 'Checking image...';
+      // Prefer explicit imageUrl from API; fall back to the image endpoint
+      let imageSrc = '';
+      if (user.imageUrl) imageSrc = user.imageUrl;
+      else if (id) imageSrc = '/users/' + id + '/image';
+      if (imageSrc) {
+        // cache-bust to ensure updates appear immediately in the test UI
+        imageSrc += (imageSrc.includes('?') ? '&' : '?') + 't=' + Date.now();
+      } else {
+        imageSrc = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="100%" height="100%" fill="#f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#888" font-size="14">No image</text></svg>');
+      }
+
+      // Set img.src immediately so the browser will try to load it (even if the probe fails)
+      img.src = imageSrc;
+
+      // Probe the image URL to show status (probe won't block the <img> request)
+      (async () => {
+        try {
+          // Remove explicit Accept header to avoid triggering 406 responses from some servers
+          const resp = await fetch(imageSrc, { method: 'GET' });
+           if (!resp.ok) {
+             statusDiv.textContent = `Image request failed: ${resp.status} ${resp.statusText}`;
+             img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="100%" height="100%" fill="#f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#888" font-size="14">No image</text></svg>');
+           } else {
+             const ctype = resp.headers.get('content-type') || '';
+             if (ctype.startsWith('image/')) {
+               statusDiv.textContent = `OK (${ctype})`;
+               // leave img.src as-is (browser already requested it)
+             } else {
+               // maybe server returned HTML error page
+               statusDiv.textContent = `Unexpected content-type: ${ctype}`;
+               img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="100%" height="100%" fill="#f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#888" font-size="14">No image</text></svg>');
+             }
+           }
+         } catch (err) {
+           statusDiv.textContent = 'Fetch error: ' + err.message;
+           img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="100%" height="100%" fill="#f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#888" font-size="14">No image</text></svg>');
+         }
+       })();
+
+      wrapper.appendChild(statusDiv);
       wrapper.appendChild(img);
 
       // Update form

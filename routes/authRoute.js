@@ -16,7 +16,8 @@ router.options("/", (req, res) => {
 
 // POST /auth/signup
 router.post("/signup", upload.single('image'), async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const body = req.body || {};
+  const { username, email, password, role } = body;
   if (!username || !email || !password) {
     return res.status(400).json({ message: "Missing required fields: username, email, password" });
   }
@@ -25,16 +26,17 @@ router.post("/signup", upload.single('image'), async (req, res) => {
     const existing = await User.findOne({ $or: [{ username }, { email }] });
     if (existing) return res.status(409).json({ message: "Username or email already exists" });
 
-    // Let the model pre-save hook hash the password
-    const user = new User({ username, email, password, role: role || "user" });
-      if (req.file) {
-          userData.image = {
-              data: req.file.buffer,
-              contentType: req.file.mimetype,
-              filename: req.file.originalname,
-              mimetype: req.file.mimetype
-          };
-      }
+    // Build user data and include uploaded image if present
+    const userData = { username, email, password, role: role || "user" };
+    if (req.file) {
+      userData.image = {
+        data: req.file.buffer,
+        contentType: req.file.mimetype,
+        filename: req.file.originalname,
+        mimetype: req.file.mimetype
+      };
+    }
+    const user = new User(userData);
     await user.save();
 
     res.status(201).json({
