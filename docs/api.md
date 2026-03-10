@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-**Base URL:** `http://localhost:3000/api/v1`
+**Base URL:** `http://localhost:{EXPRESS_PORT}/api/v1` (zie `.env` voor je poortnummer)
 
 **Headers:** alle requests met een body vereisen:
 
@@ -28,7 +28,7 @@ Alle `/api/v1/*` data-endpoints (genres, tracks, recommendations, etc.) vereisen
 ### Stap 1: Account aanmaken
 
 ```bash
-curl -X POST http://localhost:3000/auth/signup \
+curl -X POST http://localhost:8000/auth/signup \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -d '{"username": "mijnapp", "email": "dev@example.com", "password": "wachtwoord123"}'
@@ -37,7 +37,7 @@ curl -X POST http://localhost:3000/auth/signup \
 ### Stap 2: Inloggen (JWT token ophalen)
 
 ```bash
-curl -X POST http://localhost:3000/auth/login \
+curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -d '{"username": "mijnapp", "password": "wachtwoord123"}'
@@ -48,7 +48,7 @@ Response bevat je `token`. Bewaar deze — je hebt hem nodig voor stap 3.
 ### Stap 3: API key aanmaken
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/api-keys \
+curl -X POST http://localhost:8000/api/v1/api-keys \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer JOUW_JWT_TOKEN" \
@@ -75,7 +75,7 @@ Response (201):
 Voeg de `X-API-Key` header toe aan alle data-requests:
 
 ```bash
-curl http://localhost:3000/api/v1/genres \
+curl http://localhost:8000/api/v1/genres \
   -H "Accept: application/json" \
   -H "X-API-Key: sk_live_1234abcd5678efgh90ijklmn12opqr"
 ```
@@ -106,7 +106,7 @@ Revoke (deactiveer) een API key. Vereist JWT Bearer token. De key wordt op `acti
 
 ## Endpoints
 
-### GET /api/genres
+### GET /api/v1/genres
 
 Retourneert de 20 gestandaardiseerde genres met hun index (positie in de genre-vector).
 
@@ -120,7 +120,7 @@ Retourneert de 20 gestandaardiseerde genres met hun index (positie in de genre-v
     { "index": 2, "name": "electronic" }
   ],
   "_links": {
-    "self": { "href": "/api/genres" }
+    "self": { "href": "/api/v1/genres" }
   }
 }
 ```
@@ -129,7 +129,7 @@ Retourneert de 20 gestandaardiseerde genres met hun index (positie in de genre-v
 
 ---
 
-### GET /api/tracks
+### GET /api/v1/tracks
 
 Retourneert alle tracks in de database.
 
@@ -152,8 +152,8 @@ Retourneert alle tracks in de database.
     }
   ],
   "_links": {
-    "self": { "href": "/api/tracks" },
-    "ingest": { "href": "/api/tracks/ingest" }
+    "self": { "href": "/api/v1/tracks" },
+    "ingest": { "href": "/api/v1/tracks/ingest" }
   }
 }
 ```
@@ -172,7 +172,7 @@ Retourneert alle tracks in de database.
 
 ---
 
-### POST /api/tracks/ingest
+### POST /api/v1/tracks/ingest
 
 Importeert een enkele track via Last.fm. Haalt metadata en tags op, berekent de genre-vector, en slaat op in MongoDB.
 
@@ -199,8 +199,8 @@ Importeert een enkele track via Last.fm. Haalt metadata en tags op, berekent de 
   "status": "created",
   "track": { ... },
   "_links": {
-    "self": { "href": "/api/tracks/ingest" },
-    "tracks": { "href": "/api/tracks" }
+    "self": { "href": "/api/v1/tracks/ingest" },
+    "tracks": { "href": "/api/v1/tracks" }
   }
 }
 ```
@@ -209,7 +209,7 @@ Importeert een enkele track via Last.fm. Haalt metadata en tags op, berekent de 
 
 ---
 
-### POST /api/tracks/ingest-batch
+### POST /api/v1/tracks/ingest-batch
 
 Importeert meerdere tracks in een keer.
 
@@ -244,15 +244,15 @@ Importeert meerdere tracks in een keer.
     "failed": 0
   },
   "_links": {
-    "self": { "href": "/api/tracks/ingest-batch" },
-    "tracks": { "href": "/api/tracks" }
+    "self": { "href": "/api/v1/tracks/ingest-batch" },
+    "tracks": { "href": "/api/v1/tracks" }
   }
 }
 ```
 
 ---
 
-### POST /api/profile/compute
+### POST /api/v1/profile/compute
 
 Berekent een profielvector op basis van genre weights. De profielvector is een genormaliseerde 20-dimensionale vector die aangeeft hoe sterk de gebruiker elk genre waardeert.
 
@@ -282,8 +282,8 @@ Berekent een profielvector op basis van genre weights. De profielvector is een g
     "topGenre": "rock"
   },
   "_links": {
-    "self": { "href": "/api/profile/compute" },
-    "recommendations": { "href": "/api/recommendations" }
+    "self": { "href": "/api/v1/profile/compute" },
+    "recommendations": { "href": "/api/v1/recommendations" }
   }
 }
 ```
@@ -296,7 +296,7 @@ Berekent een profielvector op basis van genre weights. De profielvector is een g
 
 ---
 
-### POST /api/recommendations
+### POST /api/v1/recommendations
 
 Retourneert gepersonaliseerde track-aanbevelingen gesorteerd op cosine similarity met de profielvector.
 
@@ -317,13 +317,13 @@ Retourneert gepersonaliseerde track-aanbevelingen gesorteerd op cosine similarit
 }
 ```
 
-| Veld                 | Type     | Verplicht | Beschrijving                                      |
-| -------------------- | -------- | --------- | ------------------------------------------------- |
-| `profileVector`      | number[] | ja        | 20-dim profielvector (uit `/api/profile/compute`) |
-| `limit`              | number   | nee       | Max aantal resultaten (default: alle)             |
-| `offset`             | number   | nee       | Skip eerste N resultaten (default: 0)             |
-| `filters.minScore`   | number   | nee       | Minimum similarity score (0.0-1.0)                |
-| `filters.excludeIds` | string[] | nee       | Track IDs om uit te sluiten                       |
+| Veld                 | Type     | Verplicht | Beschrijving                                         |
+| -------------------- | -------- | --------- | ---------------------------------------------------- |
+| `profileVector`      | number[] | ja        | 20-dim profielvector (uit `/api/v1/profile/compute`) |
+| `limit`              | number   | nee       | Max aantal resultaten (default: alle)                |
+| `offset`             | number   | nee       | Skip eerste N resultaten (default: 0)                |
+| `filters.minScore`   | number   | nee       | Minimum similarity score (0.0-1.0)                   |
+| `filters.excludeIds` | string[] | nee       | Track IDs om uit te sluiten                          |
 
 **Response:**
 
@@ -342,20 +342,20 @@ Retourneert gepersonaliseerde track-aanbevelingen gesorteerd op cosine similarit
     "scoreRange": { "min": 0.12, "max": 0.92 }
   },
   "_links": {
-    "self": { "href": "/api/recommendations" },
-    "profile": { "href": "/api/profile/compute" }
+    "self": { "href": "/api/v1/recommendations" },
+    "profile": { "href": "/api/v1/profile/compute" }
   }
 }
 ```
 
-| Veld              | Type   | Beschrijving                                     |
-| ----------------- | ------ | ------------------------------------------------ |
-| `tracks[].track`  | object | Track object (zelfde velden als GET /api/tracks) |
-| `tracks[].score`  | number | Cosine similarity score (0.0-1.0)                |
-| `total`           | number | Totaal aantal resultaten (voor paginatie)        |
-| `meta.scoredAt`   | string | ISO timestamp van de berekening                  |
-| `meta.avgScore`   | number | Gemiddelde score van alle resultaten             |
-| `meta.scoreRange` | object | Laagste en hoogste score                         |
+| Veld              | Type   | Beschrijving                                        |
+| ----------------- | ------ | --------------------------------------------------- |
+| `tracks[].track`  | object | Track object (zelfde velden als GET /api/v1/tracks) |
+| `tracks[].score`  | number | Cosine similarity score (0.0-1.0)                   |
+| `total`           | number | Totaal aantal resultaten (voor paginatie)           |
+| `meta.scoredAt`   | string | ISO timestamp van de berekening                     |
+| `meta.avgScore`   | number | Gemiddelde score van alle resultaten                |
+| `meta.scoreRange` | object | Laagste en hoogste score                            |
 
 ---
 
