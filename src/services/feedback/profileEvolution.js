@@ -17,12 +17,14 @@ const ACTION_WEIGHTS = Object.freeze({
  * @param {Object} currentWeights — genre index → weight (bijv. {"0": 1.0, "5": 1.2})
  * @param {Array<{action: string|null, trackId: string}>} feedbackItems
  * @param {Array<{_id: string, genreVector: number[]}>} tracks
+ * @param {number[]} [locked] — genre indices die niet aangepast worden
  * @returns {Object} evolved weights (nieuw object, muteert input niet)
  */
-export function evolveProfileWeights(currentWeights, feedbackItems, tracks) {
+export function evolveProfileWeights(currentWeights, feedbackItems, tracks, locked) {
   if (!feedbackItems?.length) return { ...currentWeights };
 
   const trackMap = new Map(tracks.map((t) => [String(t._id), t]));
+  const lockedSet = locked?.length ? new Set(locked) : null;
   const evolved = { ...currentWeights };
 
   for (const fb of feedbackItems) {
@@ -33,6 +35,7 @@ export function evolveProfileWeights(currentWeights, feedbackItems, tracks) {
     if (!track?.genreVector) continue;
 
     for (let i = 0; i < track.genreVector.length; i++) {
+      if (lockedSet?.has(i)) continue;
       const key = String(i);
       const influence = track.genreVector[i] * weight;
       evolved[key] = (evolved[key] ?? 0) + influence;

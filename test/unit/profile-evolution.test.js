@@ -122,4 +122,46 @@ describe("evolveProfileWeights", () => {
     );
     assert.deepEqual(evolved, weights);
   });
+
+  // REQ-005: Locked genres worden overgeslagen bij profiel evolutie
+  it("locked genres worden niet aangepast", () => {
+    const weights = equalWeights();
+    const feedbackItems = [{ action: "like", trackId: "t1" }];
+    const tracks = [{ _id: "t1", genreVector: v(5) }]; // jazz (index 5)
+    const locked = [5]; // lock jazz
+
+    const evolved = evolveProfileWeights(weights, feedbackItems, tracks, locked);
+
+    // Jazz (index 5) zou NIET gewijzigd moeten zijn
+    assert.equal(evolved["5"], weights["5"], "locked genre should not change");
+  });
+
+  it("unlocked genres evolueren normaal naast locked genres", () => {
+    const weights = equalWeights();
+    // Track met multi-genre: jazz (5) EN rock (0)
+    const vec = new Array(20).fill(0);
+    vec[5] = 1; // jazz
+    vec[0] = 0.8; // rock
+    const feedbackItems = [{ action: "like", trackId: "t1" }];
+    const tracks = [{ _id: "t1", genreVector: vec }];
+    const locked = [5]; // lock jazz only
+
+    const evolved = evolveProfileWeights(weights, feedbackItems, tracks, locked);
+
+    // Jazz locked → niet aangepast
+    assert.equal(evolved["5"], weights["5"], "locked jazz should not change");
+    // Rock unlocked → wel aangepast
+    assert.ok(evolved["0"] > weights["0"], "unlocked rock should increase");
+  });
+
+  it("lege locked array laat alle genres evolueren", () => {
+    const weights = equalWeights();
+    const feedbackItems = [{ action: "like", trackId: "t1" }];
+    const tracks = [{ _id: "t1", genreVector: v(5) }];
+
+    const withLocked = evolveProfileWeights(weights, feedbackItems, tracks, []);
+    const withoutLocked = evolveProfileWeights(weights, feedbackItems, tracks);
+
+    assert.deepEqual(withLocked, withoutLocked);
+  });
 });
