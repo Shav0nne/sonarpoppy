@@ -92,6 +92,47 @@ describe("REQ-005: GenreSliders upsert", () => {
   });
 });
 
+// INT-1: Cross-requirement integratie (genres + artist boost + upsert output)
+describe("INT-1: volledige keten genres → artist boost → upsert → profile", () => {
+  it("gekozen genres=1.0, artiest-boosted genre > 0.1, GenreSliders correct", async () => {
+    const client = mockLastfmClient({
+      "Daft Punk": [
+        { name: "electronic", count: 100 },
+        { name: "dance", count: 80 },
+      ],
+    });
+
+    const result = await processOnboarding({
+      userId: "user-int1",
+      genres: ["rock", "pop", "jazz"],
+      artists: ["Radiohead", "Daft Punk", "Miles Davis"],
+      app: "sonarpop",
+      lastfmClient: client,
+    });
+
+    // Gekozen genres moeten 1.0 zijn
+    assert.equal(result.sliders.rock, 1.0, "rock moet 1.0 zijn");
+    assert.equal(result.sliders.pop, 1.0, "pop moet 1.0 zijn");
+    assert.equal(result.sliders.jazz, 1.0, "jazz moet 1.0 zijn");
+
+    // Artist boost: electronic moet hoger zijn dan BASE_WEIGHT (0.1)
+    assert.ok(
+      result.sliders.electronic > 0.1,
+      `electronic moet > 0.1 zijn (got ${result.sliders.electronic})`,
+    );
+
+    // GenreSliders document in DB moet overeenkomen
+    const doc = await GenreSliders.findOne({ userId: "user-int1" });
+    assert.ok(doc, "GenreSliders document moet bestaan");
+    assert.equal(doc.sliders.get("rock"), 1.0);
+    assert.equal(doc.sliders.get("electronic"), result.sliders.electronic);
+
+    // Profile vector moet 20 floats zijn
+    assert.equal(result.profile.vector.length, 20);
+    assert.ok(result.profile.meta.topGenre, "moet topGenre hebben");
+  });
+});
+
 // REQ-006: Profile vector consistent met weights
 describe("REQ-006: Profile response consistent met weights", () => {
   it("topGenre komt overeen met hoogste weight", async () => {
