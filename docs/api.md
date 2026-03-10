@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-**Base URL:** `http://localhost:3000/api`
+**Base URL:** `http://localhost:3000/api/v1`
 
 **Headers:** alle requests met een body vereisen:
 
@@ -12,11 +12,95 @@ Content-Type: application/json
 
 **Typische flow:**
 
-1. **Genres ophalen** — `GET /api/genres` om de 20 beschikbare genres te zien
-2. **Profiel berekenen** — `POST /api/profile/compute` met genre weights om een profielvector te krijgen
-3. **Recommendations ophalen** — `POST /api/recommendations` met de profielvector voor gepersonaliseerde aanbevelingen
+1. **Account aanmaken** — `POST /auth/signup` met username, email, password
+2. **Inloggen** — `POST /auth/login` → ontvang JWT token
+3. **API key aanmaken** — `POST /api/v1/api-keys` met JWT Bearer token → ontvang je API key (eenmalig!)
+4. **API gebruiken** — alle `/api/v1/*` endpoints met `X-API-Key` header
 
 Tracks komen in de database via de ingest endpoints (voor backend-beheer, niet voor eindgebruikers).
+
+---
+
+## API Keys
+
+Alle `/api/v1/*` data-endpoints (genres, tracks, recommendations, etc.) vereisen een geldige API key. Auth endpoints (`/auth/*`) en key management (`/api/v1/api-keys`) zijn uitgesloten — die gebruiken JWT.
+
+### Stap 1: Account aanmaken
+
+```bash
+curl -X POST http://localhost:3000/auth/signup \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"username": "mijnapp", "email": "dev@example.com", "password": "wachtwoord123"}'
+```
+
+### Stap 2: Inloggen (JWT token ophalen)
+
+```bash
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"username": "mijnapp", "password": "wachtwoord123"}'
+```
+
+Response bevat je `token`. Bewaar deze — je hebt hem nodig voor stap 3.
+
+### Stap 3: API key aanmaken
+
+```bash
+curl -X POST http://localhost:3000/api/v1/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer JOUW_JWT_TOKEN" \
+  -d '{"name": "Mijn Frontend App"}'
+```
+
+Response (201):
+
+```json
+{
+  "id": "...",
+  "name": "Mijn Frontend App",
+  "prefix": "sk_live_1234abcd",
+  "key": "sk_live_1234abcd5678efgh90ijklmn12opqr",
+  "active": true,
+  "createdAt": "2026-03-10T12:00:00.000Z"
+}
+```
+
+**Bewaar de `key` waarde!** Dit is de enige keer dat je de volledige key te zien krijgt.
+
+### Stap 4: API key gebruiken
+
+Voeg de `X-API-Key` header toe aan alle data-requests:
+
+```bash
+curl http://localhost:3000/api/v1/genres \
+  -H "Accept: application/json" \
+  -H "X-API-Key: sk_live_1234abcd5678efgh90ijklmn12opqr"
+```
+
+Zonder geldige key krijg je `401 Unauthorized`.
+
+### Key management endpoints
+
+#### POST /api/v1/api-keys
+
+Maak een nieuwe API key aan. Vereist JWT Bearer token.
+
+| Veld   | Type   | Verplicht | Beschrijving    |
+| ------ | ------ | --------- | --------------- |
+| `name` | string | ja        | Naam van de key |
+
+**Limieten:** maximaal 5 actieve keys per account. Bij overschrijding: `409`.
+
+#### GET /api/v1/api-keys
+
+Lijst van al je API keys. Vereist JWT Bearer token. Keys worden getoond zonder de volledige key of hash.
+
+#### DELETE /api/v1/api-keys/:id
+
+Revoke (deactiveer) een API key. Vereist JWT Bearer token. De key wordt op `active: false` gezet en werkt niet meer voor API requests.
 
 ---
 
