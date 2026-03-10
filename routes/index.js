@@ -5,6 +5,9 @@ import profileRouter from "./profile.js";
 import recommendationsRouter from "./recommendations.js";
 import dialRouter from "./dial.js";
 import feedbackRouter from "./feedback.js";
+import slidersRouter from "./sliders.js";
+import usersRouter from "./users.js";
+import authRouter from "./auth.js";
 
 const router = Router();
 
@@ -14,5 +17,8 @@ router.use("/profile", profileRouter);
 router.use("/recommendations", recommendationsRouter);
 router.use("/dial", dialRouter);
 router.use("/feedback", feedbackRouter);
+router.use("/sliders", slidersRouter);
+router.use("/users", usersRouter);
+router.use("/auth", authRouter);
 
 export default router;
