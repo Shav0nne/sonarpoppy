@@ -1,0 +1,386 @@
+{
+  "name": "developer-portal-api-keys",
+  "created": "2026-03-10",
+  "status": "DONE",
+  "summary": "App-level API key systeem: developers registreren via JWT, maken API keys aan (sk_live_ prefix + 32 hex), alle /api/v1 endpoints vereisen een geldige X-API-Key header. Key management via CRUD endpoints, max 5 actieve keys per user.",
+  "depends": [],
+  "choices": [
+    {
+      "question": "Wat moet het developer portal doen?",
+      "answer": "App-level API keys: developers registreren een app en krijgen een API key. JWT auth blijft daarnaast bestaan voor user-level acties."
+    },
+    {
+      "question": "Interface: web-UI of API endpoints?",
+      "answer": "API endpoints only. Portal UI wordt een apart follow-up feature."
+    },
+    {
+      "question": "Auth flow: hoe werken JWT en API keys samen?",
+      "answer": "Twee lagen: JWT voor account/key management, API key voor reguliere API endpoints."
+    },
+    {
+      "question": "Welke endpoints beschermd?",
+      "answer": "Alle /api/v1/* endpoints. Auth endpoints en /api-keys (JWT) uitgesloten."
+    },
+    {
+      "question": "Limieten?",
+      "answer": "Max 5 actieve keys per user, geen expiry. Keys kunnen gerevoked worden."
+    },
+    {
+      "question": "Key formaat?",
+      "answer": "sk_live_ prefix + 32 random hex chars. Eerste 16 chars als lookup prefix (ongehashd), volledige key bcrypt gehasht."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "ApiKey Mongoose model met userId, name, prefix, keyHash, active velden",
+      "category": "Data",
+      "acceptanceCriteria": "Model valideert required fields, heeft unique index op prefix, userId ref naar User",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "ApiKey schema in src/models/ApiKey.js — userId ref, prefix unique index, active soft-delete"
+    },
+    {
+      "id": "REQ-002",
+      "description": "Key generatie: sk_live_ + 32 random hex chars, prefix ongehashd opgeslagen, rest bcrypt gehasht",
+      "category": "Data",
+      "acceptanceCriteria": "Gegenereerde key heeft correct formaat, hash is niet reverseerbaar, prefix matcht eerste 16 chars van key",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "generateApiKey/hashApiKey/compareApiKey in src/services/apikeys/generateKey.js — crypto + bcrypt"
+    },
+    {
+      "id": "REQ-003",
+      "description": "CRUD endpoints (POST create, GET list, DELETE revoke) onder /api/v1/api-keys, beschermd met JWT authenticateJWT middleware",
+      "category": "Output",
+      "acceptanceCriteria": "POST retourneert key (eenmalig), GET retourneert keys zonder hash, DELETE zet active=false",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "CRUD routes in routes/api-keys.js — JWT-protected, key eenmalig in POST response"
+    },
+    {
+      "id": "REQ-004",
+      "description": "Maximum 5 actieve keys per user — weiger aanmaak bij overschrijding met 409",
+      "category": "Constraint",
+      "acceptanceCriteria": "POST /api-keys met 5 actieve keys retourneert 409 met duidelijke error message",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "MAX_ACTIVE_KEYS check in routes/api-keys.js POST handler"
+    },
+    {
+      "id": "REQ-005",
+      "description": "API key validatie middleware: extract X-API-Key header, prefix lookup, bcrypt compare, active check",
+      "category": "Core",
+      "acceptanceCriteria": "Geldige key -> req.apiKey populated, ongeldige/ontbrekende key -> 401, gerevokede key -> 401",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "validateApiKey in src/middleware/apiKeyMiddleware.js — prefix lookup + bcrypt compare"
+    },
+    {
+      "id": "REQ-006",
+      "description": "Middleware mounten op alle /api/v1/* routes, auth endpoints en /api-keys uitgesloten",
+      "category": "Core",
+      "acceptanceCriteria": "/api/v1/tracks zonder key -> 401, /auth/login zonder key -> werkt, /api-keys met JWT -> werkt",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "Route ordering in routes/index.js — validateApiKey guard vóór data routes"
+    },
+    {
+      "id": "REQ-007",
+      "description": "API key sectie toevoegen aan docs/api.md: registratie, login, key aanmaken, key gebruiken in requests — stap-voor-stap met voorbeelden",
+      "category": "Docs",
+      "acceptanceCriteria": "Een frontend-student kan zonder hulp een API key verkrijgen en gebruiken door alleen de docs te volgen",
+      "status": "PASS",
+      "technique": "Implementation Only",
+      "skipTestReason": "config-only",
+      "syncNote": "API key docs in docs/api.md — stap-voor-stap guide met curl voorbeelden"
+    }
+  ],
+  "files": [
+    {
+      "path": "src/models/ApiKey.js",
+      "type": "model",
+      "action": "create",
+      "purpose": "ApiKey Mongoose model met prefix lookup, bcrypt hash, user ref",
+      "requirements": ["REQ-001"]
+    },
+    {
+      "path": "src/services/apikeys/generateKey.js",
+      "type": "service",
+      "action": "create",
+      "purpose": "Key generatie (sk_live_ + 32 hex), hashing, vergelijking",
+      "requirements": ["REQ-002"]
+    },
+    {
+      "path": "routes/api-keys.js",
+      "type": "route",
+      "action": "create",
+      "purpose": "CRUD endpoints voor API key management (JWT-protected)",
+      "requirements": ["REQ-003", "REQ-004"]
+    },
+    {
+      "path": "src/middleware/apiKeyMiddleware.js",
+      "type": "middleware",
+      "action": "create",
+      "purpose": "API key validatie: header extractie, prefix lookup, bcrypt compare",
+      "requirements": ["REQ-005"]
+    },
+    {
+      "path": "routes/index.js",
+      "type": "route",
+      "action": "modify",
+      "purpose": "Mount api-keys router + validateApiKey middleware ordering",
+      "requirements": ["REQ-006"]
+    },
+    {
+      "path": "docs/api.md",
+      "type": "docs",
+      "action": "modify",
+      "purpose": "API key documentatie voor frontend-studenten",
+      "requirements": ["REQ-007"]
+    }
+  ],
+  "architecture": {
+    "componentTree": [
+      "routes/api-keys.js → src/services/apikeys/generateKey.js → src/models/ApiKey.js",
+      "src/middleware/apiKeyMiddleware.js → src/models/ApiKey.js",
+      "routes/index.js → src/middleware/apiKeyMiddleware.js + routes/api-keys.js"
+    ],
+    "interfaces": [
+      {
+        "name": "generateApiKey",
+        "signature": "() => { key: string, prefix: string }",
+        "description": "Genereert sk_live_ + 32 hex chars, retourneert volledige key + prefix"
+      },
+      {
+        "name": "hashApiKey",
+        "signature": "(key: string) => Promise<string>",
+        "description": "bcrypt hash van volledige key"
+      },
+      {
+        "name": "compareApiKey",
+        "signature": "(key: string, hash: string) => Promise<boolean>",
+        "description": "bcrypt compare van key tegen hash"
+      },
+      {
+        "name": "validateApiKey",
+        "signature": "(req, res, next) => void",
+        "description": "Express middleware: X-API-Key header → prefix lookup → bcrypt compare → req.apiKey"
+      }
+    ]
+  },
+  "apiContract": [
+    {
+      "method": "POST",
+      "path": "/api/v1/api-keys",
+      "auth": "JWT Bearer",
+      "request": { "name": "string (required)" },
+      "responses": {
+        "201": { "id": "string", "name": "string", "prefix": "string", "key": "string (eenmalig!)", "active": true, "createdAt": "ISO date" },
+        "400": { "message": "Missing required field: name" },
+        "409": { "message": "Maximum 5 active API keys reached" }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/api-keys",
+      "auth": "JWT Bearer",
+      "responses": {
+        "200": { "items": [{ "id": "string", "name": "string", "prefix": "string", "active": "boolean", "createdAt": "ISO date" }] }
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/api-keys/:id",
+      "auth": "JWT Bearer",
+      "responses": {
+        "200": { "id": "string", "name": "string", "prefix": "string", "active": false },
+        "404": { "message": "API key not found" }
+      }
+    }
+  ],
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-001", "REQ-002"],
+      "description": "ApiKey model + key generatie/hashing utilities",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-003", "REQ-004"],
+      "description": "CRUD endpoints (POST create met max 5 check, GET list, DELETE revoke)",
+      "dependsOn": [1]
+    },
+    {
+      "step": 3,
+      "requirements": ["REQ-005", "REQ-006"],
+      "description": "Validatie middleware + mounting op routes/index.js",
+      "dependsOn": [1]
+    },
+    {
+      "step": 4,
+      "requirements": ["REQ-007"],
+      "description": "API key documentatie in docs/api.md",
+      "dependsOn": [2, 3]
+    }
+  ],
+  "testStrategy": [
+    {
+      "requirement": "REQ-001",
+      "testFile": "test/unit/api-key-model.test.js",
+      "description": "Schema validatie, required fields, unique prefix index, timestamps"
+    },
+    {
+      "requirement": "REQ-002",
+      "testFile": "test/unit/generate-key.test.js",
+      "description": "Key formaat (sk_live_ + 32 hex), prefix extractie, hash/compare roundtrip"
+    },
+    {
+      "requirement": "REQ-003",
+      "testFile": "test/unit/routes-api-keys.test.js",
+      "description": "POST create, GET list (zonder hash), DELETE revoke, JWT protection"
+    },
+    {
+      "requirement": "REQ-004",
+      "testFile": "test/unit/routes-api-keys.test.js",
+      "description": "409 response bij 5 actieve keys"
+    },
+    {
+      "requirement": "REQ-005",
+      "testFile": "test/unit/api-key-middleware.test.js",
+      "description": "Ontbrekende header → 401, ongeldige key → 401, gerevoked → 401, geldig → req.apiKey"
+    },
+    {
+      "requirement": "REQ-005,REQ-006",
+      "testFile": "test/integration/api-keys.integration.test.js",
+      "description": "End-to-end: signup → login → create key → use key op /tracks → verify 401 zonder key"
+    },
+    {
+      "requirement": "REQ-007",
+      "testFile": null,
+      "description": "Handmatige review: docs volgen als frontend-student"
+    }
+  ],
+  "durableDecisions": [
+    "Key format: sk_live_ prefix + 32 hex chars (40 chars totaal)",
+    "Prefix = eerste 16 chars voor DB lookup (ongehashd), volledige key bcrypt gehasht",
+    "API key middleware positie: na auth/users/api-keys routes, voor data routes in router chain",
+    "CRUD onder /api/v1/api-keys, JWT-protected (niet API-key-protected)",
+    "Max 5 actieve keys per user, geen expiry, soft-delete via active=false"
+  ],
+  "build": {
+    "started": "2026-03-10",
+    "completed": "2026-03-10",
+    "techniques": {
+      "tdd": 3,
+      "implementationFirst": 2,
+      "implementationOnly": 1
+    },
+    "testsPass": 522,
+    "testsTotal": 522,
+    "explanation": "Twee auth lagen: JWT voor account/key management, API key voor data endpoints. Key = sk_live_ + 32 hex, prefix (16 chars) ongehashd voor DB lookup, rest bcrypt gehasht. Route ordering in index.js: auth/users/api-keys vóór validateApiKey middleware, data routes erna.",
+    "decisions": [
+      "bcrypt voor key hashing (al in project als dependency)",
+      "crypto.randomBytes voor key generatie (Node.js built-in, cryptografisch veilig)",
+      "Prefix = eerste 16 chars voor snelle DB lookup zonder bcrypt compare op alle keys",
+      "Route ordering in index.js ipv pad-gebaseerde middleware — simpeler, explicieter"
+    ]
+  },
+  "packages": [],
+  "tests": {
+    "checklist": [
+      {
+        "id": 1,
+        "title": "API key aanmaken via POST",
+        "requirementId": "REQ-003",
+        "steps": [
+          "Log in via POST /auth/login",
+          "POST /api/v1/api-keys met Authorization: Bearer {token} en body {\"name\": \"Test App\"}",
+          "Noteer de key uit de response"
+        ],
+        "expected": "201 response met id, name, prefix, key (sk_live_...), active: true",
+        "status": "PASS"
+      },
+      {
+        "id": 2,
+        "title": "Key eenmalig zichtbaar",
+        "requirementId": "REQ-003",
+        "steps": [
+          "Maak een key aan (stap 1)",
+          "GET /api/v1/api-keys met JWT"
+        ],
+        "expected": "Lijst toont prefix maar NIET de volledige key of hash",
+        "status": "PASS"
+      },
+      {
+        "id": 3,
+        "title": "Max 5 keys limiet",
+        "requirementId": "REQ-004",
+        "steps": [
+          "Maak 5 keys aan",
+          "Probeer 6e key aan te maken"
+        ],
+        "expected": "409 response met melding over maximum 5 keys",
+        "status": "PASS"
+      },
+      {
+        "id": 4,
+        "title": "API key gebruiken op data endpoint",
+        "requirementId": "REQ-005",
+        "steps": [
+          "GET /api/v1/genres met X-API-Key: {jouw key}"
+        ],
+        "expected": "200 response met genres data",
+        "status": "PASS"
+      },
+      {
+        "id": 5,
+        "title": "Request zonder API key wordt geweigerd",
+        "requirementId": "REQ-005",
+        "steps": [
+          "GET /api/v1/genres zonder X-API-Key header"
+        ],
+        "expected": "401 Unauthorized",
+        "status": "PASS"
+      },
+      {
+        "id": 6,
+        "title": "Auth endpoints werken zonder API key",
+        "requirementId": "REQ-006",
+        "steps": [
+          "POST /auth/login zonder X-API-Key header"
+        ],
+        "expected": "Normaal login response (geen 401 voor ontbrekende API key)",
+        "status": "PASS"
+      },
+      {
+        "id": 7,
+        "title": "Gerevokede key werkt niet meer",
+        "requirementId": "REQ-005",
+        "steps": [
+          "Maak key aan, noteer key",
+          "DELETE /api/v1/api-keys/{id} met JWT",
+          "GET /api/v1/genres met de gerevokede key"
+        ],
+        "expected": "401 Unauthorized na revoke",
+        "status": "PASS"
+      },
+      {
+        "id": 8,
+        "title": "Docs zijn te volgen als student",
+        "requirementId": "REQ-007",
+        "steps": [
+          "Open docs/api.md",
+          "Volg de stappen in de API Keys sectie"
+        ],
+        "expected": "Alle curl commands werken en je kunt een API key aanmaken en gebruiken",
+        "status": "PASS"
+      }
+    ],
+    "finalStatus": "PASSED",
+    "sessions": [
+      { "date": "2026-03-10", "pass": 8, "fail": 0, "skip": 0 }
+    ]
+  }
+}
