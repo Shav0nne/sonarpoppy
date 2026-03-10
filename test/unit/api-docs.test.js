@@ -13,12 +13,12 @@ describe("API docs", () => {
 
   describe("REQ-002: all 6 endpoints documented", () => {
     const endpoints = [
-      "/api/genres",
-      "/api/tracks",
-      "/api/tracks/ingest",
-      "/api/tracks/ingest-batch",
-      "/api/profile/compute",
-      "/api/recommendations",
+      "/api/v1/genres",
+      "/api/v1/tracks",
+      "/api/v1/tracks/ingest",
+      "/api/v1/tracks/ingest-batch",
+      "/api/v1/profile/compute",
+      "/api/v1/recommendations",
     ];
 
     for (const endpoint of endpoints) {
@@ -30,7 +30,7 @@ describe("API docs", () => {
 
   describe("REQ-003: quick start section", () => {
     it("contains base URL", () => {
-      assert.ok(content.includes("localhost:3000"), "should mention base URL");
+      assert.ok(content.includes("localhost:8000"), "should mention base URL");
     });
 
     it("contains Content-Type header", () => {
