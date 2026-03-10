@@ -693,12 +693,12 @@
           .map((item, i) => {
             const t = item.track;
             const sc =
-              item.score >= 0.6 ? "score-high" : item.score >= 0.3 ? "score-mid" : "score-low";
+              item.finalScore >= 0.6 ? "score-high" : item.finalScore >= 0.3 ? "score-mid" : "score-low";
             const topG = getTopGenres(t.genreVector, 3);
             return `
             <div class="track-card">
               <span class="track-rank">${i + 1}</span>
-              <span class="track-score ${sc}">${item.score.toFixed(3)}</span>
+              <span class="track-score ${sc}">${item.finalScore.toFixed(3)}</span>
               <div class="track-info">
                 <h3>${esc(t.title)}</h3>
                 <span class="artist"> — ${esc(t.artist)}</span>
