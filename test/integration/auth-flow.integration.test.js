@@ -199,22 +199,18 @@ describe("injectUserId: body.userId wordt overschreven door JWT", () => {
   });
 });
 
-describe("injectUserId: :userId param validatie", () => {
-  it("200 als :userId matcht met JWT user", async () => {
+describe("JWT-gebaseerde toegang: iedere user ziet alleen eigen data", () => {
+  it("GET /sliders retourneert eigen sliders via JWT", async () => {
     const { userId, token, apiKey } = await createAuthenticatedUser();
 
     // Maak eerst sliders aan via onboarding
     await fetch(`${baseUrl}/api/v1/onboarding`, {
       method: "POST",
       headers: authHeaders(token, apiKey),
-      body: JSON.stringify({
-        genres: ["rock", "pop", "jazz"],
-        artists: [],
-        app: "poppy",
-      }),
+      body: JSON.stringify({ genres: ["rock", "pop", "jazz"], artists: [], app: "poppy" }),
     });
 
-    const res = await fetch(`${baseUrl}/api/v1/sliders/${userId}`, {
+    const res = await fetch(`${baseUrl}/api/v1/sliders`, {
       headers: authHeaders(token, apiKey),
     });
     assert.equal(res.status, 200);
@@ -222,16 +218,15 @@ describe("injectUserId: :userId param validatie", () => {
     assert.ok(body.sliders, "moet sliders retourneren");
   });
 
-  it("403 als :userId NIET matcht met JWT user", async () => {
+  it("GET /blacklist retourneert eigen (lege) blacklist via JWT", async () => {
     const { token, apiKey } = await createAuthenticatedUser();
-    const otherUserId = new mongoose.Types.ObjectId().toString();
 
-    const res = await fetch(`${baseUrl}/api/v1/sliders/${otherUserId}`, {
+    const res = await fetch(`${baseUrl}/api/v1/blacklist`, {
       headers: authHeaders(token, apiKey),
     });
-    assert.equal(res.status, 403);
+    assert.equal(res.status, 200);
     const body = await res.json();
-    assert.ok(body.message.includes("does not match"), "moet mismatch fout melden");
+    assert.deepEqual(body.entries, []);
   });
 
   it("403 bij feedback ophalen voor andere user", async () => {
@@ -243,46 +238,43 @@ describe("injectUserId: :userId param validatie", () => {
     });
     assert.equal(res.status, 403);
   });
-
-  it("403 bij blacklist ophalen voor andere user", async () => {
-    const { token, apiKey } = await createAuthenticatedUser();
-    const otherUserId = new mongoose.Types.ObjectId().toString();
-
-    const res = await fetch(`${baseUrl}/api/v1/blacklist/${otherUserId}`, {
-      headers: authHeaders(token, apiKey),
-    });
-    assert.equal(res.status, 403);
-  });
 });
 
 describe("Twee users kunnen elkaars data niet zien", () => {
-  it("user A kan niet bij sliders van user B", async () => {
+  it("user A en user B zien allebei hun eigen sliders", async () => {
     const userA = await createAuthenticatedUser("userA");
     const userB = await createAuthenticatedUser("userB");
 
-    // Beide doen onboarding
-    for (const user of [userA, userB]) {
-      await fetch(`${baseUrl}/api/v1/onboarding`, {
-        method: "POST",
-        headers: authHeaders(user.token, user.apiKey),
-        body: JSON.stringify({
-          genres: ["rock", "pop", "jazz"],
-          artists: [],
-          app: "poppy",
-        }),
-      });
-    }
+    // Beide doen onboarding met verschillende genres
+    await fetch(`${baseUrl}/api/v1/onboarding`, {
+      method: "POST",
+      headers: authHeaders(userA.token, userA.apiKey),
+      body: JSON.stringify({ genres: ["rock", "pop", "jazz"], artists: [], app: "poppy" }),
+    });
+    await fetch(`${baseUrl}/api/v1/onboarding`, {
+      method: "POST",
+      headers: authHeaders(userB.token, userB.apiKey),
+      body: JSON.stringify({ genres: ["electronic", "ambient", "dance"], artists: [], app: "poppy" }),
+    });
 
-    // User A probeert sliders van user B op te halen
-    const res = await fetch(`${baseUrl}/api/v1/sliders/${userB.userId}`, {
+    // User A ziet eigen sliders via JWT
+    const resA = await fetch(`${baseUrl}/api/v1/sliders`, {
       headers: authHeaders(userA.token, userA.apiKey),
     });
-    assert.equal(res.status, 403, "user A mag niet bij sliders van user B");
+    assert.equal(resA.status, 200);
+    const bodyA = await resA.json();
+    assert.equal(bodyA.sliders.rock, 1.0, "user A moet rock=1.0 hebben");
 
-    // User B kan eigen sliders WEL ophalen
-    const resOwn = await fetch(`${baseUrl}/api/v1/sliders/${userB.userId}`, {
+    // User B ziet eigen sliders via JWT
+    const resB = await fetch(`${baseUrl}/api/v1/sliders`, {
       headers: authHeaders(userB.token, userB.apiKey),
     });
-    assert.equal(resOwn.status, 200, "user B mag eigen sliders ophalen");
+    assert.equal(resB.status, 200);
+    const bodyB = await resB.json();
+    assert.equal(bodyB.sliders.electronic, 1.0, "user B moet electronic=1.0 hebben");
+
+    // Data is gescheiden: user B heeft geen rock=1.0 (zit op default 0.1)
+    assert.equal(bodyB.sliders.rock, 0.1, "user B heeft rock niet gekozen, moet 0.1 zijn");
   });
 });
+

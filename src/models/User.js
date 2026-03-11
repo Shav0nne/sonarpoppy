@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema(
         role: { type: String, enum: ["user", "admin"], default: "user" },
         spotifyId: { type: String },
         status: { type: String, enum: ["active", "warned", "banned"], default: "active" },
+        hasCompletedOnboarding: { type: Boolean, default: false },
     },
     {
         timestamps: true,

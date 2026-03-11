@@ -37,6 +37,8 @@ Alle endpoints (behalve auth) vereisen twee headers:
 
 De API key identificeert de **app**, niet de gebruiker. Eén key wordt gedeeld door alle eindgebruikers van dezelfde frontend. De server haalt `userId` automatisch uit het JWT token — je hoeft dit niet mee te sturen. Zie [getting-started.md](getting-started.md).
 
+> **Let op:** Endpoints die personalisatie vereisen (zoals aanbevelingen en sliders) kunnen beveiligd zijn met de `requireOnboarding` middleware. Als een gebruiker de onboarding nog niet heeft voltooid, retourneren deze routes een **403 Forbidden** met de melding "Onboarding is nog niet voltooid". Je kunt controleren of een gebruiker onboarding heeft voltooid door het `hasCompletedOnboarding` veld op het User object te bekijken.
+
 ---
 
 ## Genres & Tracks
@@ -108,6 +110,8 @@ Cold start voor nieuwe gebruikers. Laat de gebruiker genres kiezen en optioneel 
 
 **Response (201):**
 
+De database wordt bijgewerkt en de flag `hasCompletedOnboarding` op het User object wordt op `true` gezet.
+
 ```json
 {
   "profile": {
@@ -117,8 +121,8 @@ Cold start voor nieuwe gebruikers. Laat de gebruiker genres kiezen en optioneel 
   "sliders": { "rock": 1.5, "electronic": 1.3, "jazz": 1.2, "pop": 1.0 },
   "_links": {
     "self": { "href": "/api/v1/onboarding" },
-    "sliders": { "href": "/api/v1/sliders/user123" },
-    "recommendations": { "href": "/api/v1/recommendations?userId=user123" }
+    "sliders": { "href": "/api/v1/sliders/<userId>" },
+    "recommendations": { "href": "/api/v1/recommendations" }
   }
 }
 ```
@@ -263,9 +267,11 @@ Stand 1 = "Ik wil nummers die op mijn smaak lijken." Stand 5 = "Verras me met ie
 
 ## Sliders
 
-### GET /api/v1/sliders/:userId
+> `userId` wordt automatisch uit het JWT token gehaald bij alle slider endpoints.
 
-Retourneert de genre slider waarden voor een gebruiker.
+### GET /api/v1/sliders
+
+Retourneert de genre slider waarden voor de ingelogde gebruiker.
 
 **Response:**
 
@@ -287,9 +293,9 @@ Als de gebruiker nog geen sliders heeft → cold start: alle genres op 1.0, lock
 
 ---
 
-### PUT /api/v1/sliders/:userId
+### PUT /api/v1/sliders
 
-Update slider waarden en/of locked genres. Je hoeft niet alle genres mee te sturen — alleen de gewijzigde.
+Update slider waarden en/of locked genres voor de ingelogde gebruiker. Je hoeft niet alle genres mee te sturen — alleen de gewijzigde.
 
 **Request:**
 
@@ -305,18 +311,20 @@ Update slider waarden en/of locked genres. Je hoeft niet alle genres mee te stur
 | Fout | Wanneer                                            |
 | ---- | -------------------------------------------------- |
 | 400  | Onbekend genre in `sliders` keys of `locked` array |
+| 401  | Geen geldig JWT token                              |
 
 ---
 
-### POST /api/v1/sliders/:userId/reset
+### POST /api/v1/sliders/reset
 
-Reset alle sliders naar 1.0 en maakt locked leeg.
+Reset alle sliders naar 1.0 en maakt locked leeg voor de ingelogde gebruiker.
 
 **Response:** zelfde shape als GET, alle sliders op 1.0.
 
 | Fout | Wanneer                                  |
 | ---- | ---------------------------------------- |
 | 404  | Gebruiker heeft nog geen slider document |
+| 401  | Geen geldig JWT token                    |
 
 ---
 
@@ -406,23 +414,25 @@ Verhoogt de play count met 1 en update `lastPlayedAt`. Maakt feedback aan als di
 
 ## Blacklist
 
-### GET /api/v1/blacklist/:userId
+> `userId` wordt automatisch uit het JWT token gehaald bij alle blacklist endpoints.
 
-Retourneert alle geblokkeerde items voor een gebruiker. Geblokkeerde tracks, artiesten en genres worden automatisch uitgefilterd uit recommendations.
+### GET /api/v1/blacklist
+
+Retourneert alle geblokkeerde items voor de ingelogde gebruiker.
 
 **Response:**
 
 ```json
 {
-  "userId": "user123",
+  "userId": "<jwt-user-id>",
   "entries": [
     { "_id": "entry-id-1", "type": "artist", "value": "Nickelback" },
     { "_id": "entry-id-2", "type": "genre", "value": "metal" },
     { "_id": "entry-id-3", "type": "track", "value": "507f1f77bcf86cd799439011" }
   ],
   "_links": {
-    "self": "/api/v1/blacklist/user123",
-    "add": "/api/v1/blacklist/user123"
+    "self": "/api/v1/blacklist",
+    "add": "/api/v1/blacklist"
   }
 }
 ```
@@ -431,9 +441,9 @@ Geen blacklist? → `entries: []` (geen 404).
 
 ---
 
-### POST /api/v1/blacklist/:userId
+### POST /api/v1/blacklist
 
-Blokkeer een track, artiest of genre.
+Blokkeer een track, artiest of genre voor de ingelogde gebruiker.
 
 **Request:**
 
@@ -456,11 +466,12 @@ Blokkeer een track, artiest of genre.
 | Fout | Wanneer                                                |
 | ---- | ------------------------------------------------------ |
 | 400  | Type of value ontbreekt, ongeldig type, ongeldig genre |
+| 401  | Geen geldig JWT token                                  |
 | 409  | Entry bestaat al                                       |
 
 ---
 
-### DELETE /api/v1/blacklist/:userId/:entryId
+### DELETE /api/v1/blacklist/:entryId
 
 Verwijder een specifieke blokkering. Gebruik het `_id` veld uit de entries array.
 
@@ -468,6 +479,7 @@ Verwijder een specifieke blokkering. Gebruik het `_id` veld uit de entries array
 
 | Fout | Wanneer                                           |
 | ---- | ------------------------------------------------- |
+| 401  | Geen geldig JWT token                             |
 | 404  | Blacklist niet gevonden, of entryId niet gevonden |
 
 ---
@@ -593,9 +605,8 @@ await api("/feedback", {
 ### Artiest blokkeren
 
 ```js
-// userId in het pad moet matchen met de JWT user
-const userId = "abc123"; // uit login response user.id
-await api(`/blacklist/${userId}`, {
+// userId wordt automatisch uit het JWT token gehaald
+await api("/blacklist", {
   method: "POST",
   body: { type: "artist", value: "Nickelback" },
 });

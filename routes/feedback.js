@@ -7,7 +7,9 @@ router.param("userId", validateUserParam);
 
 // POST /api/feedback — create of update feedback voor een user-track paar
 router.post("/", async (req, res) => {
-  const { userId, trackId, action } = req.body;
+  const { trackId, action } = req.body;
+  const userId = req.user?.id;
+  
   if (!userId || !trackId) {
     return res.status(400).json({ error: "userId and trackId are required" });
   }

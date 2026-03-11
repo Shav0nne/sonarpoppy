@@ -5,7 +5,8 @@ import { processOnboarding } from "../src/services/onboarding/onboard.js";
 const router = Router();
 
 router.post("/", async (req, res) => {
-  const { userId, genres, artists, app } = req.body;
+  const { genres, artists, app } = req.body;
+  const userId = req.user?.id;
 
   const lastfmClient = createLastfmClient({ apiKey: process.env.LASTFM_API_KEY });
 

@@ -1,10 +1,8 @@
 import { Router } from "express";
 import GenreSliders from "../src/models/GenreSliders.js";
 import { GENRES } from "../src/config/genres.js";
-import { validateUserParam } from "../src/middleware/apiKeyMiddleware.js";
 
 const router = Router();
-router.param("userId", validateUserParam);
 
 const GENRE_SET = new Set(GENRES);
 
@@ -30,17 +28,23 @@ function slidersToObject(doc) {
   };
 }
 
-// GET /:userId — retourneer slider state (of cold start defaults)
-router.get("/:userId", async (req, res) => {
-  const doc = await GenreSliders.findOne({ userId: req.params.userId });
+// GET / — retourneer slider state (of cold start defaults)
+router.get("/", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+  const doc = await GenreSliders.findOne({ userId });
   if (!doc) {
     return res.json(coldStartResponse());
   }
   res.json(slidersToObject(doc));
 });
 
-// PUT /:userId — upsert slider state
-router.put("/:userId", async (req, res) => {
+// PUT / — upsert slider state
+router.put("/", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
   const { sliders, locked } = req.body;
 
   // Valideer genre keys in sliders
@@ -74,7 +78,7 @@ router.put("/:userId", async (req, res) => {
   }
 
   const doc = await GenreSliders.findOneAndUpdate(
-    { userId: req.params.userId },
+    { userId },
     { $set: update },
     { new: true, upsert: true, runValidators: true },
   );
@@ -82,9 +86,12 @@ router.put("/:userId", async (req, res) => {
   res.json(slidersToObject(doc));
 });
 
-// POST /:userId/reset — reset naar defaults
-router.post("/:userId/reset", async (req, res) => {
-  const doc = await GenreSliders.findOne({ userId: req.params.userId });
+// POST /reset — reset naar defaults
+router.post("/reset", async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+  const doc = await GenreSliders.findOne({ userId });
   if (!doc) {
     return res.status(404).json({ error: "Geen slider document gevonden" });
   }
