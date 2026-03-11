@@ -47,7 +47,7 @@ router.post("/signup", upload.single('image'), async (req, res) => {
             username: user.username,
             email: user.email,
             role: user.role,
-            imageUrl: user.image ? `${BASE}/users/${id}/image` : null,
+            imageUrl: user.image ? `${process.env.BASE_URI}/users/${user.id}/image` : null,
             hasCompletedOnboarding: user.hasCompletedOnboarding,
             _links: {
                 self: {
@@ -116,7 +116,7 @@ router.get("/me", authenticateJWT, async (req, res) => {
             email: user.email,
             role: user.role,
             hasCompletedOnboarding: user.hasCompletedOnboarding,
-            imageUrl: user.image ? `${BASE}/users/${id}/image` : null,
+            imageUrl: user.image ? `${process.env.BASE_URI}/users/${user.id}/image` : null,
         });
     } catch (err) {
         console.error(err);
