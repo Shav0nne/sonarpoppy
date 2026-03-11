@@ -1,6 +1,7 @@
 import express from "express";
 import { faker } from "@faker-js/faker";
 import User from "../src/models/User.js";
+import { upload } from "../src/middleware/multerSetup.js";
 
 const router = express.Router();
 
@@ -37,7 +38,8 @@ router.get("/", async (req, res) => {
 });
 
 //post create new user
-router.post("/", async (req, res) => {
+router.post("/", upload.single('image'), async (req, res) => {
+  // Multer will populate req.body (text fields) and req.file (uploaded file)
   const { username, email, password, role, spotify_id: spotify_id } = req.body;
 
   if (!username || !email || !password) {
@@ -50,13 +52,19 @@ router.post("/", async (req, res) => {
       return res.status(409).json({ message: "Username already exists" });
     }
 
-    const user = new User({
+    const userData = {
       username,
       email,
       password,
       role: role || "user",
       spotify_id: spotify_id,
-    });
+    };
+
+    if (req.file) {
+      userData.image = { data: req.file.buffer, contentType: req.file.mimetype };
+    }
+
+    const user = new User(userData);
 
     await user.save();
 
@@ -109,8 +117,9 @@ router.post("/seed", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", upload.single('image'), async (req, res) => {
   const trainId = req.params.id;
+  // Multer will populate req.body for text fields
   const { username: username, email, role, status } = req.body;
 
   if (!username || !email || !role || !status) {
@@ -120,9 +129,14 @@ router.put("/:id", async (req, res) => {
   }
 
   try {
+    const updateData = { username, email, role, status };
+    if (req.file) {
+      updateData.image = { data: req.file.buffer, contentType: req.file.mimetype };
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       trainId,
-      { username, email, role, status },
+      updateData,
       {
         new: true,
         runValidators: true,
@@ -149,6 +163,22 @@ router.get("/:id", async (req, res) => {
     res.json(user);
   } catch (e) {
     res.status(404).send();
+  }
+});
+
+//get raw image for user (so <img src="/api/v1/users/:id/image"> works)
+router.get('/:id/image', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('image');
+    if (!user || !user.image || !user.image.data) return res.status(404).send();
+    const mime = user.image.contentType || 'image/jpeg';
+    res.setHeader('Content-Type', mime);
+    // Cache for 24 hours by default
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(user.image.data);
+  } catch (err) {
+    console.error('Error serving user image', err);
+    return res.status(500).send();
   }
 });
 

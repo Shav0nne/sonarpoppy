@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../src/models/User.js";
+import { upload } from "../src/middleware/multerSetup.js";
 
 const router = express.Router();
 
@@ -14,7 +15,8 @@ router.options("/", (req, res) => {
 });
 
 // POST /auth/signup
-router.post("/signup", async (req, res) => {
+// Accept multipart/form-data so clients can upload a profile image under the field `image`
+router.post("/signup", upload.single('image'), async (req, res) => {
   const { username, email, password, role } = req.body;
   if (!username || !email || !password) {
     return res.status(400).json({ message: "Missing required fields: username, email, password" });
@@ -24,15 +26,27 @@ router.post("/signup", async (req, res) => {
     const existing = await User.findOne({ $or: [{ username }, { email }] });
     if (existing) return res.status(409).json({ message: "Username or email already exists" });
 
+    // Build user data and include uploaded image if present
+    const userData = { username, email, password, role: role || "user" };
+    if (req.file) {
+      userData.image = {
+        data: req.file.buffer,
+        contentType: req.file.mimetype
+      };
+    }
+
     // Let the model pre-save hook hash the password
-    const user = new User({ username, email, password, role: role || "user" });
+    const user = new User(userData);
     await user.save();
 
+    const id = user.id || (user._id ? user._id.toString() : undefined);
+
     res.status(201).json({
-      id: user.id || (user._id ? user._id.toString() : undefined),
+      id,
       username: user.username,
       email: user.email,
       role: user.role,
+      imageUrl: user.image ? `${BASE}/users/${id}/image` : null,
       _links: {
         self: {
           href: `${process.env.BASE_URI}/users/${user.id || (user._id ? user._id.toString() : "")}`,
