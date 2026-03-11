@@ -2,6 +2,7 @@ import express from "express";
 import { faker } from "@faker-js/faker";
 import User from "../src/models/User.js";
 import { upload } from "../src/middleware/multerSetup.js";
+import { ifAdmin } from "../src/middleware/onlyAdmin.js"
 
 const router = express.Router();
 
@@ -159,7 +160,7 @@ router.get("/:id", async (req, res) => {
 
   try {
     const user = await User.findById(userId);
-    if (!user) return res.status(404).send(); // not found after deletion
+    if (!user) return res.status(404).send();
     res.json(user);
   } catch (e) {
     res.status(404).send();
@@ -191,7 +192,7 @@ router.all("/", (req, res, next) => {
   next();
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", ifAdmin, async (req, res) => {
   const userId = req.params.id;
   try {
     const deleted = await User.findByIdAndDelete(userId);
