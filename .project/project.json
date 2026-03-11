@@ -985,8 +985,7 @@
     },
     {
       "name": "dial-bubble-aware",
-      "status": "DOING",
-      "stage": "defined",
+      "status": "DONE",
       "summary": "Herziening dial: van gewichtenverschuiver naar bubbel-filter. Genre en CF altijd op volle kracht, dial bepaalt welke tracks erdoor komen via configureerbare drempels en per-stand sortering (genreSim 1-3, CF 4, random 5).",
       "depends": ["dial-system"],
       "created": "2026-03-11"

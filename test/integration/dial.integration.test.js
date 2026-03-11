@@ -123,6 +123,51 @@ describe("Item I2: dial parameter → dialPosition in meta", () => {
   });
 });
 
+// Item INT-1: Stand 4 — bubbel-filter + unplayed + CF sort gecombineerd
+describe("Item INT-1: Stand 4 combineert filter + unplayed + CF sort", () => {
+  it("retourneert alleen unplayed tracks, gesorteerd op CF (genreSim fallback)", async () => {
+    // Seed tracks met verschillende genreVectors
+    const tracks = await Track.create([
+      { title: "Played Rock", artist: "A", genreVector: v(0) },
+      { title: "Unplayed Rock", artist: "B", genreVector: v(0) },
+      { title: "Unplayed Pop", artist: "C", genreVector: v(1) },
+      { title: "Played Jazz", artist: "D", genreVector: v(5) },
+      { title: "Unplayed Jazz", artist: "E", genreVector: v(5) },
+    ]);
+
+    // Seed feedback: mark tracks as played via Feedback records
+    await Feedback.create([
+      { userId: "user1", trackId: tracks[0]._id, action: "like", playCount: 3 },
+      { userId: "user1", trackId: tracks[3]._id, action: "skip", playCount: 1 },
+    ]);
+
+    // POST recommendations met dial=4 en userId
+    const res = await fetch(`${baseUrl}/api/recommendations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileVector: v(0), dial: 4, userId: "user1" }),
+    });
+    const body = await res.json();
+    assert.equal(res.status, 200);
+
+    // Verify: alleen unplayed tracks (Played Rock en Played Jazz zijn uitgefilterd)
+    const titles = body.tracks.map((t) => t.track.title);
+    assert.ok(!titles.includes("Played Rock"), "Played Rock moet uitgefilterd zijn");
+    assert.ok(!titles.includes("Played Jazz"), "Played Jazz moet uitgefilterd zijn");
+    assert.equal(body.tracks.length, 3);
+    assert.ok(titles.includes("Unplayed Rock"));
+    assert.ok(titles.includes("Unplayed Pop"));
+    assert.ok(titles.includes("Unplayed Jazz"));
+
+    // Verify: dialPosition = 4
+    assert.equal(body.meta.dialPosition, 4);
+
+    // Verify: CF sort met genreSim fallback (alle CF null → genreSim desc)
+    // Unplayed Rock (genreSim=1.0) moet eerste zijn, daarna Pop/Jazz (genreSim=0)
+    assert.equal(body.tracks[0].track.title, "Unplayed Rock");
+  });
+});
+
 // Item I3: Stand 3 geen filter — alle tracks komen erdoor
 describe("Item I3: Stand 3 geen filter", () => {
   it("Stand 3 retourneert alle tracks ongeacht genreSim", async () => {
