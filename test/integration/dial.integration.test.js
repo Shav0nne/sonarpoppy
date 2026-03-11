@@ -144,15 +144,15 @@ describe("Item INT-1: Stand 4 combineert filter + unplayed + CF sort", () => {
 
     // Seed feedback: mark tracks as played via Feedback records
     await Feedback.create([
-      { userId: "user1", trackId: tracks[0]._id, action: "like", playCount: 3 },
-      { userId: "user1", trackId: tracks[3]._id, action: "skip", playCount: 1 },
+      { userId: "test-user", trackId: tracks[0]._id, action: "like", playCount: 3 },
+      { userId: "test-user", trackId: tracks[3]._id, action: "skip", playCount: 1 },
     ]);
 
-    // POST recommendations met dial=4 en userId
+    // POST recommendations met dial=4 (userId komt uit JWT stub: "test-user")
     const res = await fetch(`${baseUrl}/api/recommendations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileVector: v(0), dial: 4, userId: "user1" }),
+      body: JSON.stringify({ profileVector: v(0), dial: 4 }),
     });
     const body = await res.json();
     assert.equal(res.status, 200);
