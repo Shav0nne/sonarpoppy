@@ -23,7 +23,7 @@ before(async () => {
 
 after(() => server?.close());
 
-// REQ-003: GET /api/dial retourneert alle presets + default position
+// REQ-005: GET /api/dial retourneert presets met filter+sort structuur
 describe("GET /api/dial", () => {
   it("retourneert status 200", async () => {
     const res = await fetch(`${baseUrl}/api/dial`);
@@ -40,6 +40,25 @@ describe("GET /api/dial", () => {
     const res = await fetch(`${baseUrl}/api/dial`);
     const body = await res.json();
     assert.deepEqual(body.presets, JSON.parse(JSON.stringify(DIAL_PRESETS)));
+  });
+
+  it("elke preset bevat filter, sortSignal, unplayedOnly (nieuwe structuur)", async () => {
+    const res = await fetch(`${baseUrl}/api/dial`);
+    const body = await res.json();
+    for (const preset of body.presets) {
+      assert.ok(preset.filter, `Stand ${preset.position}: filter ontbreekt`);
+      assert.equal(typeof preset.filter.type, "string");
+      assert.equal(typeof preset.sortSignal, "string");
+      assert.equal(typeof preset.unplayedOnly, "boolean");
+    }
+  });
+
+  it("presets bevatten GEEN weights property (oud model)", async () => {
+    const res = await fetch(`${baseUrl}/api/dial`);
+    const body = await res.json();
+    for (const preset of body.presets) {
+      assert.equal(preset.weights, undefined, `Stand ${preset.position}: weights moet weg zijn`);
+    }
   });
 
   it("bevat default: 3", async () => {

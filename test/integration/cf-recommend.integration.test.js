@@ -46,10 +46,11 @@ describe("CF score beinvloedt recommendation ranking (dial=4)", () => {
     // Scenario: alle tracks hebben genre score ~0.707 (via mixVec).
     // Track A heeft hoge CF overlap (~0.87). Track B/C hebben geen CF overlap (cf=null).
     //
+    // Scoring altijd 50/50 (dial is filter, niet gewichtenverschuiver).
     // Re-normalisatie: wanneer cf=null, hybridScore geeft 100% gewicht aan genre.
     // Track B/C: finalScore = 1.0 * 0.707 = 0.707
-    // Track A (dial=4 → genre:0.4, cf:0.6): 0.4*0.707 + 0.6*0.87 = 0.283 + 0.522 = 0.805
-    // A (0.805) > B/C (0.707) ✓
+    // Track A (50/50): 0.5*0.707 + 0.5*0.87 = 0.354 + 0.435 = 0.789
+    // A (0.789) > B/C (0.707) ✓
 
     const candidateVec = mixVec(0, 1); // rock+pop mix, cosine ~0.707 vs v(0)
 
@@ -141,21 +142,20 @@ describe("CF score beinvloedt recommendation ranking (dial=4)", () => {
     );
     assert.equal(notEnriched.signals.cf, null, "signals.cf is null voor niet-enriched");
 
-    // appliedWeights bij dial=4: cf gewicht moet 0.6 zijn (wanneer cf actief is)
+    // appliedWeights bij dial=4: scoring altijd 50/50 (dial is nu filter, niet gewichtenverschuiver)
     assert.equal(
       enrichedHighOverlap.appliedWeights.cf,
-      0.6,
-      "appliedWeights.cf = 0.6 bij dial=4 voor track met actieve cf",
+      0.5,
+      "appliedWeights.cf = 0.5 (scoring altijd 50/50)",
     );
     assert.equal(
       enrichedHighOverlap.appliedWeights.genre,
-      0.4,
-      "appliedWeights.genre = 0.4 bij dial=4 voor track met actieve cf",
+      0.5,
+      "appliedWeights.genre = 0.5 (scoring altijd 50/50)",
     );
 
     // Meta moet dial position 4 bevestigen
     assert.equal(result.meta.dialPosition, 4);
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.4, cf: 0.6 });
   });
 });
 

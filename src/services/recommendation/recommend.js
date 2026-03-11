@@ -56,35 +56,95 @@ export function scoreTracks(
   return scored;
 }
 
+/**
+ * Apply bubble filter based on dial preset configuration.
+ * Filters scored tracks by genre similarity threshold and unplayed status.
+ */
+function applyBubbleFilter(scored, preset, feedbackMap) {
+  let filtered = scored;
+
+  // Genre similarity filter
+  if (preset.filter.type === "minGenreSim" && preset.filter.threshold != null) {
+    filtered = filtered.filter((s) => s.signals.genre >= preset.filter.threshold);
+  }
+
+  // Unplayed-only filter (Stand 4)
+  if (preset.unplayedOnly && feedbackMap) {
+    filtered = filtered.filter((s) => {
+      const fb = feedbackMap.get(String(s.track._id));
+      if (!fb) return true; // No feedback record → unplayed
+      return fb.playCount === 0;
+    });
+  } else if (preset.unplayedOnly) {
+    // No feedbackMap → all tracks are "unplayed"
+  }
+
+  return filtered;
+}
+
+/**
+ * Sort tracks by the dial preset's sort signal.
+ */
+function sortBySignal(scored, preset) {
+  if (preset.sortSignal === "genreSim") {
+    return [...scored].sort((a, b) => b.signals.genre - a.signals.genre);
+  }
+
+  if (preset.sortSignal === "cf") {
+    return [...scored].sort((a, b) => {
+      const aCf = a.signals.cf;
+      const bCf = b.signals.cf;
+      // Both have CF → sort by CF desc
+      if (aCf != null && bCf != null) return bCf - aCf;
+      // One has CF, other doesn't → CF-having track first
+      if (aCf != null) return -1;
+      if (bCf != null) return 1;
+      // Both null CF → fallback to genreSim desc
+      return b.signals.genre - a.signals.genre;
+    });
+  }
+
+  if (preset.sortSignal === "random") {
+    const shuffled = [...scored];
+    // Fisher-Yates shuffle
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  return scored;
+}
+
 export async function getRecommendations({
   profileVector,
   limit,
   offset = 0,
   filters = {},
-  weights,
   dial,
   userId,
   overrides = {},
   _tracks,
+  _feedbackMap,
 }) {
-  // dial overschrijft weights; geen dial + geen weights → default Stand 3
-  let w;
+  // Resolve dial preset; default = Stand 3
+  let preset;
   let dialPosition;
   if (dial != null) {
-    const preset = getDialPreset(dial);
-    w = preset.weights;
+    preset = getDialPreset(dial);
     dialPosition = preset.position;
-  } else if (weights != null) {
-    w = weights;
-    dialPosition = null;
   } else {
-    w = DEFAULT_WEIGHTS;
+    preset = getDialPreset(3);
     dialPosition = 3;
   }
 
+  // Scoring altijd met 50/50 gewichten — dial is een post-score filter
+  const w = DEFAULT_WEIGHTS;
+
   // Build feedback map per track voor deze user
-  let feedbackMap = null;
-  if (userId) {
+  let feedbackMap = _feedbackMap ?? null;
+  if (!feedbackMap && userId) {
     const feedbackDocs = await Feedback.find({ userId }).lean();
     feedbackMap = new Map(feedbackDocs.map((fb) => [String(fb.trackId), fb]));
   }
@@ -130,6 +190,12 @@ export async function getRecommendations({
     overrides,
   );
 
+  // Apply bubble filter (post-score)
+  scored = applyBubbleFilter(scored, preset, feedbackMap);
+
+  // Sort by dial signal
+  scored = sortBySignal(scored, preset);
+
   if (filters.minScore != null) {
     scored = scored.filter((s) => s.finalScore >= filters.minScore);
   }
@@ -158,7 +224,6 @@ export async function getRecommendations({
       min: scores.length > 0 ? Math.min(...scores) : 0,
       max: scores.length > 0 ? Math.max(...scores) : 0,
     },
-    configuredWeights: w,
     activeSignals,
     dialPosition,
   };
