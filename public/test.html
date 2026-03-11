@@ -1375,12 +1375,12 @@
                 </div>
               </div>
 
-              <!-- DIAL - visual bar chart -->
+              <!-- DIAL - bubble filter visualization -->
               <div class="algo-card">
                 <div class="algo-card-title">
                   <span style="color: #e6edf3">De Dial</span>
                   <span style="color: #484f58; font-size: 11px; font-weight: 400"
-                    >verhouding genre &harr; CF</span
+                    >bubbel-filter &amp; sortering</span
                   >
                 </div>
                 <div class="dial-vis">
@@ -1390,17 +1390,12 @@
                     <div class="bars">
                       <div
                         class="bar"
-                        style="height: 70%; background: #3fb950"
-                        title="genre: 0.7"
-                      ></div>
-                      <div
-                        class="bar"
-                        style="height: 30%; background: #58a6ff"
-                        title="cf: 0.3"
+                        style="height: 80%; background: #3fb950"
+                        title="filter: genreSim &ge; 0.6"
                       ></div>
                     </div>
                     <div style="font-size: 9px; margin-top: 4px">
-                      <span style="color: #3fb950">.7</span> <span style="color: #58a6ff">.3</span>
+                      <span style="color: #3fb950">&ge;.6</span>
                     </div>
                   </div>
                   <div class="dial-vis-item">
@@ -1409,17 +1404,12 @@
                     <div class="bars">
                       <div
                         class="bar"
-                        style="height: 60%; background: #3fb950"
-                        title="genre: 0.6"
-                      ></div>
-                      <div
-                        class="bar"
-                        style="height: 40%; background: #58a6ff"
-                        title="cf: 0.4"
+                        style="height: 50%; background: #3fb950"
+                        title="filter: genreSim &ge; 0.3"
                       ></div>
                     </div>
                     <div style="font-size: 9px; margin-top: 4px">
-                      <span style="color: #3fb950">.6</span> <span style="color: #58a6ff">.4</span>
+                      <span style="color: #3fb950">&ge;.3</span>
                     </div>
                   </div>
                   <div class="dial-vis-item" style="border: 1px solid #238636">
@@ -1428,17 +1418,12 @@
                     <div class="bars">
                       <div
                         class="bar"
-                        style="height: 50%; background: #3fb950"
-                        title="genre: 0.5"
-                      ></div>
-                      <div
-                        class="bar"
-                        style="height: 50%; background: #58a6ff"
-                        title="cf: 0.5"
+                        style="height: 20%; background: #484f58"
+                        title="geen filter"
                       ></div>
                     </div>
                     <div style="font-size: 9px; margin-top: 4px">
-                      <span style="color: #3fb950">.5</span> <span style="color: #58a6ff">.5</span>
+                      <span style="color: #8b949e">alles</span>
                     </div>
                   </div>
                   <div class="dial-vis-item">
@@ -1447,17 +1432,13 @@
                     <div class="bars">
                       <div
                         class="bar"
-                        style="height: 40%; background: #3fb950"
-                        title="genre: 0.4"
-                      ></div>
-                      <div
-                        class="bar"
                         style="height: 60%; background: #58a6ff"
-                        title="cf: 0.6"
+                        title="sort: CF, alleen onbeluisterd"
                       ></div>
                     </div>
                     <div style="font-size: 9px; margin-top: 4px">
-                      <span style="color: #3fb950">.4</span> <span style="color: #58a6ff">.6</span>
+                      <span style="color: #58a6ff">CF</span>
+                      <span style="color: #d29922">&#9679;</span>
                     </div>
                   </div>
                   <div class="dial-vis-item">
@@ -1466,17 +1447,12 @@
                     <div class="bars">
                       <div
                         class="bar"
-                        style="height: 30%; background: #3fb950"
-                        title="genre: 0.3"
-                      ></div>
-                      <div
-                        class="bar"
-                        style="height: 70%; background: #58a6ff"
-                        title="cf: 0.7"
+                        style="height: 40%; background: #bc8cff"
+                        title="sort: random"
                       ></div>
                     </div>
                     <div style="font-size: 9px; margin-top: 4px">
-                      <span style="color: #3fb950">.3</span> <span style="color: #58a6ff">.7</span>
+                      <span style="color: #bc8cff">rnd</span>
                     </div>
                   </div>
                 </div>
@@ -1489,8 +1465,10 @@
                     color: #484f58;
                   "
                 >
-                  <span><span style="color: #3fb950">&#9632;</span> genre weight</span>
-                  <span><span style="color: #58a6ff">&#9632;</span> CF weight</span>
+                  <span><span style="color: #3fb950">&#9632;</span> genre filter</span>
+                  <span><span style="color: #58a6ff">&#9632;</span> CF sort</span>
+                  <span><span style="color: #d29922">&#9679;</span> onbeluisterd</span>
+                  <span><span style="color: #bc8cff">&#9632;</span> random</span>
                 </div>
               </div>
 
@@ -1722,7 +1700,7 @@
             <span class="collapsible-toggle">&#9660;</span>
           </div>
           <div class="collapsible-body">
-            <!-- Weight mode -->
+            <!-- Scoring & overrides -->
             <div
               style="
                 display: flex;
@@ -1733,73 +1711,9 @@
               "
             >
               <div style="flex: 1; min-width: 200px">
-                <div class="section-title" style="margin-bottom: 6px">Scoring weights</div>
-                <label
-                  style="
-                    font-size: 12px;
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    margin-bottom: 8px;
-                  "
-                >
-                  <input
-                    type="checkbox"
-                    id="admin-manual-weights"
-                    onchange="toggleManualWeights()"
-                  />
-                  Manual mode (bypass dial)
-                </label>
-                <div id="admin-weights-panel" style="display: none">
-                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px">
-                    <label style="font-size: 12px; color: #8b949e; width: 50px">Genre</label>
-                    <input
-                      type="range"
-                      id="admin-genre-w"
-                      min="0"
-                      max="100"
-                      value="50"
-                      style="flex: 1; accent-color: #238636"
-                      oninput="onAdminWeightChange()"
-                    />
-                    <span
-                      id="admin-genre-w-val"
-                      style="
-                        font-size: 12px;
-                        font-family: monospace;
-                        color: #58a6ff;
-                        width: 32px;
-                        text-align: right;
-                      "
-                      >0.50</span
-                    >
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 8px">
-                    <label style="font-size: 12px; color: #8b949e; width: 50px">CF</label>
-                    <input
-                      type="range"
-                      id="admin-cf-w"
-                      min="0"
-                      max="100"
-                      value="50"
-                      style="flex: 1; accent-color: #58a6ff"
-                      oninput="onAdminWeightChange()"
-                    />
-                    <span
-                      id="admin-cf-w-val"
-                      style="
-                        font-size: 12px;
-                        font-family: monospace;
-                        color: #58a6ff;
-                        width: 32px;
-                        text-align: right;
-                      "
-                      >0.50</span
-                    >
-                  </div>
-                  <button class="btn-sm" onclick="applyManualWeights()" style="margin-top: 8px">
-                    Toepassen
-                  </button>
+                <div class="section-title" style="margin-bottom: 6px">Scoring</div>
+                <div style="font-size: 12px; color: #8b949e; margin-bottom: 8px">
+                  Gewichten vast op 50/50 (genre/CF). Dial bepaalt filter &amp; sortering.
                 </div>
               </div>
 
@@ -1996,7 +1910,15 @@
 
             <!-- Actions -->
             <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px">
-              <button class="btn-sm success" onclick="applyManualWeights()">Toepassen</button>
+              <button
+                class="btn-sm success"
+                onclick="
+                  if (currentVector) getRecommendations();
+                  else computeAndRecommend();
+                "
+              >
+                Toepassen
+              </button>
               <button class="btn-sm" onclick="resetAdminDefaults()">Reset defaults</button>
               <label
                 style="
@@ -2306,27 +2228,16 @@
         if (!Array.isArray(dialPresets)) return;
         const preset = dialPresets.find((p) => p.position === currentDial);
         if (preset) {
-          info.textContent = `${preset.name} — genre: ${preset.weights.genre}, cf: ${preset.weights.cf}`;
+          const filterLabel =
+            preset.filter.type === "none"
+              ? "geen"
+              : `${preset.filter.type} \u2265 ${preset.filter.threshold}`;
+          const extras = preset.unplayedOnly ? " \u00b7 onbeluisterd" : "";
+          info.textContent = `${preset.name} \u2014 filter: ${filterLabel}, sort: ${preset.sortSignal}${extras}`;
         }
       }
 
       // --- Admin panel ---
-      let manualWeightsMode = false;
-
-      function toggleManualWeights() {
-        manualWeightsMode = document.getElementById("admin-manual-weights").checked;
-        document.getElementById("admin-weights-panel").style.display = manualWeightsMode
-          ? ""
-          : "none";
-      }
-
-      function onAdminWeightChange() {
-        const g = parseInt(document.getElementById("admin-genre-w").value) / 100;
-        const c = parseInt(document.getElementById("admin-cf-w").value) / 100;
-        document.getElementById("admin-genre-w-val").textContent = g.toFixed(2);
-        document.getElementById("admin-cf-w-val").textContent = c.toFixed(2);
-      }
-
       function updateAdminLabel(el, mode) {
         const label = el.nextElementSibling;
         if (!label) return;
@@ -2352,11 +2263,6 @@
         };
       }
 
-      function applyManualWeights() {
-        if (currentVector) getRecommendations();
-        else computeAndRecommend();
-      }
-
       const ADMIN_DEFAULTS = {
         "admin-fb-like": 110,
         "admin-fb-dislike": 50,
@@ -2367,8 +2273,6 @@
         "admin-fb-halflife": 30,
         "admin-cf-track": 70,
         "admin-cf-artist": 30,
-        "admin-genre-w": 50,
-        "admin-cf-w": 50,
       };
 
       function resetAdminDefaults() {
@@ -2379,16 +2283,17 @@
           const isInt = id.includes("playthresh") || id.includes("halflife");
           updateAdminLabel(el, isInt ? "int" : undefined);
         }
-        onAdminWeightChange();
       }
 
       function renderDialConfig() {
         if (!Array.isArray(dialPresets)) return;
         document.getElementById("admin-dial-config").innerHTML = dialPresets
-          .map(
-            (p) =>
-              `<div>${p.position}. ${p.name} — g:<span style="color:#3fb950">${p.weights.genre}</span> cf:<span style="color:#58a6ff">${p.weights.cf}</span></div>`,
-          )
+          .map((p) => {
+            const f =
+              p.filter.type === "none" ? "geen" : `${p.filter.type} \u2265 ${p.filter.threshold}`;
+            const u = p.unplayedOnly ? ' <span style="color:#d29922">unplayed</span>' : "";
+            return `<div>${p.position}. ${p.name} \u2014 filter:<span style="color:#3fb950">${f}</span> sort:<span style="color:#58a6ff">${p.sortSignal}</span>${u}</div>`;
+          })
           .join("");
       }
 
@@ -2460,14 +2365,7 @@
           profileVector: currentVector,
           filters: { minScore },
         };
-        if (manualWeightsMode) {
-          body.weights = {
-            genre: parseInt(document.getElementById("admin-genre-w").value) / 100,
-            cf: parseInt(document.getElementById("admin-cf-w").value) / 100,
-          };
-        } else {
-          body.dial = currentDial;
-        }
+        body.dial = currentDial;
         if (limitVal > 0) body.limit = limitVal;
         body.overrides = getOverrides();
 
@@ -2551,7 +2449,7 @@
               ? `<div style="font-size:10px;font-family:monospace;color:#8b949e;margin-top:4px;padding-top:4px;border-top:1px solid #21262d">
                   genre:<span style="color:#3fb950">${item.signals?.genre?.toFixed(3) ?? "null"}</span>
                   cf:<span style="color:#58a6ff">${item.signals?.cf?.toFixed(3) ?? "null"}</span>
-                  w:<span style="color:#d29922">${item.appliedWeights?.genre?.toFixed(2) ?? "?"}/${item.appliedWeights?.cf?.toFixed(2) ?? "?"}</span>
+                  dial:<span style="color:#d29922">${currentDial}</span>
                   fb:<span style="color:#bc8cff">${item.feedbackMultiplier?.toFixed(2) ?? "1.00"}x</span>
                 </div>`
               : "";

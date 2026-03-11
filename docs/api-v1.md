@@ -215,7 +215,6 @@ Het hoofdendpoint. Retourneert gepersonaliseerde track-aanbevelingen gesorteerd 
     "scoredAt": "2026-03-10T12:00:00.000Z",
     "avgScore": 0.45,
     "scoreRange": { "min": 0.12, "max": 0.92 },
-    "configuredWeights": { "genre": 0.5, "cf": 0.5 },
     "activeSignals": ["genre", "cf"],
     "dialPosition": 3
   }
@@ -229,7 +228,7 @@ Het hoofdendpoint. Retourneert gepersonaliseerde track-aanbevelingen gesorteerd 
 | `tracks[].signals.cf`         | Collaborative filtering score (null als niet beschikbaar) |
 | `tracks[].feedbackMultiplier` | Boost/penalty van eerdere likes/dislikes (default 1.0)    |
 | `total`                       | Totaal aantal resultaten (voor paginatie)                 |
-| `meta.dialPosition`           | Welke dial stand is gebruikt (null bij custom weights)    |
+| `meta.dialPosition`           | Welke dial stand is gebruikt                              |
 
 ---
 
@@ -245,19 +244,31 @@ Toont de 5 dial standen. Gebruik dit om een slider/keuze UI te bouwen.
     {
       "position": 1,
       "name": "Strikt",
-      "description": "Genre-zwaar, voorspelbaar.",
-      "weights": { "genre": 0.7, "cf": 0.3 }
+      "description": "Blijft dicht bij je smaak. Alleen tracks met hoge genre-match.",
+      "filter": { "type": "minGenreSim", "threshold": 0.6 },
+      "sortSignal": "genreSim",
+      "unplayedOnly": false
     },
-    { "position": 2, "name": "Dichtbij", "weights": { "genre": 0.6, "cf": 0.4 } },
-    { "position": 3, "name": "Gebalanceerd", "weights": { "genre": 0.5, "cf": 0.5 } },
-    { "position": 4, "name": "Ontdekking", "weights": { "genre": 0.4, "cf": 0.6 } },
-    { "position": 5, "name": "Anti-bubbel", "weights": { "genre": 0.3, "cf": 0.7 } }
+    {
+      "position": 3,
+      "name": "Gebalanceerd",
+      "filter": { "type": "none", "threshold": null },
+      "sortSignal": "genreSim",
+      "unplayedOnly": false
+    },
+    {
+      "position": 5,
+      "name": "Anti-bubbel",
+      "filter": { "type": "none", "threshold": null },
+      "sortSignal": "random",
+      "unplayedOnly": false
+    }
   ],
   "default": 3
 }
 ```
 
-Stand 1 = "Ik wil nummers die op mijn smaak lijken." Stand 5 = "Verras me met iets anders."
+De dial is een bubbel-filter: scoring is altijd 50/50 (genre/CF), de dial bepaalt welke tracks erdoor komen en hoe ze gesorteerd worden. Zie [docs/dial-system.md](dial-system.md) voor de volledige uitleg.
 
 ---
 
