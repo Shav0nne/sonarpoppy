@@ -9,9 +9,7 @@ router.use(requireOnboarding);
 // GET / -> Get the blacklist for the authenticated user
 router.get("/", async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
+    const userId = req.user.id;
     const blacklist = await Blacklist.findOne({ userId }).lean();
     const entries = blacklist ? blacklist.entries : [];
 
@@ -31,9 +29,7 @@ router.get("/", async (req, res, next) => {
 // POST / -> Add an entry to the blacklist
 router.post("/", async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
+    const userId = req.user.id;
     let { type, value } = req.body;
 
     if (!type || !value) {
@@ -87,9 +83,7 @@ router.post("/", async (req, res, next) => {
 // DELETE /:entryId -> Remove an entry from the blacklist
 router.delete("/:entryId", async (req, res, next) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
+    const userId = req.user.id;
     const { entryId } = req.params;
 
     const blacklist = await Blacklist.findOne({ userId });

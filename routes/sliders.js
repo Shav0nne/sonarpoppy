@@ -32,9 +32,7 @@ function slidersToObject(doc) {
 
 // GET / — retourneer slider state (of cold start defaults)
 router.get("/", async (req, res) => {
-  const userId = req.user?.id;
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
+  const userId = req.user.id;
   const doc = await GenreSliders.findOne({ userId });
   if (!doc) {
     return res.json(coldStartResponse());
@@ -44,9 +42,7 @@ router.get("/", async (req, res) => {
 
 // PUT / — upsert slider state
 router.put("/", async (req, res) => {
-  const userId = req.user?.id;
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
+  const userId = req.user.id;
   const { sliders, locked } = req.body;
 
   // Valideer genre keys in sliders
@@ -90,9 +86,7 @@ router.put("/", async (req, res) => {
 
 // POST /reset — reset naar defaults
 router.post("/reset", async (req, res) => {
-  const userId = req.user?.id;
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
+  const userId = req.user.id;
   const doc = await GenreSliders.findOne({ userId });
   if (!doc) {
     return res.status(404).json({ error: "Geen slider document gevonden" });

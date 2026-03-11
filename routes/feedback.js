@@ -1,6 +1,5 @@
 import { Router } from "express";
 import Feedback from "../src/models/Feedback.js";
-import { validateUserParam } from "../src/middleware/apiKeyMiddleware.js";
 import { requireOnboarding } from "../src/middleware/onboardingMiddleware.js";
 
 const router = Router();
@@ -10,9 +9,9 @@ router.use(requireOnboarding);
 router.post("/", async (req, res) => {
   const { trackId, action } = req.body;
   const userId = req.user?.id;
-  
-  if (!userId || !trackId) {
-    return res.status(400).json({ error: "userId and trackId are required" });
+
+  if (!trackId) {
+    return res.status(400).json({ error: "trackId is required" });
   }
 
   const doc = await Feedback.findOneAndUpdate(
