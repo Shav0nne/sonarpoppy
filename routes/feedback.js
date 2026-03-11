@@ -1,13 +1,17 @@
 import { Router } from "express";
 import Feedback from "../src/models/Feedback.js";
+import { requireOnboarding } from "../src/middleware/onboardingMiddleware.js";
 
 const router = Router();
+router.use(requireOnboarding);
 
 // POST /api/feedback — create of update feedback voor een user-track paar
 router.post("/", async (req, res) => {
-  const { userId, trackId, action } = req.body;
-  if (!userId || !trackId) {
-    return res.status(400).json({ error: "userId and trackId are required" });
+  const { trackId, action } = req.body;
+  const userId = req.user?.id;
+
+  if (!trackId) {
+    return res.status(400).json({ error: "trackId is required" });
   }
 
   const doc = await Feedback.findOneAndUpdate(
@@ -19,16 +23,18 @@ router.post("/", async (req, res) => {
   res.status(201).json(doc);
 });
 
-// GET /api/feedback/:userId — alle feedback voor een user
-router.get("/:userId", async (req, res) => {
-  const docs = await Feedback.find({ userId: req.params.userId }).lean();
+// GET /api/feedback — alle feedback voor de ingelogde user
+router.get("/", async (req, res) => {
+  const userId = req.user?.id;
+  const docs = await Feedback.find({ userId }).lean();
   res.json(docs);
 });
 
-// GET /api/feedback/:userId/:trackId — feedback voor specifiek user-track paar
-router.get("/:userId/:trackId", async (req, res) => {
+// GET /api/feedback/:trackId — feedback voor specifiek user-track paar
+router.get("/:trackId", async (req, res) => {
+  const userId = req.user?.id;
   const doc = await Feedback.findOne({
-    userId: req.params.userId,
+    userId,
     trackId: req.params.trackId,
   }).lean();
 
@@ -38,10 +44,11 @@ router.get("/:userId/:trackId", async (req, res) => {
   res.json(doc);
 });
 
-// DELETE /api/feedback/:userId/:trackId — feedback verwijderen
-router.delete("/:userId/:trackId", async (req, res) => {
+// DELETE /api/feedback/:trackId — feedback verwijderen
+router.delete("/:trackId", async (req, res) => {
+  const userId = req.user?.id;
   const result = await Feedback.deleteOne({
-    userId: req.params.userId,
+    userId,
     trackId: req.params.trackId,
   });
 
@@ -51,10 +58,11 @@ router.delete("/:userId/:trackId", async (req, res) => {
   res.status(204).end();
 });
 
-// POST /api/feedback/:userId/:trackId/play — play count incrementen
-router.post("/:userId/:trackId/play", async (req, res) => {
+// POST /api/feedback/:trackId/play — play count incrementen
+router.post("/:trackId/play", async (req, res) => {
+  const userId = req.user?.id;
   const doc = await Feedback.findOneAndUpdate(
-    { userId: req.params.userId, trackId: req.params.trackId },
+    { userId, trackId: req.params.trackId },
     { $inc: { playCount: 1 }, lastPlayedAt: new Date() },
     { upsert: true, new: true, runValidators: true },
   );

@@ -1,5 +1,6 @@
 import { GENRES, resolveAlias } from "../../config/genres.js";
 import GenreSliders from "../../models/GenreSliders.js";
+import User from "../../models/User.js";
 import { computeProfileVector } from "../profile/computeProfile.js";
 
 const VALID_APPS = ["sonarpop", "poppy"];
@@ -80,6 +81,9 @@ export async function processOnboarding({ userId, genres, artists, app, lastfmCl
     { sliders: weights, locked: [] },
     { upsert: true, new: true },
   );
+
+  // Update User to reflect onboarding completion
+  await User.findByIdAndUpdate(userId, { hasCompletedOnboarding: true });
 
   const profile = computeProfileVector(weights);
 

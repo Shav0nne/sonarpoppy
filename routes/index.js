@@ -9,18 +9,31 @@ import slidersRouter from "./sliders.js";
 import onboardingRouter from "./onboarding.js";
 import usersRouter from "./users.js";
 import authRouter from "./auth.js";
+import apiKeysRouter from "./api-keys.js";
+import blacklistRouter from "./blacklist.js";
+import { validateApiKey, injectUserId } from "../src/middleware/apiKeyMiddleware.js";
+import { authenticateJWT } from "../src/middleware/authMiddleware.js";
 
 const router = Router();
+
+// Routes NOT protected by API key (JWT-only or public)
+router.use("/auth", authRouter);
+router.use("/users", usersRouter);
+router.use("/api-keys", apiKeysRouter);
+
+// Beschermde routes: API key (app-level) + JWT (user-level) + userId injectie
+router.use(validateApiKey);
+router.use(authenticateJWT);
+router.use(injectUserId);
 
 router.use("/genres", genresRouter);
 router.use("/tracks", tracksRouter);
 router.use("/profile", profileRouter);
 router.use("/recommendations", recommendationsRouter);
 router.use("/dial", dialRouter);
+router.use("/onboarding", onboardingRouter);
 router.use("/feedback", feedbackRouter);
 router.use("/sliders", slidersRouter);
-router.use("/onboarding", onboardingRouter);
-router.use("/users", usersRouter);
-router.use("/auth", authRouter);
+router.use("/blacklist", blacklistRouter);
 
 export default router;

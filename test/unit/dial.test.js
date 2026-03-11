@@ -2,20 +2,21 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { DIAL_PRESETS, getDialPreset } from "../../src/config/dial.js";
 
-// REQ-001: 5 dial presets als frozen config
+// REQ-001: 5 dial presets als frozen config met filter+sort structuur
 describe("DIAL_PRESETS — structure", () => {
   it("bevat exact 5 presets", () => {
     assert.equal(DIAL_PRESETS.length, 5);
   });
 
-  it("elke preset heeft position, name, description, weights", () => {
+  it("elke preset heeft position, name, description, filter, sortSignal, unplayedOnly", () => {
     for (const preset of DIAL_PRESETS) {
       assert.equal(typeof preset.position, "number");
       assert.equal(typeof preset.name, "string");
       assert.equal(typeof preset.description, "string");
-      assert.ok(preset.weights);
-      assert.equal(typeof preset.weights.genre, "number");
-      assert.equal(typeof preset.weights.cf, "number");
+      assert.ok(preset.filter, `Stand ${preset.position}: filter ontbreekt`);
+      assert.equal(typeof preset.filter.type, "string");
+      assert.equal(typeof preset.sortSignal, "string");
+      assert.equal(typeof preset.unplayedOnly, "boolean");
     }
   });
 
@@ -24,12 +25,22 @@ describe("DIAL_PRESETS — structure", () => {
     assert.deepEqual(positions, [1, 2, 3, 4, 5]);
   });
 
-  it("gewichten sommeren tot 1.0 per preset", () => {
+  it("filter.type is altijd minGenreSim, maxGenreSim, of none", () => {
+    const validTypes = ["minGenreSim", "maxGenreSim", "none"];
     for (const preset of DIAL_PRESETS) {
-      const sum = preset.weights.genre + preset.weights.cf;
       assert.ok(
-        Math.abs(sum - 1.0) < 0.001,
-        `Stand ${preset.position}: weights sum ${sum} !== 1.0`,
+        validTypes.includes(preset.filter.type),
+        `Stand ${preset.position}: ongeldige filter type "${preset.filter.type}"`,
+      );
+    }
+  });
+
+  it("sortSignal is altijd genreSim, cf, of random", () => {
+    const validSignals = ["genreSim", "cf", "random"];
+    for (const preset of DIAL_PRESETS) {
+      assert.ok(
+        validSignals.includes(preset.sortSignal),
+        `Stand ${preset.position}: ongeldige sortSignal "${preset.sortSignal}"`,
       );
     }
   });
@@ -45,53 +56,55 @@ describe("DIAL_PRESETS — structure", () => {
   });
 });
 
-// REQ-001: Specifieke gewichten per stand
-describe("DIAL_PRESETS — gewichten per stand", () => {
-  it("Stand 1 (Strikt): genre-zwaar", () => {
+// REQ-001: Specifieke config per stand
+describe("DIAL_PRESETS — config per stand", () => {
+  it("Stand 1 (Strikt): minGenreSim 0.6, sort genreSim", () => {
     const s = DIAL_PRESETS[0];
-    assert.deepEqual(s.weights, { genre: 0.7, cf: 0.3 });
+    assert.deepEqual(s.filter, { type: "minGenreSim", threshold: 0.6 });
+    assert.equal(s.sortSignal, "genreSim");
+    assert.equal(s.unplayedOnly, false);
   });
 
-  it("Stand 2 (Dichtbij): herkenbaar met variatie", () => {
+  it("Stand 2 (Dichtbij): minGenreSim 0.3, sort genreSim", () => {
     const s = DIAL_PRESETS[1];
-    assert.deepEqual(s.weights, { genre: 0.6, cf: 0.4 });
+    assert.deepEqual(s.filter, { type: "minGenreSim", threshold: 0.3 });
+    assert.equal(s.sortSignal, "genreSim");
+    assert.equal(s.unplayedOnly, false);
   });
 
-  it("Stand 3 (Gebalanceerd): gelijke mix", () => {
+  it("Stand 3 (Gebalanceerd): geen filter, sort genreSim", () => {
     const s = DIAL_PRESETS[2];
-    assert.deepEqual(s.weights, { genre: 0.5, cf: 0.5 });
+    assert.deepEqual(s.filter, { type: "none", threshold: null });
+    assert.equal(s.sortSignal, "genreSim");
+    assert.equal(s.unplayedOnly, false);
   });
 
-  it("Stand 4 (Ontdekking): CF-zwaar", () => {
+  it("Stand 4 (Ontdekking): geen filter, sort CF, unplayedOnly", () => {
     const s = DIAL_PRESETS[3];
-    assert.deepEqual(s.weights, { genre: 0.4, cf: 0.6 });
+    assert.deepEqual(s.filter, { type: "none", threshold: null });
+    assert.equal(s.sortSignal, "cf");
+    assert.equal(s.unplayedOnly, true);
   });
 
-  it("Stand 5 (Anti-bubbel): maximaal buiten bubbel", () => {
+  it("Stand 5 (Anti-bubbel): geen filter, sort random", () => {
     const s = DIAL_PRESETS[4];
-    assert.deepEqual(s.weights, { genre: 0.3, cf: 0.7 });
+    assert.deepEqual(s.filter, { type: "none", threshold: null });
+    assert.equal(s.sortSignal, "random");
+    assert.equal(s.unplayedOnly, false);
   });
 
-  it("genre daalt monotoon van Stand 1→5", () => {
-    for (let i = 0; i < 4; i++) {
+  it("drempels dalen monotoon van Stand 1→3 (steeds minder streng)", () => {
+    const thresholds = DIAL_PRESETS.slice(0, 3).map((p) => p.filter.threshold ?? 0);
+    for (let i = 0; i < thresholds.length - 1; i++) {
       assert.ok(
-        DIAL_PRESETS[i].weights.genre > DIAL_PRESETS[i + 1].weights.genre,
-        `genre Stand ${i + 1} moet > Stand ${i + 2}`,
-      );
-    }
-  });
-
-  it("cf stijgt monotoon van Stand 1→5", () => {
-    for (let i = 0; i < 4; i++) {
-      assert.ok(
-        DIAL_PRESETS[i].weights.cf < DIAL_PRESETS[i + 1].weights.cf,
-        `cf Stand ${i + 1} moet < Stand ${i + 2}`,
+        thresholds[i] >= thresholds[i + 1],
+        `threshold Stand ${i + 1} (${thresholds[i]}) moet >= Stand ${i + 2} (${thresholds[i + 1]})`,
       );
     }
   });
 });
 
-// REQ-002: getDialPreset() resolver
+// REQ-001: getDialPreset() resolver
 describe("getDialPreset — geldige input", () => {
   it("retourneert preset voor position 1", () => {
     const result = getDialPreset(1);

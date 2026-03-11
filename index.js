@@ -1,7 +1,5 @@
 import express from "express";
 import mongoose from "mongoose";
-import usersRouter from "./routes/users.js";
-import authRouter from "./routes/auth.js";
 import apiRouter from "./routes/index.js";
 
 const app = express();
@@ -10,31 +8,30 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-//CORS MIDDLEWARE
+// CORS — preflight + headers voor React frontend
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization, X-API-Key");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
 
-//accept header middleware
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    return next();
-  }
-  const accept = req.headers.accept;
-
-  if (!accept || !accept.includes("application/json")) {
-    return res.status(406).json({
-      message: "Only application/json is allowed in Accept header",
-    });
-  }
-  next();
-});
-
-// Routes
-app.use("/users", usersRouter);
-app.use("/api/v1", apiRouter);
-app.use("/auth", authRouter);
+// Routes — alles via /api/v1
+// Accept header check alleen op API routes (niet op statische bestanden)
+app.use(
+  "/api/v1",
+  (req, res, next) => {
+    const accept = req.headers.accept;
+    if (!accept || (!accept.includes("application/json") && !accept.includes("*/*"))) {
+      return res.status(406).json({
+        message: "Only application/json is allowed in Accept header",
+      });
+    }
+    next();
+  },
+  apiRouter,
+);
 
 // Database connectie
 if (!process.env.MONGODB_URI) {
