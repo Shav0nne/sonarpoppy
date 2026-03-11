@@ -75,11 +75,11 @@ describe("getRecommendations — integration met MongoDB", () => {
     assert.equal(result.meta.avgScore, 0);
   });
 
-  it("meta bevat configuredWeights en activeSignals", async () => {
+  it("meta bevat dialPosition en activeSignals", async () => {
     await Track.create([{ title: "Rock", artist: "A", genreVector: v(0) }]);
 
     const result = await getRecommendations({ profileVector: v(0) });
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.5, cf: 0.5 });
+    assert.equal(result.meta.dialPosition, 3);
     assert.ok(result.meta.activeSignals.includes("genre"));
   });
 });

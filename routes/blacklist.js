@@ -1,25 +1,24 @@
 import { Router } from "express";
 import Blacklist from "../src/models/Blacklist.js";
 import { resolveAlias } from "../src/config/genres.js";
-import { validateUserParam } from "../src/middleware/apiKeyMiddleware.js";
+import { requireOnboarding } from "../src/middleware/onboardingMiddleware.js";
 
 const router = Router();
-router.param("userId", validateUserParam);
+router.use(requireOnboarding);
 
-// GET /api/v1/blacklist/:userId -> Get the blacklist for a user
-router.get("/:userId", async (req, res, next) => {
+// GET / -> Get the blacklist for the authenticated user
+router.get("/", async (req, res, next) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id;
     const blacklist = await Blacklist.findOne({ userId }).lean();
-
     const entries = blacklist ? blacklist.entries : [];
 
     res.json({
       userId,
       entries,
       _links: {
-        self: `/api/v1/blacklist/${userId}`,
-        add: `/api/v1/blacklist/${userId}`,
+        self: `/api/v1/blacklist`,
+        add: `/api/v1/blacklist`,
       },
     });
   } catch (error) {
@@ -27,10 +26,10 @@ router.get("/:userId", async (req, res, next) => {
   }
 });
 
-// POST /api/v1/blacklist/:userId -> Add an entry to the blacklist
-router.post("/:userId", async (req, res, next) => {
+// POST / -> Add an entry to the blacklist
+router.post("/", async (req, res, next) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id;
     let { type, value } = req.body;
 
     if (!type || !value) {
@@ -72,8 +71,8 @@ router.post("/:userId", async (req, res, next) => {
       userId,
       entries: blacklist.entries,
       _links: {
-        self: `/api/v1/blacklist/${userId}`,
-        remove: `/api/v1/blacklist/${userId}/${newEntry._id}`,
+        self: `/api/v1/blacklist`,
+        remove: `/api/v1/blacklist/${newEntry._id}`,
       },
     });
   } catch (error) {
@@ -81,10 +80,11 @@ router.post("/:userId", async (req, res, next) => {
   }
 });
 
-// DELETE /api/v1/blacklist/:userId/:entryId -> Remove an entry from the blacklist
-router.delete("/:userId/:entryId", async (req, res, next) => {
+// DELETE /:entryId -> Remove an entry from the blacklist
+router.delete("/:entryId", async (req, res, next) => {
   try {
-    const { userId, entryId } = req.params;
+    const userId = req.user.id;
+    const { entryId } = req.params;
 
     const blacklist = await Blacklist.findOne({ userId });
     if (!blacklist) {
@@ -103,8 +103,8 @@ router.delete("/:userId/:entryId", async (req, res, next) => {
       userId,
       entries: blacklist.entries,
       _links: {
-        self: `/api/v1/blacklist/${userId}`,
-        add: `/api/v1/blacklist/${userId}`,
+        self: `/api/v1/blacklist`,
+        add: `/api/v1/blacklist`,
       },
     });
   } catch (error) {

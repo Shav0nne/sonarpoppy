@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema(
         spotifyId: { type: String },
         status: { type: String, enum: ["active", "warned", "banned"], default: "active" },
         image: { data: Buffer, contentType: String },
+        hasCompletedOnboarding: { type: Boolean, default: false },
     },
     {
         timestamps: true,

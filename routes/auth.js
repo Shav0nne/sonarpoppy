@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../src/models/User.js";
 import { upload } from "../src/middleware/multerSetup.js";
+import { authenticateJWT } from "../src/middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -47,6 +48,7 @@ router.post("/signup", upload.single('image'), async (req, res) => {
       email: user.email,
       role: user.role,
       imageUrl: user.image ? `${BASE}/users/${id}/image` : null,
+      hasCompletedOnboarding: user.hasCompletedOnboarding,
       _links: {
         self: {
           href: `${process.env.BASE_URI}/users/${user.id || (user._id ? user._id.toString() : "")}`,
@@ -89,7 +91,31 @@ router.post("/login", async (req, res) => {
       token,
       tokenType: "Bearer",
       expiresIn: process.env.JWT_EXPIRES_IN || "1h",
-      user: { id: user._id.toString(), username: user.username, role: user.role },
+      user: {
+        id: user._id.toString(),
+        username: user.username,
+        role: user.role,
+        hasCompletedOnboarding: user.hasCompletedOnboarding,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /auth/me
+router.get("/me", authenticateJWT, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({
+      id: user._id.toString(),
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      hasCompletedOnboarding: user.hasCompletedOnboarding,
     });
   } catch (err) {
     console.error(err);

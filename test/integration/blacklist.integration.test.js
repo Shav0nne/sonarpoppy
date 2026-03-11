@@ -33,6 +33,14 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
+
+  // Test middleware: reads userId from X-User-Id header to simulate JWT + completed onboarding
+  app.use((req, _res, next) => {
+    const uid = req.headers["x-user-id"];
+    if (uid) req.user = { id: uid, hasCompletedOnboarding: true };
+    next();
+  });
+
   app.use("/api/blacklist", blacklistRouter);
   server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
@@ -52,14 +60,11 @@ beforeEach(async () => {
 
 describe("Blacklist Integration", () => {
   describe("API Endpoints", () => {
-    it("POST /api/blacklist/:userId should add entry", async () => {
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}`, {
+    it("POST /api/blacklist should add entry", async () => {
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "artist",
-          value: "Taylor Swift",
-        }),
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
+        body: JSON.stringify({ type: "artist", value: "Taylor Swift" }),
       });
       const data = await res.json();
 
@@ -71,18 +76,16 @@ describe("Blacklist Integration", () => {
       assert.ok(data._links);
     });
 
-    it("POST /api/blacklist/:userId should reject duplicates", async () => {
-      // First add
-      await fetch(`${baseUrl}/api/blacklist/${userId}`, {
+    it("POST /api/blacklist should reject duplicates", async () => {
+      await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
         body: JSON.stringify({ type: "genre", value: "rock" }),
       });
 
-      // Duplicate add
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}`, {
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
         body: JSON.stringify({ type: "genre", value: "rock" }),
       });
       const data = await res.json();
@@ -91,10 +94,10 @@ describe("Blacklist Integration", () => {
       assert.strictEqual(data.error, "Entry already exists in blacklist");
     });
 
-    it("POST /api/blacklist/:userId should resolve genre aliases", async () => {
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}`, {
+    it("POST /api/blacklist should resolve genre aliases", async () => {
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
         body: JSON.stringify({ type: "genre", value: "classic rock" }),
       });
       const data = await res.json();
@@ -102,13 +105,12 @@ describe("Blacklist Integration", () => {
       assert.strictEqual(data.entries[0].value, "rock");
     });
 
-    it("GET /api/blacklist/:userId should return entries", async () => {
-      await Blacklist.create({
-        userId,
-        entries: [{ type: "track", value: "t1" }],
-      });
+    it("GET /api/blacklist should return entries", async () => {
+      await Blacklist.create({ userId, entries: [{ type: "track", value: "t1" }] });
 
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}`);
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
+        headers: { "X-User-Id": userId },
+      });
       const data = await res.json();
 
       assert.strictEqual(res.status, 200);
@@ -117,7 +119,7 @@ describe("Blacklist Integration", () => {
       assert.strictEqual(data.entries[0].value, "t1");
     });
 
-    it("DELETE /api/blacklist/:userId/:entryId should remove entry", async () => {
+    it("DELETE /api/blacklist/:entryId should remove entry", async () => {
       const doc = await Blacklist.create({
         userId,
         entries: [
@@ -128,8 +130,9 @@ describe("Blacklist Integration", () => {
 
       const entryId = doc.entries[0]._id.toString();
 
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}/${entryId}`, {
+      const res = await fetch(`${baseUrl}/api/blacklist/${entryId}`, {
         method: "DELETE",
+        headers: { "X-User-Id": userId },
       });
       const data = await res.json();
       assert.strictEqual(res.status, 200);
@@ -139,8 +142,10 @@ describe("Blacklist Integration", () => {
       assert.ok(data._links);
     });
 
-    it("GET /api/blacklist/:userId should return empty entries when no blacklist exists", async () => {
-      const res = await fetch(`${baseUrl}/api/blacklist/nonexistent-user`);
+    it("GET /api/blacklist should return empty entries when no blacklist exists", async () => {
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
+        headers: { "X-User-Id": "nonexistent-user" },
+      });
       const data = await res.json();
 
       assert.strictEqual(res.status, 200);
@@ -149,10 +154,10 @@ describe("Blacklist Integration", () => {
       assert.ok(data._links);
     });
 
-    it("POST /api/blacklist/:userId should reject missing type", async () => {
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}`, {
+    it("POST /api/blacklist should reject missing type", async () => {
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
         body: JSON.stringify({ value: "track-abc" }),
       });
       const data = await res.json();
@@ -161,10 +166,10 @@ describe("Blacklist Integration", () => {
       assert.strictEqual(data.error, "Type and value are required");
     });
 
-    it("POST /api/blacklist/:userId should reject missing value", async () => {
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}`, {
+    it("POST /api/blacklist should reject missing value", async () => {
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
         body: JSON.stringify({ type: "artist" }),
       });
       const data = await res.json();
@@ -173,10 +178,10 @@ describe("Blacklist Integration", () => {
       assert.strictEqual(data.error, "Type and value are required");
     });
 
-    it("POST /api/blacklist/:userId should reject invalid genre name", async () => {
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}`, {
+    it("POST /api/blacklist should reject invalid genre name", async () => {
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
         body: JSON.stringify({ type: "genre", value: "brostep" }),
       });
       const data = await res.json();
@@ -185,18 +190,16 @@ describe("Blacklist Integration", () => {
       assert.match(data.error, /Invalid genre/);
     });
 
-    it("POST /api/blacklist/:userId should reject genre alias duplicate", async () => {
-      // Add "rock" directly
-      await fetch(`${baseUrl}/api/blacklist/${userId}`, {
+    it("POST /api/blacklist should reject genre alias duplicate", async () => {
+      await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
         body: JSON.stringify({ type: "genre", value: "rock" }),
       });
 
-      // Add "classic rock" which resolves to "rock"
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}`, {
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
         body: JSON.stringify({ type: "genre", value: "classic rock" }),
       });
       const data = await res.json();
@@ -205,9 +208,10 @@ describe("Blacklist Integration", () => {
       assert.strictEqual(data.error, "Entry already exists in blacklist");
     });
 
-    it("DELETE /api/blacklist/:userId/:entryId should 404 when no blacklist exists", async () => {
-      const res = await fetch(`${baseUrl}/api/blacklist/ghost-user/507f1f77bcf86cd799439011`, {
+    it("DELETE /api/blacklist/:entryId should 404 when no blacklist exists", async () => {
+      const res = await fetch(`${baseUrl}/api/blacklist/507f1f77bcf86cd799439011`, {
         method: "DELETE",
+        headers: { "X-User-Id": "ghost-user" },
       });
       const data = await res.json();
 
@@ -215,14 +219,12 @@ describe("Blacklist Integration", () => {
       assert.strictEqual(data.error, "Blacklist not found for user");
     });
 
-    it("DELETE /api/blacklist/:userId/:entryId should 404 for non-existent entryId", async () => {
-      await Blacklist.create({
-        userId,
-        entries: [{ type: "track", value: "t1" }],
-      });
+    it("DELETE /api/blacklist/:entryId should 404 for non-existent entryId", async () => {
+      await Blacklist.create({ userId, entries: [{ type: "track", value: "t1" }] });
 
-      const res = await fetch(`${baseUrl}/api/blacklist/${userId}/507f1f77bcf86cd799439011`, {
+      const res = await fetch(`${baseUrl}/api/blacklist/507f1f77bcf86cd799439011`, {
         method: "DELETE",
+        headers: { "X-User-Id": userId },
       });
       const data = await res.json();
 
@@ -233,29 +235,11 @@ describe("Blacklist Integration", () => {
 
   describe("Recommendation Pipeline Rules", () => {
     it("should filter out tracks and artists pre-score, and genres post-score", async () => {
-      // Setup tracks
-      const t1 = await Track.create({
-        title: "Banned Track",
-        artist: "Cool Band",
-        genreVector: createVector({ pop: 0.9 }),
-      });
-      const t2 = await Track.create({
-        title: "Good Track",
-        artist: "Banned Artist",
-        genreVector: createVector({ pop: 0.9 }),
-      });
-      const t3 = await Track.create({
-        title: "Bad Genre",
-        artist: "Cool Band",
-        genreVector: createVector({ rock: 0.9 }),
-      });
-      const t4 = await Track.create({
-        title: "Great Track",
-        artist: "Cool Band",
-        genreVector: createVector({ pop: 0.9 }),
-      });
+      const t1 = await Track.create({ title: "Banned Track", artist: "Cool Band", genreVector: createVector({ pop: 0.9 }) });
+      const t2 = await Track.create({ title: "Good Track", artist: "Banned Artist", genreVector: createVector({ pop: 0.9 }) });
+      const t3 = await Track.create({ title: "Bad Genre", artist: "Cool Band", genreVector: createVector({ rock: 0.9 }) });
+      const t4 = await Track.create({ title: "Great Track", artist: "Cool Band", genreVector: createVector({ pop: 0.9 }) });
 
-      // Setup blacklist
       await Blacklist.create({
         userId,
         entries: [
@@ -265,13 +249,8 @@ describe("Blacklist Integration", () => {
         ],
       });
 
-      // User profile vector (likes pop and rock)
       const profileVector = createVector({ pop: 0.8, rock: 0.8 });
-
-      const result = await getRecommendations({
-        profileVector,
-        userId,
-      });
+      const result = await getRecommendations({ profileVector, userId });
 
       assert.strictEqual(result.tracks.length, 1);
       assert.strictEqual(result.tracks[0].track._id.toString(), t4._id.toString());
@@ -283,33 +262,17 @@ describe("Blacklist Integration", () => {
       await Track.create({ title: "T2", artist: "A2", genreVector: createVector({ pop: 0.9 }) });
       await Track.create({ title: "T3", artist: "A3", genreVector: createVector({ jazz: 0.9 }) });
 
-      const result = await getRecommendations({
-        profileVector: createVector({ rock: 0.8 }),
-        userId: "user-without-blacklist",
-      });
-
+      const result = await getRecommendations({ profileVector: createVector({ rock: 0.8 }), userId: "user-without-blacklist" });
       assert.strictEqual(result.total, 3);
     });
 
     it("should not leak blacklist between users", async () => {
-      const t1 = await Track.create({
-        title: "Banned For A",
-        artist: "Artist X",
-        genreVector: createVector({ pop: 0.9 }),
-      });
-      await Track.create({
-        title: "Safe Track",
-        artist: "Artist Y",
-        genreVector: createVector({ pop: 0.9 }),
-      });
+      const t1 = await Track.create({ title: "Banned For A", artist: "Artist X", genreVector: createVector({ pop: 0.9 }) });
+      await Track.create({ title: "Safe Track", artist: "Artist Y", genreVector: createVector({ pop: 0.9 }) });
 
-      await Blacklist.create({
-        userId: "userA",
-        entries: [{ type: "track", value: t1._id.toString() }],
-      });
+      await Blacklist.create({ userId: "userA", entries: [{ type: "track", value: t1._id.toString() }] });
 
       const profileVector = createVector({ pop: 0.8 });
-
       const resultA = await getRecommendations({ profileVector, userId: "userA" });
       const resultB = await getRecommendations({ profileVector, userId: "userB" });
 
@@ -318,55 +281,23 @@ describe("Blacklist Integration", () => {
     });
 
     it("should filter dominant genre below 0.4 threshold", async () => {
-      // metal is dominant (0.35) but below threshold — should still be blocked via dominant check
-      await Track.create({
-        title: "Low Metal",
-        artist: "Band A",
-        genreVector: createVector({ metal: 0.35, rock: 0.3 }),
-      });
-      await Track.create({
-        title: "Safe Pop",
-        artist: "Band B",
-        genreVector: createVector({ pop: 0.9 }),
-      });
+      await Track.create({ title: "Low Metal", artist: "Band A", genreVector: createVector({ metal: 0.35, rock: 0.3 }) });
+      await Track.create({ title: "Safe Pop", artist: "Band B", genreVector: createVector({ pop: 0.9 }) });
 
-      await Blacklist.create({
-        userId,
-        entries: [{ type: "genre", value: "metal" }],
-      });
+      await Blacklist.create({ userId, entries: [{ type: "genre", value: "metal" }] });
 
-      const result = await getRecommendations({
-        profileVector: createVector({ metal: 0.5, pop: 0.5 }),
-        userId,
-      });
-
+      const result = await getRecommendations({ profileVector: createVector({ metal: 0.5, pop: 0.5 }), userId });
       assert.strictEqual(result.total, 1);
       assert.strictEqual(result.tracks[0].track.title, "Safe Pop");
     });
 
     it("should filter non-dominant genre via threshold path (>= 0.4)", async () => {
-      // pop is dominant, rock secondary at 0.5 — threshold fires for rock
-      await Track.create({
-        title: "Multi-Genre",
-        artist: "Band A",
-        genreVector: createVector({ pop: 0.8, rock: 0.5 }),
-      });
-      await Track.create({
-        title: "Pure Pop",
-        artist: "Band B",
-        genreVector: createVector({ pop: 0.9 }),
-      });
+      await Track.create({ title: "Multi-Genre", artist: "Band A", genreVector: createVector({ pop: 0.8, rock: 0.5 }) });
+      await Track.create({ title: "Pure Pop", artist: "Band B", genreVector: createVector({ pop: 0.9 }) });
 
-      await Blacklist.create({
-        userId,
-        entries: [{ type: "genre", value: "rock" }],
-      });
+      await Blacklist.create({ userId, entries: [{ type: "genre", value: "rock" }] });
 
-      const result = await getRecommendations({
-        profileVector: createVector({ pop: 0.9 }),
-        userId,
-      });
-
+      const result = await getRecommendations({ profileVector: createVector({ pop: 0.9 }), userId });
       assert.strictEqual(result.total, 1);
       assert.strictEqual(result.tracks[0].track.title, "Pure Pop");
     });
