@@ -34,10 +34,10 @@ before(async () => {
   const app = express();
   app.use(express.json());
 
-  // Test middleware: reads userId from X-User-Id header to simulate JWT
+  // Test middleware: reads userId from X-User-Id header to simulate JWT + completed onboarding
   app.use((req, _res, next) => {
     const uid = req.headers["x-user-id"];
-    if (uid) req.user = { id: uid };
+    if (uid) req.user = { id: uid, hasCompletedOnboarding: true };
     next();
   });
 

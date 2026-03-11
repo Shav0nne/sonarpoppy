@@ -1,8 +1,10 @@
 import { Router } from "express";
 import Blacklist from "../src/models/Blacklist.js";
 import { resolveAlias } from "../src/config/genres.js";
+import { requireOnboarding } from "../src/middleware/onboardingMiddleware.js";
 
 const router = Router();
+router.use(requireOnboarding);
 
 // GET / -> Get the blacklist for the authenticated user
 router.get("/", async (req, res, next) => {

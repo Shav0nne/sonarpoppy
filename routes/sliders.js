@@ -1,8 +1,10 @@
 import { Router } from "express";
 import GenreSliders from "../src/models/GenreSliders.js";
 import { GENRES } from "../src/config/genres.js";
+import { requireOnboarding } from "../src/middleware/onboardingMiddleware.js";
 
 const router = Router();
+router.use(requireOnboarding);
 
 const GENRE_SET = new Set(GENRES);
 

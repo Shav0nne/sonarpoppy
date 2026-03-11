@@ -186,6 +186,13 @@ describe("injectUserId: body.userId wordt overschreven door JWT", () => {
     const { userId, token, apiKey } = await createAuthenticatedUser();
     const trackId = new mongoose.Types.ObjectId().toString();
 
+    // Onboard first
+    await fetch(`${baseUrl}/api/v1/onboarding`, {
+      method: "POST",
+      headers: authHeaders(token, apiKey),
+      body: JSON.stringify({ genres: ["rock", "pop", "jazz"], artists: [], app: "poppy" }),
+    });
+
     const res = await fetch(`${baseUrl}/api/v1/feedback`, {
       method: "POST",
       headers: authHeaders(token, apiKey),
@@ -221,6 +228,13 @@ describe("JWT-gebaseerde toegang: iedere user ziet alleen eigen data", () => {
   it("GET /blacklist retourneert eigen (lege) blacklist via JWT", async () => {
     const { token, apiKey } = await createAuthenticatedUser();
 
+    // Onboard first
+    await fetch(`${baseUrl}/api/v1/onboarding`, {
+      method: "POST",
+      headers: authHeaders(token, apiKey),
+      body: JSON.stringify({ genres: ["rock", "pop", "jazz"], artists: [], app: "poppy" }),
+    });
+
     const res = await fetch(`${baseUrl}/api/v1/blacklist`, {
       headers: authHeaders(token, apiKey),
     });
@@ -229,14 +243,23 @@ describe("JWT-gebaseerde toegang: iedere user ziet alleen eigen data", () => {
     assert.deepEqual(body.entries, []);
   });
 
-  it("403 bij feedback ophalen voor andere user", async () => {
+  it("404 bij feedback ophalen voor andere user (data isolatie)", async () => {
     const { token, apiKey } = await createAuthenticatedUser();
     const otherUserId = new mongoose.Types.ObjectId().toString();
 
+    // Onboard first
+    await fetch(`${baseUrl}/api/v1/onboarding`, {
+      method: "POST",
+      headers: authHeaders(token, apiKey),
+      body: JSON.stringify({ genres: ["rock", "pop", "jazz"], artists: [], app: "poppy" }),
+    });
+
+    // Zelfs als we een userId van iemand anders meesturen in het pad (wat nu als trackId wordt gezien),
+    // krijgen we 404 omdat de query gefilterd is op ONZE userId uit de JWT.
     const res = await fetch(`${baseUrl}/api/v1/feedback/${otherUserId}`, {
       headers: authHeaders(token, apiKey),
     });
-    assert.equal(res.status, 403);
+    assert.equal(res.status, 404);
   });
 });
 

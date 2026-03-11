@@ -22,6 +22,27 @@ mock.module("../../src/models/Track.js", {
   },
 });
 
+// Mock User model so requireOnboarding middleware doesn't try a real DB query
+mock.module("../../src/models/User.js", {
+  defaultExport: {
+    findById: () => Promise.resolve({ hasCompletedOnboarding: true }),
+  },
+});
+
+// Mock Feedback model
+mock.module("../../src/models/Feedback.js", {
+  defaultExport: {
+    find: () => ({ lean: () => Promise.resolve([]) }),
+  },
+});
+
+// Mock Blacklist model
+mock.module("../../src/models/Blacklist.js", {
+  defaultExport: {
+    findOne: () => ({ lean: () => Promise.resolve(null) }),
+  },
+});
+
 const { default: recommendationsRouter } = await import("../../routes/recommendations.js");
 
 let server;
@@ -30,6 +51,11 @@ let baseUrl;
 before(async () => {
   const app = express();
   app.use(express.json());
+  // Stub middleware: simulates JWT auth + completed onboarding
+  app.use((req, _res, next) => {
+    req.user = { id: "test-user", hasCompletedOnboarding: true };
+    next();
+  });
   app.use("/api/recommendations", recommendationsRouter);
   server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));

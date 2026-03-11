@@ -14,18 +14,18 @@ Zie [getting-started.md](getting-started.md) voor account aanmaken, API key opha
 | POST   | `/api/v1/profile/compute`                | Profielvector berekenen               |
 | POST   | `/api/v1/recommendations`                | Aanbevelingen ophalen                 |
 | GET    | `/api/v1/dial`                           | 5 dial standen bekijken               |
-| GET    | `/api/v1/sliders/:userId`                | Genre sliders ophalen                 |
-| PUT    | `/api/v1/sliders/:userId`                | Sliders aanpassen                     |
-| POST   | `/api/v1/sliders/:userId/reset`          | Sliders resetten                      |
-| POST   | `/api/v1/feedback`                       | Like/dislike/skip registreren         |
-| GET    | `/api/v1/feedback/:userId`               | Alle feedback van user                |
-| GET    | `/api/v1/feedback/:userId/:trackId`      | Feedback voor 1 track                 |
-| DELETE | `/api/v1/feedback/:userId/:trackId`      | Feedback verwijderen                  |
-| POST   | `/api/v1/feedback/:userId/:trackId/play` | Play count +1                         |
-| GET    | `/api/v1/blacklist/:userId`              | Geblokkeerde items ophalen            |
-| POST   | `/api/v1/blacklist/:userId`              | Track/artiest/genre blokkeren         |
-| DELETE | `/api/v1/blacklist/:userId/:entryId`     | Blokkering opheffen                   |
-| POST   | `/api/v1/tracks/ingest`                  | Enkele track importeren (beheer)      |
+| GET    | `/api/v1/sliders`               | Genre sliders ophalen (Onboarding required) |
+| PUT    | `/api/v1/sliders`               | Sliders aanpassen (Onboarding required)     |
+| POST   | `/api/v1/sliders/reset`         | Sliders resetten (Onboarding required)      |
+| POST   | `/api/v1/feedback`              | Like/dislike/skip (Onboarding required)     |
+| GET    | `/api/v1/feedback`              | Alle feedback van user (Onboarding required)|
+| GET    | `/api/v1/feedback/:trackId`      | Feedback voor 1 track (Onboarding required) |
+| DELETE | `/api/v1/feedback/:trackId`      | Feedback verwijderen (Onboarding required)  |
+| POST   | `/api/v1/feedback/:trackId/play` | Play count +1 (Onboarding required)         |
+| GET    | `/api/v1/blacklist`             | Geblokkeerde items (Onboarding required)    |
+| POST   | `/api/v1/blacklist`             | Track/artiest/genre blokkeren (Onboard req) |
+| DELETE | `/api/v1/blacklist/:entryId`    | Blokkering opheffen (Onboarding required)   |
+| POST   | `/api/v1/tracks/ingest`         | Enkele track importeren (beheer)            |
 | POST   | `/api/v1/tracks/ingest-batch`            | Batch track import (beheer)           |
 | POST   | `/api/v1/tracks/enrich-spotify`          | Spotify metadata toevoegen (beheer)   |
 | POST   | `/api/v1/tracks/enrich-cf`               | CF data toevoegen (beheer)            |
@@ -37,7 +37,7 @@ Alle endpoints (behalve auth) vereisen twee headers:
 
 De API key identificeert de **app**, niet de gebruiker. Eén key wordt gedeeld door alle eindgebruikers van dezelfde frontend. De server haalt `userId` automatisch uit het JWT token — je hoeft dit niet mee te sturen. Zie [getting-started.md](getting-started.md).
 
-> **Let op:** Endpoints die personalisatie vereisen (zoals aanbevelingen en sliders) kunnen beveiligd zijn met de `requireOnboarding` middleware. Als een gebruiker de onboarding nog niet heeft voltooid, retourneren deze routes een **403 Forbidden** met de melding "Onboarding is nog niet voltooid". Je kunt controleren of een gebruiker onboarding heeft voltooid door het `hasCompletedOnboarding` veld op het User object te bekijken.
+> **Let op: Onboarding is verplicht.** Endpoints voor personalisatie (zoals aanbevelingen, sliders, feedback en blacklist) vereisen dat de gebruiker de onboarding heeft voltooid. Als dit niet zo is, retourneren deze routes een **403 Forbidden** met de melding `Onboarding is nog niet voltooid`. Je kunt controleren of een gebruiker onboarding heeft voltooid door het `hasCompletedOnboarding` veld in de `/auth/me` response (of na login) te bekijken.
 
 ---
 
@@ -121,7 +121,7 @@ De database wordt bijgewerkt en de flag `hasCompletedOnboarding` op het User obj
   "sliders": { "rock": 1.5, "electronic": 1.3, "jazz": 1.2, "pop": 1.0 },
   "_links": {
     "self": { "href": "/api/v1/onboarding" },
-    "sliders": { "href": "/api/v1/sliders/<userId>" },
+    "sliders": { "href": "/api/v1/sliders" },
     "recommendations": { "href": "/api/v1/recommendations" }
   }
 }
@@ -271,7 +271,7 @@ Stand 1 = "Ik wil nummers die op mijn smaak lijken." Stand 5 = "Verras me met ie
 
 ### GET /api/v1/sliders
 
-Retourneert de genre slider waarden voor de ingelogde gebruiker.
+Retourneert de genre slider waarden voor de ingelogde gebruiker. (Onboarding required)
 
 **Response:**
 
@@ -295,7 +295,7 @@ Als de gebruiker nog geen sliders heeft → cold start: alle genres op 1.0, lock
 
 ### PUT /api/v1/sliders
 
-Update slider waarden en/of locked genres voor de ingelogde gebruiker. Je hoeft niet alle genres mee te sturen — alleen de gewijzigde.
+Update slider waarden en/of locked genres voor de ingelogde gebruiker. (Onboarding required) Je hoeft niet alle genres mee te sturen — alleen de gewijzigde.
 
 **Request:**
 
@@ -317,7 +317,7 @@ Update slider waarden en/of locked genres voor de ingelogde gebruiker. Je hoeft 
 
 ### POST /api/v1/sliders/reset
 
-Reset alle sliders naar 1.0 en maakt locked leeg voor de ingelogde gebruiker.
+Reset alle sliders naar 1.0 en maakt locked leeg voor de ingelogde gebruiker. (Onboarding required)
 
 **Response:** zelfde shape als GET, alle sliders op 1.0.
 
@@ -367,9 +367,9 @@ Registreert een like, dislike, library-add of skip. Upsert: maakt nieuw aan of u
 
 ---
 
-### GET /api/v1/feedback/:userId
+### GET /api/v1/feedback
 
-Alle feedback van een gebruiker. Response is een array.
+Alle feedback van de ingelogde gebruiker. (Onboarding required) Response is een array.
 
 ```json
 [
@@ -394,31 +394,31 @@ Alle feedback van een gebruiker. Response is een array.
 
 ---
 
-### GET /api/v1/feedback/:userId/:trackId
+### GET /api/v1/feedback/:trackId
 
-Feedback voor een specifiek user-track paar. **404** als niet gevonden.
-
----
-
-### DELETE /api/v1/feedback/:userId/:trackId
-
-Verwijdert feedback. **204** No Content bij succes, **404** als niet gevonden.
+Feedback voor een specifiek user-track paar. (Onboarding required) **404** als niet gevonden.
 
 ---
 
-### POST /api/v1/feedback/:userId/:trackId/play
+### DELETE /api/v1/feedback/:trackId
 
-Verhoogt de play count met 1 en update `lastPlayedAt`. Maakt feedback aan als die nog niet bestaat.
+Verwijdert feedback. (Onboarding required) **204** No Content bij succes, **404** als niet gevonden.
+
+---
+
+### POST /api/v1/feedback/:trackId/play
+
+Verhoogt de play count met 1 en update `lastPlayedAt`. (Onboarding required) Maakt feedback aan als die nog niet bestaat.
 
 ---
 
 ## Blacklist
 
-> `userId` wordt automatisch uit het JWT token gehaald bij alle blacklist endpoints.
+> `userId` wordt automatisch uit het JWT token gehaald bij alle blacklist endpoints. (Onboarding required)
 
 ### GET /api/v1/blacklist
 
-Retourneert alle geblokkeerde items voor de ingelogde gebruiker.
+Retourneert alle geblokkeerde items voor de ingelogde gebruiker. (Onboarding required)
 
 **Response:**
 
@@ -443,7 +443,7 @@ Geen blacklist? → `entries: []` (geen 404).
 
 ### POST /api/v1/blacklist
 
-Blokkeer een track, artiest of genre voor de ingelogde gebruiker.
+Blokkeer een track, artiest of genre voor de ingelogde gebruiker. (Onboarding required)
 
 **Request:**
 
@@ -473,7 +473,7 @@ Blokkeer een track, artiest of genre voor de ingelogde gebruiker.
 
 ### DELETE /api/v1/blacklist/:entryId
 
-Verwijder een specifieke blokkering. Gebruik het `_id` veld uit de entries array.
+Verwijder een specifieke blokkering. Gebruik het `_id` veld uit de entries array. (Onboarding required)
 
 **Response:** volledige blacklist na verwijdering (zelfde shape als GET).
 
@@ -610,6 +610,13 @@ await api("/blacklist", {
   method: "POST",
   body: { type: "artist", value: "Nickelback" },
 });
+```
+
+### Feedback voor track ophalen
+
+```js
+// userId wordt automatisch uit het JWT token gehaald
+const feedback = await api(`/feedback/${trackId}`);
 ```
 
 ---

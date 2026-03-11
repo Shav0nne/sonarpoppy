@@ -17,10 +17,10 @@ before(async () => {
   const app = express();
   app.use(express.json());
 
-  // Test middleware that mimics authenticateJWT: reads userId from X-User-Id header
+  // Test middleware that mimics authenticateJWT + completed onboarding
   app.use((req, _res, next) => {
     const userId = req.headers["x-user-id"];
-    if (userId) req.user = { id: userId };
+    if (userId) req.user = { id: userId, hasCompletedOnboarding: true };
     next();
   });
 
