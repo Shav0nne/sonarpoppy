@@ -1389,7 +1389,6 @@
         try {
           const weights = getWeights();
           if (Object.keys(weights).length === 0) {
-            showMsg("profile-section", "", "");
             alert("Stel eerst minimaal 1 genre-gewicht in");
             return;
           }
@@ -1453,7 +1452,7 @@
               body: JSON.stringify(body),
             }),
           ];
-          if (userId) requests.push(apiFetch(`${API}/feedback/${userId}`).catch(() => []));
+          if (userId) requests.push(apiFetch(`${API}/feedback`).catch(() => []));
 
           const [data, fbData] = await Promise.all(requests);
 
