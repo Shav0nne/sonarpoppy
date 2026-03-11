@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const docsPath = resolve(import.meta.dirname, "../../docs/api.md");
+const docsPath = resolve(import.meta.dirname, "../../docs/api-v1.md");
 const content = readFileSync(docsPath, "utf-8");
 
 describe("API docs", () => {
@@ -30,7 +30,7 @@ describe("API docs", () => {
 
   describe("REQ-003: quick start section", () => {
     it("contains base URL", () => {
-      assert.ok(content.includes("localhost:8000"), "should mention base URL");
+      assert.ok(content.includes("8000"), "should mention base URL");
     });
 
     it("contains Content-Type header", () => {

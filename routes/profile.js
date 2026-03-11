@@ -5,7 +5,8 @@ import GenreSliders from "../src/models/GenreSliders.js";
 const router = Router();
 
 router.post("/compute", async (req, res) => {
-  const { userId, weights } = req.body;
+  const { weights } = req.body;
+  const userId = req.user?.id; // Haal userId uit JWT header (via authenticateJWT middleware)
 
   let effectiveWeights = weights;
 

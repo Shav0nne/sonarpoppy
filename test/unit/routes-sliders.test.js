@@ -16,6 +16,14 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
+
+  // Test middleware that mimics authenticateJWT + completed onboarding
+  app.use((req, _res, next) => {
+    const userId = req.headers["x-user-id"];
+    if (userId) req.user = { id: userId, hasCompletedOnboarding: true };
+    next();
+  });
+
   app.use("/api/sliders", slidersRouter);
   server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
@@ -32,10 +40,12 @@ after(async () => {
   await mongod.stop();
 });
 
-// REQ-002: GET /api/sliders/:userId
-describe("GET /api/sliders/:userId", () => {
+// REQ-002: GET /api/sliders
+describe("GET /api/sliders", () => {
   it("retourneert cold start defaults als geen document bestaat", async () => {
-    const res = await fetch(`${baseUrl}/api/sliders/new-user`);
+    const res = await fetch(`${baseUrl}/api/sliders`, {
+      headers: { "X-User-Id": "new-user" },
+    });
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(Object.keys(body.sliders).length, GENRES.length);
@@ -52,7 +62,9 @@ describe("GET /api/sliders/:userId", () => {
     sliders.set("jazz", 0.3);
     await GenreSliders.create({ userId: "existing-user", sliders, locked: ["rock"] });
 
-    const res = await fetch(`${baseUrl}/api/sliders/existing-user`);
+    const res = await fetch(`${baseUrl}/api/sliders`, {
+      headers: { "X-User-Id": "existing-user" },
+    });
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.sliders.rock, 2.5);
@@ -60,14 +72,19 @@ describe("GET /api/sliders/:userId", () => {
     assert.deepEqual(body.locked, ["rock"]);
     assert.ok(body.updatedAt);
   });
+
+  it("401 als geen JWT userId", async () => {
+    const res = await fetch(`${baseUrl}/api/sliders`);
+    assert.equal(res.status, 401);
+  });
 });
 
-// REQ-003: PUT /api/sliders/:userId
-describe("PUT /api/sliders/:userId", () => {
+// REQ-003: PUT /api/sliders
+describe("PUT /api/sliders", () => {
   it("upsert: creëert document als het niet bestaat", async () => {
-    const res = await fetch(`${baseUrl}/api/sliders/upsert-user`, {
+    const res = await fetch(`${baseUrl}/api/sliders`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-User-Id": "upsert-user" },
       body: JSON.stringify({ sliders: { rock: 3.0 }, locked: ["jazz"] }),
     });
     assert.equal(res.status, 200);
@@ -78,22 +95,21 @@ describe("PUT /api/sliders/:userId", () => {
 
   it("update: wijzigt bestaand document", async () => {
     await GenreSliders.create({ userId: "update-user" });
-    const res = await fetch(`${baseUrl}/api/sliders/update-user`, {
+    const res = await fetch(`${baseUrl}/api/sliders`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-User-Id": "update-user" },
       body: JSON.stringify({ sliders: { pop: 0.5 } }),
     });
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.sliders.pop, 0.5);
-    // Andere genres behouden default
     assert.equal(body.sliders.rock, 1.0);
   });
 
   it("400 bij onbekende genre key", async () => {
-    const res = await fetch(`${baseUrl}/api/sliders/bad-genre-user`, {
+    const res = await fetch(`${baseUrl}/api/sliders`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-User-Id": "bad-genre-user" },
       body: JSON.stringify({ sliders: { "niet-bestaand": 1.0 } }),
     });
     assert.equal(res.status, 400);
@@ -102,9 +118,9 @@ describe("PUT /api/sliders/:userId", () => {
   });
 
   it("400 bij ongeldige locked genre", async () => {
-    const res = await fetch(`${baseUrl}/api/sliders/bad-lock-user`, {
+    const res = await fetch(`${baseUrl}/api/sliders`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-User-Id": "bad-lock-user" },
       body: JSON.stringify({ locked: ["fake-genre"] }),
     });
     assert.equal(res.status, 400);
@@ -113,16 +129,17 @@ describe("PUT /api/sliders/:userId", () => {
   });
 });
 
-// REQ-004: POST /api/sliders/:userId/reset
-describe("POST /api/sliders/:userId/reset", () => {
+// REQ-004: POST /api/sliders/reset
+describe("POST /api/sliders/reset", () => {
   it("reset naar equal weights en lege locked", async () => {
     const sliders = new Map();
     sliders.set("rock", 5.0);
     sliders.set("jazz", 0.1);
     await GenreSliders.create({ userId: "reset-user", sliders, locked: ["rock"] });
 
-    const res = await fetch(`${baseUrl}/api/sliders/reset-user/reset`, {
+    const res = await fetch(`${baseUrl}/api/sliders/reset`, {
       method: "POST",
+      headers: { "X-User-Id": "reset-user" },
     });
     assert.equal(res.status, 200);
     const body = await res.json();
@@ -133,8 +150,9 @@ describe("POST /api/sliders/:userId/reset", () => {
   });
 
   it("404 als geen bestaand document", async () => {
-    const res = await fetch(`${baseUrl}/api/sliders/nonexistent/reset`, {
+    const res = await fetch(`${baseUrl}/api/sliders/reset`, {
       method: "POST",
+      headers: { "X-User-Id": "nonexistent" },
     });
     assert.equal(res.status, 404);
   });

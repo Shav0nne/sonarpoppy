@@ -15,6 +15,14 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
+
+  // Test middleware that mimics authenticateJWT + completed onboarding
+  app.use((req, _res, next) => {
+    const userId = req.headers["x-user-id"];
+    if (userId) req.user = { id: userId, hasCompletedOnboarding: true };
+    next();
+  });
+
   app.use("/api/profile", profileRouter);
   server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
@@ -31,7 +39,6 @@ after(async () => {
   await mongod.stop();
 });
 
-// Bestaande tests: POST /api/profile/compute met weights
 describe("POST /api/profile/compute", () => {
   it("retourneert status 200", async () => {
     const res = await fetch(`${baseUrl}/api/profile/compute`, {
@@ -89,8 +96,8 @@ describe("POST /api/profile/compute", () => {
     assert.equal(body._links.recommendations.href, "/api/recommendations");
   });
 
-  // REQ-006: userId parameter haalt sliders op als weights
-  it("userId haalt GenreSliders op als weights", async () => {
+  // REQ-006: JWT userId haalt sliders op als weights
+  it("userId uit JWT haalt GenreSliders op als weights", async () => {
     const sliders = new Map();
     sliders.set("rock", 5.0);
     sliders.set("pop", 0.1);
@@ -98,34 +105,43 @@ describe("POST /api/profile/compute", () => {
 
     const res = await fetch(`${baseUrl}/api/profile/compute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "slider-user" }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Id": "slider-user",
+      },
+      body: JSON.stringify({}),
     });
     const body = await res.json();
     assert.equal(res.status, 200);
     assert.equal(body.meta.topGenre, "rock");
   });
 
-  it("userId heeft voorrang boven weights", async () => {
+  it("JWT userId heeft voorrang boven weights", async () => {
     const sliders = new Map();
     sliders.set("jazz", 10.0);
     await GenreSliders.create({ userId: "priority-user", sliders });
 
     const res = await fetch(`${baseUrl}/api/profile/compute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "priority-user", weights: { rock: 10 } }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Id": "priority-user",
+      },
+      body: JSON.stringify({ weights: { rock: 10 } }),
     });
     const body = await res.json();
-    // Jazz zou dominant moeten zijn (van sliders), niet rock (van weights)
+    // Jazz zou dominant moeten zijn (van sliders via JWT), niet rock (van weights)
     assert.equal(body.meta.topGenre, "jazz");
   });
 
   it("userId zonder document geeft cold start", async () => {
     const res = await fetch(`${baseUrl}/api/profile/compute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "nonexistent-user" }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Id": "nonexistent-user",
+      },
+      body: JSON.stringify({}),
     });
     const body = await res.json();
     assert.equal(res.status, 200);

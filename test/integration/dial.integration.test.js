@@ -26,6 +26,13 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
+
+  // Stub middleware: simulates JWT auth + completed onboarding
+  app.use((req, _res, next) => {
+    req.user = { id: "test-user", hasCompletedOnboarding: true };
+    next();
+  });
+
   app.use("/api/dial", dialRouter);
   app.use("/api/recommendations", recommendationsRouter);
   server = http.createServer(app);
