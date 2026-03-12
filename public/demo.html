@@ -702,7 +702,10 @@
       <div class="step-panel" id="step-1">
         <div class="step-header">
           <h2>Data ophalen</h2>
-          <p>Tracks ingesten van Last.fm en verrijken met collaborative filtering data</p>
+          <p>
+            Elke track krijgt een vingerafdruk (genre-vector, 20 dimensies) op basis van Last.fm
+            tags, plus collaborative filtering data van miljoenen luisteraars.
+          </p>
         </div>
 
         <div class="card">
@@ -748,7 +751,10 @@
       <div class="step-panel" id="step-2">
         <div class="step-header">
           <h2>Profiel instellen</h2>
-          <p>Onboarding: kies genres en artiesten. Daarna fijn-tunen met sliders.</p>
+          <p>
+            Bouw je profielvector (dezelfde 20 dimensies als de tracks) via onboarding of sliders.
+            Cosine similarity vergelijkt jouw profiel met elke track.
+          </p>
         </div>
 
         <!-- Onboarding -->
@@ -841,7 +847,7 @@
 
         <div class="card" style="padding: 16px">
           <div class="btn-row" style="align-items: center">
-            <span style="color: #8b949e; font-size: 14px">Dial:</span>
+            <span style="color: #8b949e; font-size: 14px">Dial (van veilig tot avontuurlijk):</span>
             <div class="dial-row" id="dial-row-mini" style="margin: 0; gap: 4px"></div>
           </div>
         </div>

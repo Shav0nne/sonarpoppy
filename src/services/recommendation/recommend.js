@@ -87,20 +87,20 @@ function applyBubbleFilter(scored, preset, feedbackMap) {
  */
 function sortBySignal(scored, preset) {
   if (preset.sortSignal === "genreSim") {
-    return [...scored].sort((a, b) => b.signals.genre - a.signals.genre);
+    return [...scored].sort((a, b) => b.finalScore - a.finalScore);
   }
 
   if (preset.sortSignal === "cf") {
     return [...scored].sort((a, b) => {
       const aCf = a.signals.cf;
       const bCf = b.signals.cf;
-      // Both have CF → sort by CF desc
-      if (aCf != null && bCf != null) return bCf - aCf;
+      // Both have CF → sort by finalScore (incorporates CF + feedback)
+      if (aCf != null && bCf != null) return b.finalScore - a.finalScore;
       // One has CF, other doesn't → CF-having track first
       if (aCf != null) return -1;
       if (bCf != null) return 1;
-      // Both null CF → fallback to genreSim desc
-      return b.signals.genre - a.signals.genre;
+      // Both null CF → fallback to finalScore
+      return b.finalScore - a.finalScore;
     });
   }
 
