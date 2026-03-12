@@ -1,5 +1,8 @@
 import { Router } from "express";
 import Feedback from "../src/models/Feedback.js";
+import Track from "../src/models/Track.js";
+import GenreSliders from "../src/models/GenreSliders.js";
+import { evolveSliders } from "../src/services/feedback/sliderEvolution.js";
 import { requireOnboarding } from "../src/middleware/onboardingMiddleware.js";
 
 const router = Router();
@@ -20,7 +23,31 @@ router.post("/", async (req, res) => {
     { upsert: true, new: true, runValidators: true },
   );
 
-  res.status(201).json(doc);
+  // Slider evolutie — fire-and-forget als GenreSliders niet bestaat
+  let evolution = null;
+  try {
+    const [track, genreSliders] = await Promise.all([
+      Track.findById(trackId).lean(),
+      GenreSliders.findOne({ userId }).lean(),
+    ]);
+
+    if (track?.genreVector?.length && genreSliders) {
+      const result = evolveSliders({
+        currentSliders: new Map(Object.entries(genreSliders.sliders)),
+        locked: genreSliders.locked ?? [],
+        trackGenreVector: track.genreVector,
+        action,
+      });
+
+      await GenreSliders.updateOne({ userId }, { sliders: Object.fromEntries(result.sliders) });
+
+      evolution = { changed: result.changed, locked: result.locked };
+    }
+  } catch {
+    // Evolutie mag niet de feedback response blokkeren
+  }
+
+  res.status(201).json({ ...doc.toObject(), evolution });
 });
 
 // GET /api/feedback — alle feedback voor de ingelogde user
