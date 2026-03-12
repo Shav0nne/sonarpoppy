@@ -1012,8 +1012,7 @@
     },
     {
       "name": "adaptive-slider-evolution",
-      "status": "DOING",
-      "stage": "defined",
+      "status": "DONE",
       "summary": "Genre sliders evolueren automatisch bij feedback. evolveProfileWeights in feedback route, GenreSliders update, locked genres overgeslagen, clamp op 0.0, delta's in response.",
       "depends": [
         "genre-sliders",
