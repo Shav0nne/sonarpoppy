@@ -692,6 +692,10 @@
         </div>
 
         <div id="auth-msg"></div>
+
+        <button class="btn btn-primary" onclick="showStep(1)" style="width: 100%; margin-top: 16px">
+          Verder &rarr;
+        </button>
       </div>
 
       <!-- Step B: Data -->
@@ -734,6 +738,10 @@
           </p>
           <div id="vector-bars"></div>
         </div>
+
+        <button class="btn btn-primary" onclick="showStep(2)" style="width: 100%; margin-top: 16px">
+          Verder &rarr;
+        </button>
       </div>
 
       <!-- Step C: Profile -->
@@ -800,14 +808,12 @@
           <div class="genre-grid" id="genres"></div>
         </div>
 
-        <div class="card">
-          <h3>Dial: Ontdekkingsniveau</h3>
-          <p style="color: #8b949e; margin-bottom: 16px">
-            De dial bepaalt welke tracks erdoor komen via filtering en sortering. Laag = strikt
-            genre-filter (in-bubble), hoog = random (buiten de bubbel).
-          </p>
-          <div class="dial-row" id="dial-row"></div>
-          <div class="dial-info" id="dial-info"></div>
+        <div id="profile-section" style="display: none; margin-top: 16px">
+          <div class="card">
+            <h3>Profielvector</h3>
+            <div id="profile-bars"></div>
+            <div id="profile-meta" style="margin-top: 12px; color: #8b949e; font-size: 14px"></div>
+          </div>
         </div>
 
         <button
@@ -818,14 +824,6 @@
         >
           Bereken profiel &amp; toon aanbevelingen
         </button>
-
-        <div id="profile-section" style="display: none; margin-top: 16px">
-          <div class="card">
-            <h3>Profielvector</h3>
-            <div id="profile-bars"></div>
-            <div id="profile-meta" style="margin-top: 12px; color: #8b949e; font-size: 14px"></div>
-          </div>
-        </div>
       </div>
 
       <!-- Step D: Recommendations -->
@@ -855,6 +853,10 @@
             Ga eerst naar stap C om een profiel in te stellen
           </div>
         </div>
+
+        <button class="btn btn-primary" onclick="showStep(4)" style="width: 100%; margin-top: 16px">
+          Verder &rarr;
+        </button>
       </div>
 
       <!-- Step E: Robustness -->
@@ -1268,6 +1270,27 @@
         const row = el.closest(".genre-row");
         row.querySelector(".val").textContent = v > 0 ? v : "0";
         row.classList.toggle("active", v > 0);
+        updateProfileFromSliders();
+      }
+
+      function updateProfileFromSliders() {
+        const weights = getWeights();
+        if (Object.keys(weights).length === 0) {
+          document.getElementById("profile-section").style.display = "none";
+          return;
+        }
+        // Bouw een lokale profielvector op basis van slider-waarden
+        const vector = genres.map((g) => weights[g.name] || 0);
+        const total = vector.reduce((a, b) => a + b, 0);
+        const normalized = total > 0 ? vector.map((v) => v / total) : vector;
+        currentVector = normalized;
+        renderProfile({
+          vector: normalized,
+          meta: {
+            activeGenres: Object.keys(weights).length,
+            topGenre: genres[normalized.indexOf(Math.max(...normalized))]?.name || "\u2014",
+          },
+        });
       }
 
       function getWeights() {
@@ -1345,16 +1368,19 @@
           )
           .join("");
 
-        document.getElementById("dial-row").innerHTML = html;
+        const dialRow = document.getElementById("dial-row");
+        if (dialRow) dialRow.innerHTML = html;
         // Mini dial in recommendations tab
-        document.getElementById("dial-row-mini").innerHTML = (dialPresets || [])
-          .map(
-            (p) => `
+        const dialRowMini = document.getElementById("dial-row-mini");
+        if (dialRowMini)
+          dialRowMini.innerHTML = (dialPresets || [])
+            .map(
+              (p) => `
             <button class="dial-btn ${p.position === currentDial ? "active" : ""}"
               onclick="setDial(${p.position})"
               style="width:40px;height:40px;font-size:14px">${p.position}</button>`,
-          )
-          .join("");
+            )
+            .join("");
 
         updateDialInfo();
       }
@@ -1375,8 +1401,9 @@
           const extras = [];
           if (preset.unplayedOnly)
             extras.push('<span style="color:#d29922">alleen onbeluisterd</span>');
-          document.getElementById("dial-info").innerHTML =
-            `<strong>${preset.name}</strong> &mdash; filter: <span style="color:#3fb950">${filterLabel}</span>, sort: <span style="color:#58a6ff">${preset.sortSignal}</span>${extras.length ? " \u00b7 " + extras.join(", ") : ""}`;
+          const dialInfo = document.getElementById("dial-info");
+          if (dialInfo)
+            dialInfo.innerHTML = `<strong>${preset.name}</strong> &mdash; filter: <span style="color:#3fb950">${filterLabel}</span>, sort: <span style="color:#58a6ff">${preset.sortSignal}</span>${extras.length ? " \u00b7 " + extras.join(", ") : ""}`;
         }
       }
 
@@ -1484,15 +1511,7 @@
         const statsBar = document.getElementById("stats-bar");
         statsBar.style.display = "";
 
-        // Check if any track has CF data
-        const hasCf = data.tracks.some((t) => t.signals?.cf != null);
-        const cfHint = hasCf
-          ? ""
-          : `<div style="background:#2d2000;border:1px solid #d29922;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#d29922;font-size:14px">
-               <strong>CF nog niet actief.</strong> Like eerst een paar tracks en klik "Opnieuw berekenen" — dan verschijnt de CF-score en heeft de dial effect op de ranking.
-             </div>`;
         statsBar.innerHTML = `
-          ${cfHint}
           <span><strong>${data.total}</strong> resultaten</span>
           <span>gem. score: <strong>${data.meta.avgScore.toFixed(3)}</strong></span>
           <span>range: <strong>${data.meta.scoreRange.min.toFixed(3)}</strong> &mdash; <strong>${data.meta.scoreRange.max.toFixed(3)}</strong></span>
