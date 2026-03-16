@@ -492,7 +492,7 @@ Max 10 resultaten. | Fout 400: query ontbreekt of < 2 tekens.
 
 ---
 
-### GET /api/v1/blacklist
+---
 
 Alle geblokkeerde items.
 
@@ -755,8 +755,8 @@ tracks.forEach(({ track, finalScore }) => {
 ```js
 // Like een track
 await api("/feedback", {
-  method: "POST",
-  body: { trackId: tracks[0].track._id, action: "like" },
+    method: "POST",
+    body: { trackId: tracks[0].track._id, action: "like" },
 });
 
 // Artiest zoeken (autocomplete)
@@ -764,7 +764,7 @@ const { results } = await api("/artists/search?q=radio");
 
 // Artiest blokkeren
 await api("/blacklist", {
-  method: "POST",
-  body: { type: "artist", value: "Nickelback" },
+    method: "POST",
+    body: { type: "artist", value: "Nickelback" },
 });
 ```
