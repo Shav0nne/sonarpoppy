@@ -177,6 +177,9 @@ Dit betekent dat je frontend bij onboarding, feedback, profile/compute, en recom
 6. POST /api/v1/recommendations      → Aanbevelingen ophalen (met optionele filters)
 7. POST /api/v1/feedback             → Like/dislike/skip registreren
 8. GET  /api/v1/slider-presets       → Slider presets ophalen/toepassen
+9. GET  /api/v1/artists/search?q=    → Artiest zoeken (voor blacklist autocomplete)
+10. GET /api/v1/tracks/search?q=     → Track zoeken (voor blacklist autocomplete)
+11. GET /api/v1/artists/:name/image  → Artist images ophalen
 ```
 
 ---
@@ -279,18 +282,32 @@ await api("/feedback", {
 ### Sliders ophalen
 
 ```js
-const userId = localStorage.getItem("userId");
-const sliders = await api(`/sliders/${userId}`);
+// userId wordt automatisch uit JWT gehaald
+const sliders = await api("/sliders");
 ```
 
 ### Artiest blokkeren
 
 ```js
-const userId = localStorage.getItem("userId");
-await api(`/blacklist/${userId}`, {
+// userId wordt automatisch uit JWT gehaald
+await api("/blacklist", {
   method: "POST",
   body: { type: "artist", value: "Nickelback" },
 });
+```
+
+### Artist autocomplete (voor blacklist)
+
+```js
+const { results } = await api("/artists/search?q=radio");
+// results: [{ name: "Radiohead" }, { name: "Radio Moscow" }, ...]
+```
+
+### Track autocomplete (voor blacklist)
+
+```js
+const { results } = await api("/tracks/search?q=bohemian");
+// results: [{ title: "Bohemian Rhapsody", artist: "Queen" }, ...]
 ```
 
 ---

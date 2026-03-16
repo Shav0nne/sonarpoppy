@@ -190,6 +190,42 @@ describe("Blacklist Integration", () => {
       assert.match(data.error, /Invalid genre/);
     });
 
+    it("POST /api/blacklist should reject case-insensitive artist duplicate", async () => {
+      await fetch(`${baseUrl}/api/blacklist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
+        body: JSON.stringify({ type: "artist", value: "Radiohead" }),
+      });
+
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
+        body: JSON.stringify({ type: "artist", value: "radiohead" }),
+      });
+      const data = await res.json();
+
+      assert.strictEqual(res.status, 409);
+      assert.strictEqual(data.error, "Entry already exists in blacklist");
+    });
+
+    it("POST /api/blacklist should reject case-insensitive track duplicate", async () => {
+      await fetch(`${baseUrl}/api/blacklist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
+        body: JSON.stringify({ type: "track", value: "Bohemian Rhapsody" }),
+      });
+
+      const res = await fetch(`${baseUrl}/api/blacklist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-User-Id": userId },
+        body: JSON.stringify({ type: "track", value: "bohemian rhapsody" }),
+      });
+      const data = await res.json();
+
+      assert.strictEqual(res.status, 409);
+      assert.strictEqual(data.error, "Entry already exists in blacklist");
+    });
+
     it("POST /api/blacklist should reject genre alias duplicate", async () => {
       await fetch(`${baseUrl}/api/blacklist`, {
         method: "POST",
@@ -235,10 +271,26 @@ describe("Blacklist Integration", () => {
 
   describe("Recommendation Pipeline Rules", () => {
     it("should filter out tracks and artists pre-score, and genres post-score", async () => {
-      const t1 = await Track.create({ title: "Banned Track", artist: "Cool Band", genreVector: createVector({ pop: 0.9 }) });
-      const t2 = await Track.create({ title: "Good Track", artist: "Banned Artist", genreVector: createVector({ pop: 0.9 }) });
-      const t3 = await Track.create({ title: "Bad Genre", artist: "Cool Band", genreVector: createVector({ rock: 0.9 }) });
-      const t4 = await Track.create({ title: "Great Track", artist: "Cool Band", genreVector: createVector({ pop: 0.9 }) });
+      const t1 = await Track.create({
+        title: "Banned Track",
+        artist: "Cool Band",
+        genreVector: createVector({ pop: 0.9 }),
+      });
+      const t2 = await Track.create({
+        title: "Good Track",
+        artist: "Banned Artist",
+        genreVector: createVector({ pop: 0.9 }),
+      });
+      const t3 = await Track.create({
+        title: "Bad Genre",
+        artist: "Cool Band",
+        genreVector: createVector({ rock: 0.9 }),
+      });
+      const t4 = await Track.create({
+        title: "Great Track",
+        artist: "Cool Band",
+        genreVector: createVector({ pop: 0.9 }),
+      });
 
       await Blacklist.create({
         userId,
@@ -262,15 +314,29 @@ describe("Blacklist Integration", () => {
       await Track.create({ title: "T2", artist: "A2", genreVector: createVector({ pop: 0.9 }) });
       await Track.create({ title: "T3", artist: "A3", genreVector: createVector({ jazz: 0.9 }) });
 
-      const result = await getRecommendations({ profileVector: createVector({ rock: 0.8 }), userId: "user-without-blacklist" });
+      const result = await getRecommendations({
+        profileVector: createVector({ rock: 0.8 }),
+        userId: "user-without-blacklist",
+      });
       assert.strictEqual(result.total, 3);
     });
 
     it("should not leak blacklist between users", async () => {
-      const t1 = await Track.create({ title: "Banned For A", artist: "Artist X", genreVector: createVector({ pop: 0.9 }) });
-      await Track.create({ title: "Safe Track", artist: "Artist Y", genreVector: createVector({ pop: 0.9 }) });
+      const t1 = await Track.create({
+        title: "Banned For A",
+        artist: "Artist X",
+        genreVector: createVector({ pop: 0.9 }),
+      });
+      await Track.create({
+        title: "Safe Track",
+        artist: "Artist Y",
+        genreVector: createVector({ pop: 0.9 }),
+      });
 
-      await Blacklist.create({ userId: "userA", entries: [{ type: "track", value: t1._id.toString() }] });
+      await Blacklist.create({
+        userId: "userA",
+        entries: [{ type: "track", value: t1._id.toString() }],
+      });
 
       const profileVector = createVector({ pop: 0.8 });
       const resultA = await getRecommendations({ profileVector, userId: "userA" });
@@ -281,23 +347,45 @@ describe("Blacklist Integration", () => {
     });
 
     it("should filter dominant genre below 0.4 threshold", async () => {
-      await Track.create({ title: "Low Metal", artist: "Band A", genreVector: createVector({ metal: 0.35, rock: 0.3 }) });
-      await Track.create({ title: "Safe Pop", artist: "Band B", genreVector: createVector({ pop: 0.9 }) });
+      await Track.create({
+        title: "Low Metal",
+        artist: "Band A",
+        genreVector: createVector({ metal: 0.35, rock: 0.3 }),
+      });
+      await Track.create({
+        title: "Safe Pop",
+        artist: "Band B",
+        genreVector: createVector({ pop: 0.9 }),
+      });
 
       await Blacklist.create({ userId, entries: [{ type: "genre", value: "metal" }] });
 
-      const result = await getRecommendations({ profileVector: createVector({ metal: 0.5, pop: 0.5 }), userId });
+      const result = await getRecommendations({
+        profileVector: createVector({ metal: 0.5, pop: 0.5 }),
+        userId,
+      });
       assert.strictEqual(result.total, 1);
       assert.strictEqual(result.tracks[0].track.title, "Safe Pop");
     });
 
     it("should filter non-dominant genre via threshold path (>= 0.4)", async () => {
-      await Track.create({ title: "Multi-Genre", artist: "Band A", genreVector: createVector({ pop: 0.8, rock: 0.5 }) });
-      await Track.create({ title: "Pure Pop", artist: "Band B", genreVector: createVector({ pop: 0.9 }) });
+      await Track.create({
+        title: "Multi-Genre",
+        artist: "Band A",
+        genreVector: createVector({ pop: 0.8, rock: 0.5 }),
+      });
+      await Track.create({
+        title: "Pure Pop",
+        artist: "Band B",
+        genreVector: createVector({ pop: 0.9 }),
+      });
 
       await Blacklist.create({ userId, entries: [{ type: "genre", value: "rock" }] });
 
-      const result = await getRecommendations({ profileVector: createVector({ pop: 0.9 }), userId });
+      const result = await getRecommendations({
+        profileVector: createVector({ pop: 0.9 }),
+        userId,
+      });
       assert.strictEqual(result.total, 1);
       assert.strictEqual(result.tracks[0].track.title, "Pure Pop");
     });
