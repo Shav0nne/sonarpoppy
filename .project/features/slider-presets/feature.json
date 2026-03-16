@@ -1,0 +1,286 @@
+{
+  "name": "slider-presets",
+  "created": "2026-03-16",
+  "status": "DOING",
+  "stage": "defined",
+  "summary": "5 preset slots per user voor het opslaan en laden van GenreSliders snapshots (weights + locked). 3 komen pre-filled bij eerste GET (Balanced, Chill Vibes, High Energy), 2 leeg. Alle presets zijn vrij aanpasbaar en verwijderbaar. Apply overschrijft GenreSliders volledig.",
+  "depends": ["genre-sliders"],
+  "choices": {
+    "core-function": "Snapshot opslaan & laden — simpele CRUD met named presets",
+    "lock-gedrag": "Volledig overschrijven — apply preset overschrijft alles (weights + locked)",
+    "data-state": "Weights (Map 20 genres) + locked (genre array) — volledige GenreSliders snapshot",
+    "constraints": "Max 5 per user, unieke naam per user",
+    "defaults": "3 pre-filled presets bij eerste GET (lazy init), user kan ze aanpassen en verwijderen",
+    "default-opslag": "Hardcoded in config file (defaultPresets.js), geseeded naar DB bij eerste GET"
+  },
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "User kan een preset aanmaken met naam + slider snapshot (weights + locked)",
+      "category": "core",
+      "acceptance": "POST retourneert 201 met preset object. 400 bij >5 presets, 409 bij dubbele naam",
+      "status": "built",
+      "technique": "Implementation First",
+      "syncNote": "POST /slider-presets: naam validatie, max 5 check via countDocuments, 409 bij duplicate key error."
+    },
+    {
+      "id": "REQ-002",
+      "description": "User kan al zijn presets ophalen; bij eerste GET worden 3 default presets aangemaakt",
+      "category": "core",
+      "acceptance": "GET retourneert array van presets. Eerste aanroep voor nieuwe user seeded 3 defaults en retourneert die",
+      "status": "built",
+      "technique": "Implementation First",
+      "syncNote": "GET /slider-presets: lazy seed via seedDefaults() met insertMany van DEFAULT_PRESETS config."
+    },
+    {
+      "id": "REQ-003",
+      "description": "User kan een preset updaten (naam, weights, locked — alles aanpasbaar)",
+      "category": "core",
+      "acceptance": "PATCH retourneert 200 met geUpdatet object. 409 bij naam-conflict",
+      "status": "built",
+      "technique": "Implementation First",
+      "syncNote": "PATCH /slider-presets/:presetId: findOneAndUpdate met userId scope, 409 bij duplicate key."
+    },
+    {
+      "id": "REQ-004",
+      "description": "User kan een preset verwijderen (ook defaults)",
+      "category": "core",
+      "acceptance": "DELETE retourneert 204",
+      "status": "built",
+      "technique": "Implementation First",
+      "syncNote": "DELETE /slider-presets/:presetId: findOneAndDelete met userId scope, 404 bij niet gevonden."
+    },
+    {
+      "id": "REQ-005",
+      "description": "User kan een preset toepassen op actieve GenreSliders (volledige overschrijving)",
+      "category": "output",
+      "acceptance": "POST apply overschrijft GenreSliders volledig (weights + locked via upsert), retourneert nieuwe slider-staat",
+      "status": "built",
+      "technique": "Implementation First",
+      "syncNote": "POST /slider-presets/:presetId/apply: GenreSliders.findOneAndUpdate met upsert, volledige $set van sliders + locked."
+    },
+    {
+      "id": "REQ-006",
+      "description": "Maximum 5 presets per user, unieke naam per user",
+      "category": "constraint",
+      "acceptance": "Enforced bij create. Compound unique index op userId + name. POST retourneert 400 bij >5, 409 bij dubbele naam",
+      "status": "built",
+      "technique": "TDD",
+      "syncNote": "SliderPreset model met compound unique index userId+name, Map-based sliders, isDefault flag. defaultPresets.js met 3 frozen configs."
+    }
+  ],
+  "files": [
+    {
+      "path": "src/config/defaultPresets.js",
+      "type": "config",
+      "action": "create",
+      "purpose": "3 frozen default preset configuraties (Balanced, Chill Vibes, High Energy)",
+      "requirements": ["REQ-002"]
+    },
+    {
+      "path": "src/models/SliderPreset.js",
+      "type": "model",
+      "action": "create",
+      "purpose": "Mongoose model: userId, name, sliders (Map), locked, isDefault, timestamps. Compound unique index userId+name",
+      "requirements": ["REQ-001", "REQ-006"]
+    },
+    {
+      "path": "routes/slider-presets.js",
+      "type": "route",
+      "action": "create",
+      "purpose": "CRUD + apply endpoints voor slider presets",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005", "REQ-006"]
+    },
+    {
+      "path": "routes/index.js",
+      "type": "route",
+      "action": "modify",
+      "purpose": "Mount slider-presets router onder /slider-presets",
+      "requirements": ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005"]
+    }
+  ],
+  "architecture": {
+    "componentTree": "routes/slider-presets.js → src/models/SliderPreset.js + src/models/GenreSliders.js + src/config/defaultPresets.js",
+    "interfaces": {
+      "POST /api/v1/slider-presets": {
+        "body": "{ name: string, sliders?: {genre: number}, locked?: string[] }",
+        "response": "201 { _id, userId, name, sliders, locked, isDefault, createdAt, updatedAt }"
+      },
+      "GET /api/v1/slider-presets": {
+        "response": "200 [{ _id, userId, name, sliders, locked, isDefault, createdAt, updatedAt }]"
+      },
+      "PATCH /api/v1/slider-presets/:presetId": {
+        "body": "{ name?: string, sliders?: {genre: number}, locked?: string[] }",
+        "response": "200 { _id, userId, name, sliders, locked, isDefault, createdAt, updatedAt }"
+      },
+      "DELETE /api/v1/slider-presets/:presetId": {
+        "response": "204"
+      },
+      "POST /api/v1/slider-presets/:presetId/apply": {
+        "response": "200 { sliders, locked, updatedAt }"
+      }
+    }
+  },
+  "apiContract": {
+    "baseUrl": "/api/v1/slider-presets",
+    "auth": "API key + JWT + requireOnboarding",
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/",
+        "description": "Maak nieuwe preset aan",
+        "errors": ["400 max 5 bereikt", "400 validatie", "409 naam bestaat al"]
+      },
+      {
+        "method": "GET",
+        "path": "/",
+        "description": "Lijst alle presets (lazy seed 3 defaults bij eerste call)"
+      },
+      {
+        "method": "PATCH",
+        "path": "/:presetId",
+        "description": "Update preset (naam, weights, locked)",
+        "errors": ["404 niet gevonden", "409 naam conflict"]
+      },
+      {
+        "method": "DELETE",
+        "path": "/:presetId",
+        "description": "Verwijder preset",
+        "errors": ["404 niet gevonden"]
+      },
+      {
+        "method": "POST",
+        "path": "/:presetId/apply",
+        "description": "Pas preset toe op actieve GenreSliders",
+        "errors": ["404 niet gevonden"]
+      }
+    ]
+  },
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-006"],
+      "description": "SliderPreset Mongoose model met compound unique index + defaultPresets config",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-001", "REQ-002"],
+      "description": "POST create + GET list met lazy seed van 3 defaults",
+      "dependsOn": [1]
+    },
+    {
+      "step": 3,
+      "requirements": ["REQ-003", "REQ-004"],
+      "description": "PATCH update + DELETE endpoint",
+      "dependsOn": [1]
+    },
+    {
+      "step": 4,
+      "requirements": ["REQ-005"],
+      "description": "POST apply endpoint (GenreSliders overschrijving) + mount in routes/index.js",
+      "dependsOn": [1]
+    }
+  ],
+  "testStrategy": [
+    {
+      "requirement": "REQ-001",
+      "testFile": "test/unit/routes-slider-presets.test.js",
+      "description": "POST create: valid preset, max 5 limiet, duplicate naam"
+    },
+    {
+      "requirement": "REQ-002",
+      "testFile": "test/unit/routes-slider-presets.test.js",
+      "description": "GET list: lege user seeded 3 defaults, bestaande user retourneert presets"
+    },
+    {
+      "requirement": "REQ-003",
+      "testFile": "test/unit/routes-slider-presets.test.js",
+      "description": "PATCH: naam wijzigen, weights updaten, naam conflict"
+    },
+    {
+      "requirement": "REQ-004",
+      "testFile": "test/unit/routes-slider-presets.test.js",
+      "description": "DELETE: preset verwijderen, 404 bij onbekend id"
+    },
+    {
+      "requirement": "REQ-005",
+      "testFile": "test/unit/routes-slider-presets.test.js",
+      "description": "Apply overschrijft GenreSliders document volledig (weights + locked)"
+    },
+    {
+      "requirement": "REQ-006",
+      "testFile": "test/unit/slider-preset-model.test.js",
+      "description": "Model validatie, compound unique index, genre enum validatie"
+    }
+  ],
+  "build": {
+    "started": "2026-03-16",
+    "completed": "2026-03-16",
+    "techniques": {
+      "tdd": 1,
+      "implementationFirst": 5
+    },
+    "testsPass": 28,
+    "testsTotal": 28,
+    "explanation": "Slider presets slaan genre slider-instellingen op als named snapshots. 3 defaults worden lazy geseeded bij eerste GET. Max 5 per user, unieke naam. Apply overschrijft GenreSliders volledig (weights + locked).",
+    "decisions": [
+      "SliderPreset model zonder genre enum validatie op sliders — flexibeler, validatie op route-niveau indien nodig",
+      "Lazy seeding via insertMany bij eerste GET — simpeler dan migration of lifecycle hooks",
+      "Apply endpoint doet volledige $set op GenreSliders (niet $merge) — consistent met feature spec"
+    ]
+  },
+  "packages": [],
+  "tests": {
+    "checklist": [
+      {
+        "id": 1,
+        "title": "Preset aanmaken en terugzien in lijst",
+        "requirementId": "REQ-001",
+        "steps": ["POST /api/v1/slider-presets met naam + sliders", "GET /api/v1/slider-presets"],
+        "expected": "Nieuwe preset verschijnt in de lijst met correcte naam en slider waarden",
+        "status": "pending"
+      },
+      {
+        "id": 2,
+        "title": "Eerste GET seeded 3 default presets",
+        "requirementId": "REQ-002",
+        "steps": ["GET /api/v1/slider-presets als nieuwe user"],
+        "expected": "3 presets: Balanced, Chill Vibes, High Energy — elk met isDefault: true",
+        "status": "pending"
+      },
+      {
+        "id": 3,
+        "title": "Preset naam en sliders updaten",
+        "requirementId": "REQ-003",
+        "steps": ["PATCH /api/v1/slider-presets/:presetId met nieuwe naam + sliders"],
+        "expected": "Preset reflecteert de nieuwe waarden in GET response",
+        "status": "pending"
+      },
+      {
+        "id": 4,
+        "title": "Preset verwijderen (inclusief default)",
+        "requirementId": "REQ-004",
+        "steps": ["DELETE /api/v1/slider-presets/:presetId"],
+        "expected": "204 response, preset verdwijnt uit GET lijst",
+        "status": "pending"
+      },
+      {
+        "id": 5,
+        "title": "Preset toepassen op actieve sliders",
+        "requirementId": "REQ-005",
+        "steps": ["POST /api/v1/slider-presets/:presetId/apply", "GET /api/v1/sliders"],
+        "expected": "GenreSliders volledig overschreven met preset waarden (weights + locked)",
+        "status": "pending"
+      },
+      {
+        "id": 6,
+        "title": "Max 5 presets limiet enforced",
+        "requirementId": "REQ-006",
+        "steps": ["Maak 5 presets aan", "POST /api/v1/slider-presets met 6e preset"],
+        "expected": "400 response met foutmelding over maximum bereikt",
+        "status": "pending"
+      }
+    ]
+  }
+}

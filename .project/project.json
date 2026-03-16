@@ -146,11 +146,11 @@
     { "method": "POST", "path": "/api/v1/api-keys", "description": "API key aanmaken", "status": "active" },
     { "method": "GET", "path": "/api/v1/api-keys", "description": "API keys ophalen", "status": "active" },
     { "method": "DELETE", "path": "/api/v1/api-keys/:id", "description": "API key revoken", "status": "active" },
-    { "method": "POST", "path": "/api/v1/slider-presets", "description": "Preset aanmaken", "status": "planned" },
-    { "method": "GET", "path": "/api/v1/slider-presets", "description": "Presets ophalen (lazy seed 3 defaults)", "status": "planned" },
-    { "method": "PATCH", "path": "/api/v1/slider-presets/:presetId", "description": "Preset updaten", "status": "planned" },
-    { "method": "DELETE", "path": "/api/v1/slider-presets/:presetId", "description": "Preset verwijderen", "status": "planned" },
-    { "method": "POST", "path": "/api/v1/slider-presets/:presetId/apply", "description": "Preset toepassen op GenreSliders", "status": "planned" }
+    { "method": "POST", "path": "/api/v1/slider-presets", "description": "Preset aanmaken (max 5, unieke naam)", "status": "active" },
+    { "method": "GET", "path": "/api/v1/slider-presets", "description": "Presets ophalen (lazy seed 3 defaults)", "status": "active" },
+    { "method": "PATCH", "path": "/api/v1/slider-presets/:presetId", "description": "Preset updaten (naam, sliders, locked)", "status": "active" },
+    { "method": "DELETE", "path": "/api/v1/slider-presets/:presetId", "description": "Preset verwijderen", "status": "active" },
+    { "method": "POST", "path": "/api/v1/slider-presets/:presetId/apply", "description": "Preset toepassen op GenreSliders (volledige overschrijving)", "status": "active" }
   ],
   "features": [
     {
@@ -311,7 +311,7 @@
     {
       "name": "slider-presets",
       "status": "DOING",
-      "stage": "defined",
+      "stage": "built",
       "summary": "5 preset slots per user voor GenreSliders snapshots (weights + locked). 3 pre-filled defaults bij eerste GET (lazy init), 2 leeg. Alle presets vrij aanpasbaar en verwijderbaar. CRUD endpoints + apply (overschrijft GenreSliders volledig). Max 5 per user, unieke naam.",
       "depends": [
         "genre-sliders"
