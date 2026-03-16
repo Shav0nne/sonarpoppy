@@ -1,8 +1,7 @@
 {
   "name": "artist-images",
   "created": "2026-03-16",
-  "status": "DOING",
-  "stage": "built",
+  "status": "DONE",
   "summary": "Lazy-cached artist image endpoint: GET /api/v1/artists/:name/image haalt artist images op van Last.fm artist.getInfo, cachet in ArtistImage MongoDB model, en retourneert images array (small/medium/large/extralarge). Staleness check met configureerbare TTL (default 30 dagen).",
   "depends": [],
   "choices": {
@@ -17,7 +16,7 @@
       "description": "ArtistImage Mongoose model met artist (unique, case-insensitive), images array (url + size), fetchedAt timestamp",
       "category": "data",
       "acceptance": "Model valideert correct, unique index op artist, images array met url+size objecten",
-      "status": "built",
+      "status": "PASS",
       "technique": "TDD",
       "syncNote": "ArtistImage model in src/models/ArtistImage.js — artist (unique, lowercase), images [{url, size}], fetchedAt (default Date.now)"
     },
@@ -26,7 +25,7 @@
       "description": "getArtistInfo method toevoegen aan Last.fm client die artist.getInfo aanroept en images mapt",
       "category": "data",
       "acceptance": "Client retourneert gemapte artist info met images array, handles not-found gracefully",
-      "status": "built",
+      "status": "PASS",
       "technique": "TDD",
       "syncNote": "mapArtistInfo() in mappers.js + getArtistInfo() in client.js — mapt Last.fm artist.getInfo response"
     },
@@ -35,7 +34,7 @@
       "description": "GET /api/v1/artists/:name/image endpoint retourneert artist images",
       "category": "output",
       "acceptance": "200 met { artist, images, fetchedAt }, 404 als artist niet gevonden op Last.fm",
-      "status": "built",
+      "status": "PASS",
       "technique": "Implementation First",
       "syncNote": "Route in routes/artists.js, gemount onder /artists in index.js"
     },
@@ -44,7 +43,7 @@
       "description": "Lazy caching: eerste request fetcht van Last.fm en slaat op in MongoDB, volgende requests uit DB",
       "category": "core",
       "acceptance": "Tweede request voor dezelfde artist raakt Last.fm API niet, response is identiek",
-      "status": "built",
+      "status": "PASS",
       "technique": "TDD",
       "syncNote": "getArtistImage() in artistImageService.js — DB lookup → miss? fetch → upsert. DI via options.db"
     },
@@ -53,7 +52,7 @@
       "description": "Staleness check: re-fetch als fetchedAt ouder is dan configureerbare TTL (default 30 dagen)",
       "category": "core",
       "acceptance": "Na TTL verlopen wordt image opnieuw opgehaald van Last.fm en DB geüpdatet",
-      "status": "built",
+      "status": "PASS",
       "technique": "TDD",
       "syncNote": "isStale() in artistImageService.js — vergelijkt fetchedAt met TTL (default 30d), ttlDays configureerbaar"
     }
@@ -208,7 +207,7 @@
           "Verifieer 200 response met images array"
         ],
         "expected": "Response bevat artist naam, images array met url+size per formaat, en fetchedAt timestamp",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 2,
@@ -219,7 +218,7 @@
           "Stuur GET /api/v1/artists/Radiohead/image (tweede keer)"
         ],
         "expected": "Tweede request retourneert dezelfde data, Last.fm API niet opnieuw aangeroepen",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 3,
@@ -227,7 +226,7 @@
         "requirementId": "REQ-003",
         "steps": ["Stuur GET /api/v1/artists/NonExistentArtist12345/image"],
         "expected": "404 response met { error: 'Artist not found' }",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 4,
@@ -238,7 +237,7 @@
           "Stuur GET /api/v1/artists/radiohead/image"
         ],
         "expected": "Beide requests retourneren dezelfde data, slechts 1 DB record aangemaakt",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 5,
@@ -246,8 +245,10 @@
         "requirementId": "REQ-003",
         "steps": ["Stuur GET /api/v1/artists/The%20Rolling%20Stones/image"],
         "expected": "200 response met correcte artist data",
-        "status": "pending"
+        "status": "PASS"
       }
-    ]
+    ],
+    "finalStatus": "PASSED",
+    "sessions": [{ "date": "2026-03-16", "pass": 5, "fail": 0, "skip": 0 }]
   }
 }
