@@ -7,6 +7,8 @@ import { getDialPreset } from "../../config/dial.js";
 import { computeCfScore } from "../cf/cfScore.js";
 import { getBlacklistFilters, isGenreBlocked } from "../blacklist/blacklistFilter.js";
 import { GENRES } from "../../config/genres.js";
+import mongoose from "mongoose";
+import { getAlgorithmConfig, DEFAULT_ALGORITHM_CONFIG } from "../admin/configLoader.js";
 
 /**
  * Get dominant genre name for a track's genreVector.
@@ -242,20 +244,33 @@ export async function getRecommendations({
   overrides = {},
   _tracks,
   _feedbackMap,
+  _algorithmConfig,
 }) {
-  // Resolve dial preset; default = Stand 3
+  // Load algorithm config from DB, injected override, or defaults
+  let configObj;
+  if (_algorithmConfig) {
+    configObj = _algorithmConfig.toObject ? _algorithmConfig.toObject() : _algorithmConfig;
+  } else if (mongoose.connection.readyState === 1) {
+    const doc = await getAlgorithmConfig();
+    configObj = doc.toObject ? doc.toObject() : doc;
+  } else {
+    configObj = DEFAULT_ALGORITHM_CONFIG;
+  }
+
+  // Resolve dial preset with config overrides; default = Stand 3
   let preset;
   let dialPosition;
+  const dialOverrides = configObj.dialPresets?.length ? configObj.dialPresets : null;
   if (dial != null) {
-    preset = getDialPreset(dial);
+    preset = getDialPreset(dial, dialOverrides);
     dialPosition = preset.position;
   } else {
-    preset = getDialPreset(3);
+    preset = getDialPreset(3, dialOverrides);
     dialPosition = 3;
   }
 
-  // Scoring altijd met 50/50 gewichten — dial is een post-score filter
-  const w = DEFAULT_WEIGHTS;
+  // Use hybrid weights from config
+  const w = configObj.hybridWeights ?? DEFAULT_WEIGHTS;
 
   // Build feedback map per track voor deze user
   let feedbackMap = _feedbackMap ?? null;
@@ -295,6 +310,21 @@ export async function getRecommendations({
     }
   }
 
+  // Build config-enriched overrides for scoring functions
+  const scoringOverrides = {
+    ...overrides,
+    feedbackConfig: overrides.feedbackConfig ?? {
+      ...configObj.feedbackMultipliers,
+      playThreshold: configObj.playCount?.threshold,
+      playBonus: configObj.playCount?.bonus,
+      halfLifeDays: configObj.playCount?.halfLifeDays,
+    },
+    cfConfig: overrides.cfConfig ?? {
+      trackWeight: configObj.cfWeights?.track,
+      artistWeight: configObj.cfWeights?.artist,
+    },
+  };
+
   let scored = scoreTracks(
     profileVector,
     candidates,
@@ -302,7 +332,7 @@ export async function getRecommendations({
     feedbackMap,
     cfContext,
     blockedGenres,
-    overrides,
+    scoringOverrides,
   );
 
   // Apply bubble filter (post-score)

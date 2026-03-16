@@ -12,6 +12,7 @@ import authRouter from "./auth.js";
 import apiKeysRouter from "./api-keys.js";
 import blacklistRouter from "./blacklist.js";
 import sliderPresetsRouter from "./slider-presets.js";
+import adminRouter from "./admin.js";
 import { validateApiKey, injectUserId } from "../src/middleware/apiKeyMiddleware.js";
 import { authenticateJWT } from "../src/middleware/authMiddleware.js";
 
@@ -37,5 +38,6 @@ router.use("/feedback", feedbackRouter);
 router.use("/sliders", slidersRouter);
 router.use("/blacklist", blacklistRouter);
 router.use("/slider-presets", sliderPresetsRouter);
+router.use("/admin", adminRouter);
 
 export default router;
