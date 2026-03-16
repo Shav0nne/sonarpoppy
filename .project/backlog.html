@@ -3,23 +3,241 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark light" />
     <title>Backlog</title>
-    <script src="/lib/themes.js"></script>
     <link rel="stylesheet" href="/css/backlog.css" />
-    <link rel="stylesheet" href="/css/theme-picker.css" />
     <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
   </head>
   <body>
     <script id="backlog-data" type="application/json">
 {
-  "project": "sonarpoppy",
-  "generated": "2026-03-16",
+  "project": "SonarPoppy",
+  "generated": "2026-03-04",
   "updated": "2026-03-16",
-  "source": "manual",
-  "overview": "",
-  "features": [],
-  "notes": ""
+  "lastSync": "2026-03-16",
+  "source": "/dev-plan",
+  "overview": "Shared muziek-aanbevelingsbackend: cosine similarity engine met dial-gebaseerde discovery, genre vectors, en dual-app architectuur (SonarPop + Poppy).",
+  "features": [
+    {
+      "name": "parameterized-recommendations",
+      "type": "API",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "Recommendation endpoint uitbreiden met extra filter/sort parameters voor frontend-componenten: genre-filter (tracks voor specifiek genre), artist-filter, sort-override (genreSim/cf/random/recent), explicit-toggle, en nieuw/onbeluisterd-filter. Eén coherente uitbreiding van het filters-object in POST /api/recommendations.",
+      "dependency": "recommendation-engine",
+      "date": "2026-03-16",
+      "updated": "2026-03-16"
+    },
+    {
+      "name": "slider-presets",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P4",
+      "description": "5 preset slots per user voor GenreSliders snapshots (weights + locked). 3 pre-filled defaults bij eerste GET, 2 leeg. Alle aanpasbaar/verwijderbaar. CRUD + apply endpoint. Max 5, unieke naam.",
+      "dependency": "genre-sliders",
+      "date": "2026-03-16",
+      "updated": "2026-03-16"
+    },
+    {
+      "name": "spotify-oauth",
+      "type": "INTEGRATION",
+      "status": "TODO",
+      "phase": "P4",
+      "description": "Spotify OAuth Authorization Code Flow. /me/top/artists + /me/top/tracks voor onboarding (3 time ranges), /me/player/recently-played voor luistergeschiedenis sync.",
+      "dependency": null,
+      "assignee": "Martijn",
+      "date": "2026-03-10"
+    },
+    {
+      "name": "dial-bubble-aware",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "Herziening dial: 5 standen met bubbel-filter i.p.v. gewichten. Stand 1-2 filteren op hoge genreSim (in-bubble), stand 3 geen filter, stand 4 genre-inversie + alleen onbeluisterde tracks, stand 5 pure random. Genre en CF altijd op volle kracht — dial bepaalt welke tracks erdoor komen.",
+      "dependency": "dial-system",
+      "date": "2026-03-11",
+      "updated": "2026-03-11"
+    },
+    {
+      "name": "adaptive-slider-evolution",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "Genre sliders evolueren automatisch op basis van feedback en luistergedrag. Na likes/dislikes worden genre-gewichten bijgesteld (like op rock-track → rock slider omhoog). Lock-optie per genre zodat de gebruiker controle houdt over specifieke voorkeuren. Locked genres worden overgeslagen bij automatische evolutie.",
+      "dependency": "genre-sliders",
+      "date": "2026-03-11",
+      "updated": "2026-03-12"
+    },
+    {
+      "name": "developer-portal-api-keys",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "App-level API key systeem: JWT voor key management, API key voor API-gebruik. CRUD endpoints, X-API-Key header validatie middleware, max 5 keys per user, sk_live_ prefix format.",
+      "dependency": null,
+      "date": "2026-03-10",
+      "updated": "2026-03-10"
+    },
+    {
+      "name": "blacklist",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P2",
+      "description": "Tracks, artiesten en genres blokkeren per gebruiker. Blacklist model met entries array, CRUD endpoints, pre-score $nin filter + post-score genre filter (dominant OF >= 0.4) in recommendation pipeline.",
+      "dependency": null,
+      "assignee": "Martijn",
+      "date": "2026-03-10"
+    },
+    {
+      "name": "onboarding",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P3",
+      "description": "Cold start onboarding: genre-selectie + artiest-selectie. Gekozen genres geboost in GenreSliders, artiest Last.fm tags boosten genres extra. POST /api/v1/onboarding, app-specifieke validatie (SonarPop: min 3+3, Poppy: min 3 genres). Idempotent.",
+      "dependency": "genre-system",
+      "date": "2026-03-10"
+    },
+    {
+      "name": "genre-sliders",
+      "type": "API",
+      "status": "DONE",
+      "phase": "P2",
+      "description": "Dynamic genre sliders per user: CRUD endpoints, locking (locked genres overgeslagen bij evolutie), profile compute integratie (userId → sliders). SonarPop-only. Presets uitgesteld naar slider-presets.",
+      "dependency": "profile-service",
+      "date": "2026-03-10"
+    },
+    {
+      "name": "lastfm-cf",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P2",
+      "description": "Last.fm collaborative filtering: track.getSimilar + artist.getSimilar integreren in client. CF scores cachen in Track model of apart. Levert beta-component (0-1) voor hybride scoring. Bewuste architectuurkeuze — eigen CF vereist schaal die dit project niet bereikt.",
+      "dependency": "lastfm-integration",
+      "date": "2026-03-09"
+    },
+    {
+      "name": "user-feedback",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P2",
+      "description": "Like/dislike/library/skip tracking per user per track. Feedback multiplier in hybride scoring pipeline. Play count met time decay. Profiel evolutie via gewogen gemiddelde.",
+      "dependency": "recommendation-engine",
+      "assignee": null,
+      "date": "2026-03-09"
+    },
+    {
+      "name": "spotify-data",
+      "type": "INTEGRATION",
+      "status": "DONE",
+      "phase": "P2",
+      "description": "Spotify API client (client credentials): track ID matching, metadata (spotifyId, uri, duration, explicit, albumImages), batch enrichment. Audio Features API deprecated (nov 2024) — niet beschikbaar voor nieuwe apps.",
+      "dependency": null,
+      "assignee": "Martijn",
+      "date": "2026-03-09"
+    },
+    {
+      "name": "hybrid-scoring",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P2",
+      "description": "Hybride scoring pipeline: (alpha*genre + beta*cf) x delta*feedback. Pluggable signalen met re-normalisatie, Stand 3 defaults, per-track score breakdown. Audio-signaal vervallen (Spotify Audio Features deprecated nov 2024).",
+      "dependency": "recommendation-engine",
+      "date": "2026-03-09"
+    },
+    {
+      "name": "dial-system",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P2",
+      "description": "5-stands dial presets die α/β/γ gewichten configureren voor hybride scoring. GET /api/dial endpoint, dial parameter in recommendations, dialPosition in meta.",
+      "dependency": "hybrid-scoring",
+      "date": "2026-03-09"
+    },
+    {
+      "name": "genre-system",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "20 gestandaardiseerde genres, alias mapping van Last.fm freeform tags, genre vector utilities (normalisatie, zero-vector guard)",
+      "dependency": null,
+      "date": "2026-03-04"
+    },
+    {
+      "name": "track-model",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "Mongoose Track schema met genre vector (20 floats), artist, title, tags. CRUD operaties. Samen met teammate 4.",
+      "dependency": "genre-system",
+      "date": "2026-03-04"
+    },
+    {
+      "name": "lastfm-integration",
+      "type": "INTEGRATION",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "Last.fm API client met rate limiting (token bucket), retry + exponential backoff, en response mapping voor track/artist tag fetching.",
+      "dependency": null,
+      "date": "2026-03-04"
+    },
+    {
+      "name": "track-ingestion",
+      "type": "API",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "Track import pipeline: Last.fm tags ophalen (met artist fallback), genreVector berekenen, opslaan in MongoDB. Single + batch ingest met skip/force en graceful error handling.",
+      "dependency": "track-model",
+      "date": "2026-03-05",
+      "assignee": "Martijn"
+    },
+    {
+      "name": "cosine-similarity",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "SimilarityService: cosine similarity op 20-dim vectors, pre-normalisatie, zero-vector guard (return 0 ipv NaN), dot product shortcut.",
+      "dependency": null,
+      "date": "2026-03-04"
+    },
+    {
+      "name": "profile-service",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "Pure berekeningsmotor: zet genre weights (object) om naar genormaliseerde 20-dim profielvector + metadata. Cold start = equal weights. Geen persistence, geen side effects.",
+      "dependency": "cosine-similarity",
+      "date": "2026-03-05",
+      "assignee": null
+    },
+    {
+      "name": "recommendation-engine",
+      "type": "API",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "Pure scoring pipeline: laad alle tracks uit MongoDB, scoor tegen profielvector via cosine similarity, filter, pagineer, en retourneer gesorteerde resultaten met metadata. Extensiepunten voor dial/blacklist.",
+      "dependency": "track-ingestion",
+      "assignee": null,
+      "date": "2026-03-05"
+    },
+    {
+      "name": "frontend-api-docs",
+      "type": "FEATURE",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "API-documentatie/gids voor frontend-studenten: simpele uitleg van alle endpoints, request/response formats, auth flow en voorbeelden zodat ze makkelijk met de backend kunnen werken.",
+      "dependency": null,
+      "date": "2026-03-05"
+    },
+    {
+      "name": "api-routes",
+      "type": "API",
+      "status": "DONE",
+      "phase": "P1",
+      "description": "HTTP routes die bestaande services blootstellen aan de frontend: GET /api/genres, GET /api/tracks, POST /api/tracks/ingest, POST /api/tracks/ingest-batch, POST /api/profile/compute, POST /api/recommendations. HATEOAS _links, router-per-resource.",
+      "dependency": "recommendation-engine",
+      "date": "2026-03-05"
+    }
+  ],
+  "notes": "Externe dependencies van teammates: Auth (login/register + JWT middleware), User model (profileVector, genreWeights, dial velden). Track model wordt samen met teammate 4 gebouwd. Mappenstructuur alleen voor algoritme-gerelateerde code."
 }
 </script>
 
@@ -49,7 +267,7 @@
           <div>
             <label for="field-phase">Prioriteit</label>
             <select id="field-phase">
-              <option value="P1">P1</option>
+              <option value="P1">P1 (MVP)</option>
               <option value="P2">P2</option>
               <option value="P3">P3</option>
               <option value="P4">P4</option>
@@ -59,9 +277,6 @@
 
         <label for="field-dep">Dependency (optioneel)</label>
         <input type="text" id="field-dep" placeholder="feature-naam" />
-
-        <label for="field-assignee">Toewijzen aan (optioneel)</label>
-        <input type="text" id="field-assignee" placeholder="naam teammate" />
 
         <div class="modal-buttons">
           <button class="btn-cancel" onclick="closeModal()">Annuleren</button>
@@ -135,17 +350,17 @@
       let data = JSON.parse(fileRaw);
       if (!data.features) data.features = [];
 
-      const STATUSES = ["TODO", "DOING", "DONE"];
+      const STATUSES = ["TODO", "DEF", "BLT", "DONE"];
       const STATUS_COLORS = {
         TODO: "var(--todo)",
-        DOING: "var(--doing)",
+        DEF: "var(--def)",
+        BLT: "var(--blt)",
         DONE: "var(--done)",
       };
       const PHASE_LABELS = {
-        P1: "P1",
-        P2: "P2",
-        P3: "P3",
-        P4: "P4",
+        P1: "P1 · Must",
+        P2: "P2 · Should",
+        P3: "P3 · Could",
         P4: "P4 · Maybe",
       };
       const PHASE_CLASSES = {
@@ -176,17 +391,12 @@
         if (fi !== -1) data.features.splice(fi, 1);
       }
 
-      function updateStatus(name, newStatus, newStage) {
+      function updateStatus(name, newStatus) {
         const found = findItem(name);
         if (!found) return;
         found.item.status = newStatus;
-        if (newStatus === "DOING") {
-          found.item.stage = newStage || found.item.stage || "defining";
-        } else {
-          delete found.item.stage;
-          if (newStatus === "DONE") {
-            found.item.date = new Date().toISOString().slice(0, 10);
-          }
+        if (newStatus === "DONE") {
+          found.item.date = new Date().toISOString().slice(0, 10);
         }
       }
 
@@ -253,23 +463,6 @@
           });
       }
 
-      // ─── Next skill helper ────────────────────────────────────
-      function getNextSkill(f) {
-        if (f.status === "TODO") return "define";
-        if (f.status === "DOING") {
-          return (
-            {
-              defining: "define",
-              defined: "build",
-              building: "build",
-              built: "test",
-              testing: "test",
-            }[f.stage] || "define"
-          );
-        }
-        return null;
-      }
-
       // ─── Render ─────────────────────────────────────────────
       function render() {
         // Clear
@@ -333,29 +526,26 @@
         const phaseClass = PHASE_CLASSES[f.phaseKey] || "phase-p4";
         const phaseLabel = PHASE_LABELS[f.phaseKey] || "P4";
 
-        let depTag = "";
+        let extra = "";
         if (f.dependency) {
           const depFound = findItem(f.dependency);
           const depResolved = depFound && depFound.item.status === "DONE";
           if (!depResolved)
-            depTag = `<span class="card-dep"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg> ${esc(f.dependency)}</span>`;
+            extra += `<div class="card-dep"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M4 7V5a4 4 0 118 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1h1zm2 0h4V5a2 2 0 10-4 0v2z"/></svg> ${esc(f.dependency)}</div>`;
         }
-
-        let extra = "";
         if (f.source)
           extra += `<div class="card-source">${esc(f.source)}</div>`;
         if (f.date && f.status === "DONE")
           extra += `<div class="card-date">${esc(f.date)}</div>`;
-        if (f.assignee)
-          extra += `<div class="card-assignee"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg> ${esc(f.assignee)}</div>`;
-        const stageTag =
-          f.status === "DOING" && f.stage
-            ? `<span class="stage-badge stage-${f.stage}">${esc(f.stage)}</span>`
-            : "";
 
         const prefix =
           data.source && data.source.startsWith("/game") ? "game" : "dev";
-        const nextVerb = getNextSkill(f);
+        const NEXT_SKILL = {
+          TODO: "define",
+          DEF: "build",
+          BLT: "test",
+        };
+        const nextVerb = NEXT_SKILL[f.status] || null;
         const nextCmd = nextVerb ? `/${prefix}-${nextVerb} ${f.name}` : "";
 
         const card = document.createElement("div");
@@ -369,10 +559,8 @@
           </div>
           <div class="card-desc">${esc(f.description)}</div>
           <div class="card-tags">
-            <span class="phase-tag ${phaseClass}">${phaseLabel}</span>
             <span class="badge ${typeClass}">${esc(f.type)}</span>
-            ${stageTag}
-            ${depTag}
+            <span class="phase-tag ${phaseClass}">${phaseLabel}</span>
           </div>
           ${extra}
         `;
@@ -391,107 +579,50 @@
       }
 
       // ─── Drag & Drop ───────────────────────────────────────
-      let dragEl = null;
-      let dragName = null;
-      let dragOrigStatus = null;
-      let dropSucceeded = false;
+      let draggedName = null;
 
       function handleDragStart(e) {
-        dragEl = this;
-        dragName = this.dataset.name;
-        const found = findItem(dragName);
-        dragOrigStatus = found ? found.item.status : null;
-        dropSucceeded = false;
+        draggedName = this.dataset.name;
+        this.classList.add("dragging");
         e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", dragName);
-        // Delay ghost class so browser captures drag image first
-        setTimeout(() => this.classList.add("ghost"), 0);
+        e.dataTransfer.setData("text/plain", draggedName);
       }
 
       function handleDragEnd() {
-        if (!dragEl) return;
-        dragEl.classList.remove("ghost");
-
-        if (dropSucceeded) {
-          // Sync DOM order back to data.features
-          const newOrder = [];
-          document.querySelectorAll(".cards").forEach((container) => {
-            container.querySelectorAll(".card").forEach((card) => {
-              const item = data.features.find(
-                (f) => f.name === card.dataset.name,
-              );
-              if (item) newOrder.push(item);
-            });
-          });
-          data.features.forEach((f) => {
-            if (!newOrder.find((n) => n.name === f.name)) newOrder.push(f);
-          });
-          data.features = newOrder;
-          syncJSON();
-
-          const found = findItem(dragName);
-          const newStatus = found ? found.item.status : null;
-          if (dragOrigStatus !== newStatus) {
-            toast(`${dragName}: ${dragOrigStatus} \u2192 ${newStatus}`);
-          } else {
-            toast(`${dragName} verplaatst`);
-          }
-        }
-
-        // Always re-render to clean state
-        render();
-        dropSucceeded = false;
-        dragEl = null;
-        dragName = null;
-        dragOrigStatus = null;
-      }
-
-      function getClosestCard(container, y) {
-        const cards = [...container.querySelectorAll(".card:not(.ghost)")];
-        let closest = null;
-        let closestOffset = Number.NEGATIVE_INFINITY;
-        for (const card of cards) {
-          const rect = card.getBoundingClientRect();
-          const offset = y - rect.top - rect.height / 2;
-          if (offset < 0 && offset > closestOffset) {
-            closestOffset = offset;
-            closest = card;
-          }
-        }
-        return closest;
+        this.classList.remove("dragging");
+        document
+          .querySelectorAll(".cards.drag-over")
+          .forEach((c) => c.classList.remove("drag-over"));
+        draggedName = null;
       }
 
       function handleDragOver(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        if (!dragEl) return;
-        const closest = getClosestCard(this, e.clientY);
-        if (closest) {
-          this.insertBefore(dragEl, closest);
-        } else {
-          this.appendChild(dragEl);
-        }
+        this.classList.add("drag-over");
       }
 
-      function handleDragLeave() {}
+      function handleDragLeave() {
+        this.classList.remove("drag-over");
+      }
 
       function handleDrop(e) {
         e.preventDefault();
-        dropSucceeded = true;
-        if (!dragEl || !dragName) return;
-
+        this.classList.remove("drag-over");
+        const name = e.dataTransfer.getData("text/plain");
         const newStatus = this.dataset.status;
-        const found = findItem(dragName);
-        if (!found) return;
 
-        // Update status for cross-column moves
-        if (found.item.status !== newStatus) {
-          if (newStatus === "DOING") {
-            updateStatus(dragName, newStatus, found.item.stage || "defining");
-          } else {
-            updateStatus(dragName, newStatus);
-          }
-        }
+        if (!name || !newStatus) return;
+
+        const found = findItem(name);
+        if (!found) return;
+        if (found.item.status === newStatus) return;
+
+        const oldStatus = found.item.status;
+        updateStatus(name, newStatus);
+        syncJSON();
+        render();
+        toast(`${name}: ${oldStatus} \u2192 ${newStatus}`);
       }
 
       // ─── Modal: Add / Edit ─────────────────────────────────
@@ -507,7 +638,6 @@
         document.getElementById("field-type").value = "FEATURE";
         document.getElementById("field-phase").value = "P1";
         document.getElementById("field-dep").value = "";
-        document.getElementById("field-assignee").value = "";
         document.getElementById("field-name").disabled = false;
         document.getElementById("modal-save").textContent = "Toevoegen";
         document.getElementById("modal").classList.add("active");
@@ -528,8 +658,6 @@
         document.getElementById("field-phase").value = found.item.phase || "P1";
         document.getElementById("field-dep").value =
           found.item.dependency || "";
-        document.getElementById("field-assignee").value =
-          found.item.assignee || "";
         document.getElementById("field-name").disabled = false;
         document.getElementById("modal-save").textContent = "Opslaan";
         document.getElementById("modal").classList.add("active");
@@ -548,8 +676,6 @@
         const type = document.getElementById("field-type").value;
         const phase = document.getElementById("field-phase").value;
         const dep = document.getElementById("field-dep").value.trim() || null;
-        const assignee =
-          document.getElementById("field-assignee").value.trim() || null;
 
         if (!name) return;
 
@@ -563,7 +689,6 @@
           found.item.type = type;
           found.item.phase = phase;
           found.item.dependency = dep;
-          found.item.assignee = assignee;
 
           toast(`${name} bijgewerkt`);
         } else {
@@ -575,7 +700,6 @@
             phase,
             description: desc,
             dependency: dep,
-            assignee,
           });
 
           toast(`${name} toegevoegd`);
@@ -837,17 +961,12 @@
           html += `<div class="detail-field"><div class="detail-label">Beschrijving</div><div class="detail-value">${esc(f.description)}</div></div>`;
         }
         html += `<div class="detail-field"><div class="detail-tags">`;
-        html += `<span class="phase-tag ${PHASE_CLASSES[f.phase] || "phase-p4"}">${phaseLabel}</span>`;
         html += `<span class="badge badge-${f.type.toLowerCase().replace("_", "-")}">${esc(f.type)}</span>`;
+        html += `<span class="phase-tag ${PHASE_CLASSES[f.phase] || "phase-p4"}">${phaseLabel}</span>`;
         html += `<span class="status-tag" style="color:${STATUS_COLORS[f.status]}">${f.status}</span>`;
-        if (f.status === "DOING" && f.stage)
-          html += `<span class="stage-badge stage-${f.stage}">${esc(f.stage)}</span>`;
         html += `</div></div>`;
         if (f.dependency) {
           html += `<div class="detail-field"><div class="detail-label">Dependency</div><div class="detail-value">${esc(f.dependency)}</div></div>`;
-        }
-        if (f.assignee) {
-          html += `<div class="detail-field"><div class="detail-label">Toegewezen aan</div><div class="detail-value">${esc(f.assignee)}</div></div>`;
         }
         if (f.source) {
           html += `<div class="detail-field"><div class="detail-label">Bron</div><div class="detail-value">${esc(f.source)}</div></div>`;
@@ -861,23 +980,17 @@
         // Show copy button if there's a next skill
         const prefix =
           data.source && data.source.startsWith("/game") ? "game" : "dev";
-        const verb = getNextSkill(f);
+        const NEXT = {
+          TODO: "define",
+          DEF: "build",
+          BLT: "test",
+        };
+        const verb = NEXT[f.status];
         const copyBtn = document.getElementById("detail-copy");
-        if (f.assignee) {
-          // Teammate: show brief button
-          copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg> Brief`;
-          copyBtn.title = `Kopieer task brief voor ${f.assignee}`;
-          copyBtn.dataset.cmd = "";
-          copyBtn.dataset.assignee = f.assignee;
-          copyBtn.dataset.feature = f.name;
-          copyBtn.style.display = "";
-        } else if (verb) {
+        if (verb) {
           const cmd = `/${prefix}-${verb} ${f.name}`;
-          copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg> Kopieer`;
           copyBtn.title = cmd;
           copyBtn.dataset.cmd = cmd;
-          copyBtn.dataset.assignee = "";
-          copyBtn.dataset.feature = "";
           copyBtn.style.display = "";
         } else {
           copyBtn.style.display = "none";
@@ -896,23 +1009,11 @@
 
       document.getElementById("detail-copy").addEventListener("click", () => {
         const btn = document.getElementById("detail-copy");
-        if (btn.dataset.assignee) {
-          const name = btn.dataset.feature;
-          const found = findItem(name);
-          if (found && typeof generateTaskBrief === "function") {
-            generateTaskBrief(found.item).then((brief) => {
-              navigator.clipboard.writeText(brief).then(() => {
-                toast("Task brief gekopieerd");
-              });
-            });
-          }
-        } else {
-          const cmd = btn.dataset.cmd;
-          if (cmd) {
-            navigator.clipboard.writeText(cmd).then(() => {
-              toast(`Gekopieerd: ${cmd}`);
-            });
-          }
+        const cmd = btn.dataset.cmd;
+        if (cmd) {
+          navigator.clipboard.writeText(cmd).then(() => {
+            toast(`Gekopieerd: ${cmd}`);
+          });
         }
       });
 
