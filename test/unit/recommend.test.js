@@ -40,7 +40,6 @@ describe("scoreTracks — scoring via cosine similarity", () => {
       },
     ];
     const result = scoreTracks(profileVector, tracks);
-    // Genre is het enige actieve signaal → 100% gewicht → finalScore = genre score
     assert.equal(result[0].finalScore, 1);
     assert.equal(result[1].finalScore, 0);
   });
@@ -86,7 +85,7 @@ describe("scoreTracks — scoring via cosine similarity", () => {
   });
 });
 
-// REQ-003: Skip tracks zonder geldige genreVector
+// Skip tracks zonder genreVector
 describe("scoreTracks — skip tracks zonder genreVector", () => {
   const profileVector = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -135,7 +134,7 @@ describe("scoreTracks — skip tracks zonder genreVector", () => {
   });
 });
 
-// Shared test data voor getRecommendations tests
+// Shared test data
 const v = (primary) => {
   const vec = new Array(20).fill(0);
   vec[primary] = 1;
@@ -150,9 +149,9 @@ const testTracks = [
   { _id: "t5", title: "Blues Track", artist: "E", genreVector: v(8) },
 ];
 
-// REQ-002: Sorteer op score (desc) en retourneer top N met pagination
+// Pagination
 describe("getRecommendations — pagination", () => {
-  const profileVector = v(0); // rock profiel
+  const profileVector = v(0);
 
   it("retourneert standaard alle gescoorde tracks", async () => {
     const result = await getRecommendations({ profileVector, _tracks: testTracks });
@@ -188,7 +187,7 @@ describe("getRecommendations — pagination", () => {
   });
 });
 
-// REQ-004: Accepteer filters object als extensiepunt
+// Filters
 describe("getRecommendations — filters", () => {
   const profileVector = v(0);
 
@@ -234,7 +233,7 @@ describe("getRecommendations — filters", () => {
   });
 });
 
-// REQ-005: Retourneer metadata + breakdown
+// Metadata
 describe("getRecommendations — metadata", () => {
   const profileVector = v(0);
 
@@ -264,11 +263,6 @@ describe("getRecommendations — metadata", () => {
     assert.equal(result.meta.scoreRange.max, 0);
   });
 
-  it("meta bevat configuredWeights (Stand 3 default)", async () => {
-    const result = await getRecommendations({ profileVector, _tracks: testTracks });
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.3, cf: 0.4, audio: 0.3 });
-  });
-
   it("meta bevat activeSignals", async () => {
     const result = await getRecommendations({ profileVector, _tracks: testTracks });
     assert.ok(Array.isArray(result.meta.activeSignals));
@@ -281,7 +275,7 @@ describe("getRecommendations — metadata", () => {
   });
 });
 
-// REQ-005: Score breakdown per track
+// Score breakdown per track
 describe("getRecommendations — score breakdown", () => {
   const profileVector = v(0);
 
@@ -295,64 +289,241 @@ describe("getRecommendations — score breakdown", () => {
     }
   });
 
-  it("signals bevat genre score, cf en audio als null", async () => {
+  it("signals bevat genre score en cf als null", async () => {
     const result = await getRecommendations({ profileVector, _tracks: testTracks });
     const first = result.tracks[0];
     assert.equal(typeof first.signals.genre, "number");
     assert.equal(first.signals.cf, null);
-    assert.equal(first.signals.audio, null);
-  });
-
-  it("accepteert custom weights via parameter", async () => {
-    const custom = { genre: 0.5, cf: 0.2, audio: 0.3 };
-    const result = await getRecommendations({
-      profileVector,
-      weights: custom,
-      _tracks: testTracks,
-    });
-    assert.deepEqual(result.meta.configuredWeights, custom);
   });
 });
 
-// REQ-004: dial parameter resolved naar weights
-describe("getRecommendations — dial parameter", () => {
+// REQ-002: Bubbel-filter — dial filtert tracks post-score
+describe("getRecommendations — bubbel-filter (REQ-002)", () => {
+  // Profiel is rock (index 0)
   const profileVector = v(0);
 
-  it("dial: 1 resolved naar Stand 1 gewichten", async () => {
+  // Tracks: rock (genreSim=1.0), gedeeltelijk rock (genreSim≈0.5), totaal anders (genreSim=0)
+  const mixedTracks = [
+    { _id: "t1", title: "Pure Rock", artist: "A", genreVector: v(0) }, // genreSim = 1.0
+    {
+      _id: "t2",
+      title: "Half Rock",
+      artist: "B",
+      genreVector: [0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    }, // genreSim ≈ 0.71
+    {
+      _id: "t3",
+      title: "Quarter Rock",
+      artist: "C",
+      genreVector: [0.25, 0.75, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    }, // genreSim ≈ 0.32
+    { _id: "t4", title: "Pure Pop", artist: "D", genreVector: v(1) }, // genreSim = 0
+    { _id: "t5", title: "Pure Jazz", artist: "E", genreVector: v(5) }, // genreSim = 0
+  ];
+
+  it("Stand 1 (minGenreSim 0.6) filtert tracks met lage genreSim", async () => {
     const result = await getRecommendations({
       profileVector,
       dial: 1,
-      _tracks: testTracks,
+      _tracks: mixedTracks,
     });
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.5, cf: 0.2, audio: 0.3 });
+    // Alleen Pure Rock (1.0) en Half Rock (~0.71) komen erdoor
+    assert.equal(result.tracks.length, 2);
+    const titles = result.tracks.map((t) => t.track.title);
+    assert.ok(titles.includes("Pure Rock"));
+    assert.ok(titles.includes("Half Rock"));
   });
 
-  it("dial: 5 resolved naar Stand 5 gewichten", async () => {
+  it("Stand 2 (minGenreSim 0.3) laat meer tracks door", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      dial: 2,
+      _tracks: mixedTracks,
+    });
+    // Pure Rock (1.0), Half Rock (~0.71), Quarter Rock (~0.32) komen erdoor
+    assert.equal(result.tracks.length, 3);
+    const titles = result.tracks.map((t) => t.track.title);
+    assert.ok(titles.includes("Quarter Rock"));
+  });
+
+  it("Stand 3 (geen filter) laat alles door", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      dial: 3,
+      _tracks: mixedTracks,
+    });
+    assert.equal(result.tracks.length, 5);
+  });
+
+  it("Stand 5 (geen filter) laat alles door", async () => {
     const result = await getRecommendations({
       profileVector,
       dial: 5,
-      _tracks: testTracks,
+      _tracks: mixedTracks,
     });
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.1, cf: 0.6, audio: 0.3 });
+    assert.equal(result.tracks.length, 5);
+  });
+});
+
+// REQ-003: Per-stand sortering
+describe("getRecommendations — per-stand sortering (REQ-003)", () => {
+  const profileVector = v(0);
+
+  it("Stand 1-3 sorteert op genreSim (desc)", async () => {
+    const tracks = [
+      { _id: "t1", title: "Low", artist: "A", genreVector: v(1) }, // genreSim = 0
+      { _id: "t2", title: "High", artist: "B", genreVector: v(0) }, // genreSim = 1
+      {
+        _id: "t3",
+        title: "Mid",
+        artist: "C",
+        genreVector: [0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      },
+    ];
+
+    const result = await getRecommendations({
+      profileVector,
+      dial: 3,
+      _tracks: tracks,
+    });
+    // High (genreSim=1) moet eerste zijn
+    assert.equal(result.tracks[0].track.title, "High");
+    // Low (genreSim=0) moet laatste zijn
+    assert.equal(result.tracks[result.tracks.length - 1].track.title, "Low");
   });
 
-  it("dial overschrijft weights als beide aanwezig", async () => {
+  it("Stand 4 sorteert op CF score (desc), genreSim als fallback bij null CF", async () => {
+    // Zonder CF context: alle CF scores zijn null → fallback op genreSim
+    const tracks = [
+      { _id: "t1", title: "Low Genre", artist: "A", genreVector: v(1) },
+      { _id: "t2", title: "High Genre", artist: "B", genreVector: v(0) },
+    ];
+
+    const result = await getRecommendations({
+      profileVector,
+      dial: 4,
+      _tracks: tracks,
+    });
+    // CF is null → fallback op genreSim → High Genre eerst
+    assert.equal(result.tracks[0].track.title, "High Genre");
+  });
+
+  it("Stand 5 sorteert random (verschilt van genreSim volgorde)", async () => {
+    // Met 20 tracks is de kans verwaarloosbaar dat random dezelfde volgorde geeft als genreSim
+    const manyTracks = Array.from({ length: 20 }, (_, i) => {
+      const gv = new Array(20).fill(0);
+      gv[i % 20] = 1;
+      return { _id: `t${i}`, title: `Track${i}`, artist: `A${i}`, genreVector: gv };
+    });
+
+    const result = await getRecommendations({
+      profileVector,
+      dial: 5,
+      _tracks: manyTracks,
+    });
+
+    // Controleer dat het NIET gesorteerd is op genreSim desc
+    // De eerste track zou Track0 zijn als het genreSim-gesorteerd was (genreSim=1.0)
+    // Met 20 random tracks is de kans dat track0 toevallig bovenaan staat 1/20
+    // We checken of de volgorde afwijkt (minstens 1 positie verschilt)
+    const genreSorted = await getRecommendations({
+      profileVector,
+      dial: 3,
+      _tracks: manyTracks,
+    });
+    const randomOrder = result.tracks.map((t) => t.track._id);
+    const sortedOrder = genreSorted.tracks.map((t) => t.track._id);
+
+    // Minstens 1 verschil in volgorde (extreem onwaarschijnlijk dat random === sorted)
+    const hasDeviation = randomOrder.some((id, i) => id !== sortedOrder[i]);
+    assert.ok(hasDeviation, "Stand 5 moet random sorteren, niet op genreSim");
+  });
+});
+
+// REQ-004: Stand 4 onbeluisterde tracks filter
+describe("getRecommendations — onbeluisterd filter (REQ-004)", () => {
+  const profileVector = v(0);
+
+  it("Stand 4 filtert tracks met bestaand feedback record", async () => {
+    // _feedbackMap simuleert feedback data
+    const tracks = [
+      { _id: "t1", title: "Played", artist: "A", genreVector: v(0) },
+      { _id: "t2", title: "Unplayed", artist: "B", genreVector: v(0) },
+    ];
+    const feedbackMap = new Map([["t1", { trackId: "t1", action: "like", playCount: 3 }]]);
+
+    const result = await getRecommendations({
+      profileVector,
+      dial: 4,
+      _tracks: tracks,
+      _feedbackMap: feedbackMap,
+    });
+
+    // Alleen Unplayed komt erdoor
+    assert.equal(result.tracks.length, 1);
+    assert.equal(result.tracks[0].track.title, "Unplayed");
+  });
+
+  it("Stand 4 filtert tracks met playCount > 0", async () => {
+    const tracks = [
+      { _id: "t1", title: "Played", artist: "A", genreVector: v(0) },
+      { _id: "t2", title: "Unplayed", artist: "B", genreVector: v(0) },
+    ];
+    const feedbackMap = new Map([
+      ["t1", { trackId: "t1", action: "skip", playCount: 1 }],
+      ["t2", { trackId: "t2", action: "skip", playCount: 0 }],
+    ]);
+
+    const result = await getRecommendations({
+      profileVector,
+      dial: 4,
+      _tracks: tracks,
+      _feedbackMap: feedbackMap,
+    });
+
+    // t1 heeft playCount > 0 → uitgefilterd. t2 heeft playCount 0 → doorgelaten
+    assert.equal(result.tracks.length, 1);
+    assert.equal(result.tracks[0].track.title, "Unplayed");
+  });
+
+  it("Andere standen filteren NIET op onbeluisterd", async () => {
+    const tracks = [
+      { _id: "t1", title: "Played", artist: "A", genreVector: v(0) },
+      { _id: "t2", title: "Unplayed", artist: "B", genreVector: v(0) },
+    ];
+    const feedbackMap = new Map([["t1", { trackId: "t1", action: "like", playCount: 5 }]]);
+
+    const result = await getRecommendations({
+      profileVector,
+      dial: 3,
+      _tracks: tracks,
+      _feedbackMap: feedbackMap,
+    });
+
+    // Beide tracks komen erdoor bij stand 3
+    assert.equal(result.tracks.length, 2);
+  });
+});
+
+// Dial parameter + dialPosition in meta
+describe("getRecommendations — dial parameter", () => {
+  const profileVector = v(0);
+
+  it("dial parameter resolved naar preset", async () => {
     const result = await getRecommendations({
       profileVector,
       dial: 1,
-      weights: { genre: 0.9, cf: 0.05, audio: 0.05 },
       _tracks: testTracks,
     });
-    // dial wint: Stand 1 gewichten
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.5, cf: 0.2, audio: 0.3 });
+    assert.equal(result.meta.dialPosition, 1);
   });
 
-  it("geen dial + geen weights → default Stand 3", async () => {
+  it("geen dial → default Stand 3", async () => {
     const result = await getRecommendations({
       profileVector,
       _tracks: testTracks,
     });
-    assert.deepEqual(result.meta.configuredWeights, { genre: 0.3, cf: 0.4, audio: 0.3 });
+    assert.equal(result.meta.dialPosition, 3);
   });
 
   it("ongeldige dial gooit error", async () => {
@@ -363,7 +534,6 @@ describe("getRecommendations — dial parameter", () => {
   });
 });
 
-// REQ-005: dialPosition in meta
 describe("getRecommendations — dialPosition in meta", () => {
   const profileVector = v(0);
 
@@ -376,21 +546,12 @@ describe("getRecommendations — dialPosition in meta", () => {
     assert.equal(result.meta.dialPosition, 4);
   });
 
-  it("dialPosition = 3 bij geen dial en geen weights (default)", async () => {
+  it("dialPosition = 3 bij geen dial (default)", async () => {
     const result = await getRecommendations({
       profileVector,
       _tracks: testTracks,
     });
     assert.equal(result.meta.dialPosition, 3);
-  });
-
-  it("dialPosition = null bij custom weights", async () => {
-    const result = await getRecommendations({
-      profileVector,
-      weights: { genre: 0.5, cf: 0.2, audio: 0.3 },
-      _tracks: testTracks,
-    });
-    assert.equal(result.meta.dialPosition, null);
   });
 
   it("bestaande meta velden blijven intact", async () => {
@@ -402,7 +563,6 @@ describe("getRecommendations — dialPosition in meta", () => {
     assert.ok(result.meta.scoredAt);
     assert.ok("avgScore" in result.meta);
     assert.ok("scoreRange" in result.meta);
-    assert.ok("configuredWeights" in result.meta);
     assert.ok("activeSignals" in result.meta);
     assert.ok("dialPosition" in result.meta);
   });

@@ -1,23 +1,47 @@
 import Track from "../../models/Track.js";
+import Feedback from "../../models/Feedback.js";
 import { cosineSimilarity } from "../../utils/similarity.js";
 import { hybridScore, DEFAULT_WEIGHTS } from "../scoring/hybridScore.js";
+import { getFeedbackMultiplier } from "../feedback/feedbackMultiplier.js";
 import { getDialPreset } from "../../config/dial.js";
+import { computeCfScore } from "../cf/cfScore.js";
+import { getBlacklistFilters, isGenreBlocked } from "../blacklist/blacklistFilter.js";
 
 function hasValidGenreVector(track) {
   return Array.isArray(track.genreVector) && track.genreVector.length > 0;
 }
 
-export function scoreTracks(profileVector, tracks, weights) {
+export function scoreTracks(
+  profileVector,
+  tracks,
+  weights,
+  feedbackMap = null,
+  cfContext = null,
+  blockedGenres = [],
+  overrides = {},
+) {
   const scored = [];
 
   for (const track of tracks) {
     if (!hasValidGenreVector(track)) continue;
 
+    if (isGenreBlocked(track.genreVector, blockedGenres)) {
+      continue;
+    }
+
     const genreScore = cosineSimilarity(profileVector, track.genreVector);
 
-    // cf and audio are null until their features are built
-    const signals = { genre: genreScore, cf: null, audio: null };
-    const result = hybridScore(signals, weights);
+    const cfScore = cfContext
+      ? computeCfScore(track, cfContext.likedTrackKeys, cfContext.likedArtists, overrides.cfConfig)
+      : null;
+
+    const signals = { genre: genreScore, cf: cfScore };
+
+    const trackId = String(track._id);
+    const feedback = feedbackMap?.get(trackId) ?? null;
+    const multiplier = getFeedbackMultiplier(feedback, overrides.feedbackConfig);
+
+    const result = hybridScore(signals, weights, multiplier);
 
     scored.push({
       track,
@@ -32,31 +56,145 @@ export function scoreTracks(profileVector, tracks, weights) {
   return scored;
 }
 
+/**
+ * Apply bubble filter based on dial preset configuration.
+ * Filters scored tracks by genre similarity threshold and unplayed status.
+ */
+function applyBubbleFilter(scored, preset, feedbackMap) {
+  let filtered = scored;
+
+  // Genre similarity filter
+  if (preset.filter.type === "minGenreSim" && preset.filter.threshold != null) {
+    filtered = filtered.filter((s) => s.signals.genre >= preset.filter.threshold);
+  }
+
+  // Unplayed-only filter (Stand 4)
+  if (preset.unplayedOnly && feedbackMap) {
+    filtered = filtered.filter((s) => {
+      const fb = feedbackMap.get(String(s.track._id));
+      if (!fb) return true; // No feedback record → unplayed
+      return fb.playCount === 0;
+    });
+  } else if (preset.unplayedOnly) {
+    // No feedbackMap → all tracks are "unplayed"
+  }
+
+  return filtered;
+}
+
+/**
+ * Sort tracks by the dial preset's sort signal.
+ */
+function sortBySignal(scored, preset) {
+  if (preset.sortSignal === "genreSim") {
+    return [...scored].sort((a, b) => b.finalScore - a.finalScore);
+  }
+
+  if (preset.sortSignal === "cf") {
+    return [...scored].sort((a, b) => {
+      const aCf = a.signals.cf;
+      const bCf = b.signals.cf;
+      // Both have CF → sort by finalScore (incorporates CF + feedback)
+      if (aCf != null && bCf != null) return b.finalScore - a.finalScore;
+      // One has CF, other doesn't → CF-having track first
+      if (aCf != null) return -1;
+      if (bCf != null) return 1;
+      // Both null CF → fallback to finalScore
+      return b.finalScore - a.finalScore;
+    });
+  }
+
+  if (preset.sortSignal === "random") {
+    const shuffled = [...scored];
+    // Fisher-Yates shuffle
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  return scored;
+}
+
 export async function getRecommendations({
   profileVector,
   limit,
   offset = 0,
   filters = {},
-  weights,
   dial,
+  userId,
+  overrides = {},
   _tracks,
+  _feedbackMap,
 }) {
-  // dial overschrijft weights; geen dial + geen weights → default Stand 3
-  let w;
+  // Resolve dial preset; default = Stand 3
+  let preset;
   let dialPosition;
   if (dial != null) {
-    const preset = getDialPreset(dial);
-    w = preset.weights;
+    preset = getDialPreset(dial);
     dialPosition = preset.position;
-  } else if (weights != null) {
-    w = weights;
-    dialPosition = null;
   } else {
-    w = DEFAULT_WEIGHTS;
+    preset = getDialPreset(3);
     dialPosition = 3;
   }
-  const candidates = _tracks ?? (await Track.find().lean());
-  let scored = scoreTracks(profileVector, candidates, w);
+
+  // Scoring altijd met 50/50 gewichten — dial is een post-score filter
+  const w = DEFAULT_WEIGHTS;
+
+  // Build feedback map per track voor deze user
+  let feedbackMap = _feedbackMap ?? null;
+  if (!feedbackMap && userId) {
+    const feedbackDocs = await Feedback.find({ userId }).lean();
+    feedbackMap = new Map(feedbackDocs.map((fb) => [String(fb.trackId), fb]));
+  }
+
+  // Get blacklist filters
+  const { blockedTracks, blockedArtists, blockedGenres } = await getBlacklistFilters(userId);
+
+  // Build the MongoDB pre-score query
+  const query = {};
+  if (blockedTracks.length > 0) {
+    query._id = { $nin: blockedTracks };
+  }
+  if (blockedArtists.length > 0) {
+    query.artist = { $nin: blockedArtists };
+  }
+
+  const candidates = _tracks ?? (await Track.find(query).lean());
+
+  // Build CF context from liked tracks for CF scoring
+  let cfContext = null;
+  if (feedbackMap) {
+    const likedTrackKeys = new Set();
+    const likedArtists = new Set();
+    for (const track of candidates) {
+      const fb = feedbackMap.get(String(track._id));
+      if (fb && (fb.action === "like" || fb.action === "library")) {
+        likedTrackKeys.add(`${track.artist.toLowerCase()}|${track.title.toLowerCase()}`);
+        likedArtists.add(track.artist.toLowerCase());
+      }
+    }
+    if (likedTrackKeys.size > 0) {
+      cfContext = { likedTrackKeys, likedArtists };
+    }
+  }
+
+  let scored = scoreTracks(
+    profileVector,
+    candidates,
+    w,
+    feedbackMap,
+    cfContext,
+    blockedGenres,
+    overrides,
+  );
+
+  // Apply bubble filter (post-score)
+  scored = applyBubbleFilter(scored, preset, feedbackMap);
+
+  // Sort by dial signal
+  scored = sortBySignal(scored, preset);
 
   if (filters.minScore != null) {
     scored = scored.filter((s) => s.finalScore >= filters.minScore);
@@ -86,7 +224,6 @@ export async function getRecommendations({
       min: scores.length > 0 ? Math.min(...scores) : 0,
       max: scores.length > 0 ? Math.max(...scores) : 0,
     },
-    configuredWeights: w,
     activeSignals,
     dialPosition,
   };

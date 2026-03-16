@@ -1,11 +1,22 @@
 import { Router } from "express";
 import Track from "../src/models/Track.js";
 import { createLastfmClient } from "../src/services/lastfm/client.js";
+import { createSpotifyClient } from "../src/services/spotify/client.js";
 import { ingestTrack, ingestBatch } from "../src/services/ingestion/ingest.js";
+import { enrichTracks } from "../src/services/spotify/enrichSpotify.js";
+import { enrichCfData } from "../src/services/cf/enrichCf.js";
 
 const router = Router();
 
 const client = createLastfmClient({ apiKey: process.env.LASTFM_API_KEY });
+
+const spotifyClient =
+  process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET
+    ? createSpotifyClient({
+        clientId: process.env.SPOTIFY_CLIENT_ID,
+        clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+      })
+    : null;
 
 router.get("/", async (req, res) => {
   const tracks = await Track.find().lean();
@@ -51,6 +62,44 @@ router.post("/ingest-batch", async (req, res) => {
       tracks: { href: "/api/tracks" },
     },
   });
+});
+
+router.post("/enrich-spotify", async (req, res) => {
+  try {
+    if (!spotifyClient) {
+      return res.status(503).json({ error: "Spotify credentials not configured" });
+    }
+
+    const { batchSize } = req.body || {};
+    const result = await enrichTracks(spotifyClient, { batchSize });
+
+    res.json({
+      ...result,
+      _links: {
+        self: { href: "/api/tracks/enrich-spotify" },
+        tracks: { href: "/api/tracks" },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/enrich-cf", async (req, res) => {
+  try {
+    const { batchSize } = req.body || {};
+    const result = await enrichCfData(client, { batchSize });
+
+    res.json({
+      ...result,
+      _links: {
+        self: { href: "/api/tracks/enrich-cf" },
+        tracks: { href: "/api/tracks" },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;

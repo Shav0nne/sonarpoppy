@@ -22,11 +22,36 @@ const trackSchema = new mongoose.Schema(
     lastfmTags: { type: [String] },
     mbid: { type: String },
     imageUrl: { type: String },
+    spotifyId: { type: String },
+    spotifyUri: { type: String },
+    explicit: { type: Boolean },
+    albumImages: [
+      {
+        url: { type: String, required: true },
+        height: { type: Number },
+        width: { type: Number },
+      },
+    ],
+    similarTracks: [
+      {
+        artist: { type: String, required: true },
+        title: { type: String, required: true },
+        match: { type: Number, required: true, min: 0, max: 1 },
+      },
+    ],
+    similarArtists: [
+      {
+        artist: { type: String, required: true },
+        match: { type: Number, required: true, min: 0, max: 1 },
+      },
+    ],
+    cfEnrichedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
 
 trackSchema.index({ artist: 1, title: 1 }, { unique: true });
 trackSchema.index({ artist: 1 });
+trackSchema.index({ spotifyId: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model("Track", trackSchema);

@@ -20,23 +20,46 @@
       /* Layout */
       .app {
         display: grid;
-        grid-template-columns: 340px 1fr;
+        grid-template-columns: 360px 1fr;
         grid-template-rows: auto 1fr;
         min-height: 100vh;
       }
       .header {
         grid-column: 1 / -1;
-        padding: 16px 24px;
+        padding: 12px 24px;
         border-bottom: 1px solid #21262d;
         display: flex;
         align-items: center;
         gap: 16px;
         background: #161b22;
+        flex-wrap: wrap;
       }
       .header h1 {
         font-size: 18px;
         color: #e6edf3;
         font-weight: 600;
+      }
+      .header-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .header-group label {
+        font-size: 11px;
+        color: #8b949e;
+        white-space: nowrap;
+      }
+      .header-group input {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        color: #c9d1d9;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: monospace;
+      }
+      .header-group input::placeholder {
+        color: #484f58;
       }
       .header .db-status {
         margin-left: auto;
@@ -66,6 +89,38 @@
         padding: 20px 24px;
       }
 
+      /* Tabs */
+      .tab-bar {
+        display: flex;
+        gap: 2px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #21262d;
+      }
+      .tab-btn {
+        padding: 8px 14px;
+        font-size: 12px;
+        color: #8b949e;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        font-family: inherit;
+        transition: color 0.15s;
+      }
+      .tab-btn:hover {
+        color: #c9d1d9;
+      }
+      .tab-btn.active {
+        color: #e6edf3;
+        border-bottom-color: #238636;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
       /* Section headers */
       .section-title {
         font-size: 11px;
@@ -74,6 +129,36 @@
         letter-spacing: 0.5px;
         color: #8b949e;
         margin-bottom: 10px;
+      }
+
+      /* Collapsible sections */
+      .collapsible {
+        border-top: 1px solid #21262d;
+        padding-top: 12px;
+      }
+      .collapsible-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+      }
+      .collapsible-header .section-title {
+        margin-bottom: 0;
+      }
+      .collapsible-toggle {
+        font-size: 10px;
+        color: #484f58;
+        transition: transform 0.2s;
+      }
+      .collapsible.closed .collapsible-body {
+        display: none;
+      }
+      .collapsible.closed .collapsible-toggle {
+        transform: rotate(-90deg);
+      }
+      .collapsible-body {
+        margin-top: 10px;
       }
 
       /* Genre sliders */
@@ -154,15 +239,62 @@
       .btn-sm:hover {
         background: #30363d;
       }
+      .btn-sm.danger {
+        color: #f85149;
+        border-color: #f85149;
+      }
+      .btn-sm.danger:hover {
+        background: #f8514922;
+      }
+      .btn-sm.success {
+        color: #3fb950;
+        border-color: #3fb950;
+      }
       .btn-row {
         display: flex;
         gap: 6px;
+        flex-wrap: wrap;
       }
       .actions {
         display: flex;
         flex-direction: column;
         gap: 8px;
         margin-top: 4px;
+      }
+
+      /* Form fields */
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .form-group label {
+        font-size: 10px;
+        color: #484f58;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .form-group input,
+      .form-group select {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        color: #c9d1d9;
+        padding: 6px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: inherit;
+      }
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #58a6ff;
+      }
+      .form-row {
+        display: flex;
+        gap: 8px;
+      }
+      .form-row .form-group {
+        flex: 1;
       }
 
       /* Profile viz */
@@ -246,6 +378,7 @@
         margin-bottom: 12px;
         font-size: 12px;
         color: #8b949e;
+        flex-wrap: wrap;
       }
       .filters-bar label {
         white-space: nowrap;
@@ -276,7 +409,7 @@
       }
       .track-card {
         display: grid;
-        grid-template-columns: 32px 52px 1fr;
+        grid-template-columns: 32px 52px 1fr auto;
         align-items: center;
         gap: 12px;
         padding: 10px 14px;
@@ -332,6 +465,37 @@
         color: #8b949e;
         white-space: nowrap;
       }
+      .track-actions {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+      }
+      .track-actions button {
+        background: none;
+        border: 1px solid #30363d;
+        color: #8b949e;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+      }
+      .track-actions button:hover {
+        background: #21262d;
+        color: #c9d1d9;
+      }
+      .track-actions button.liked {
+        color: #3fb950;
+        border-color: #3fb950;
+      }
+      .track-actions button.disliked {
+        color: #f85149;
+        border-color: #f85149;
+      }
 
       .empty-state {
         color: #484f58;
@@ -341,10 +505,6 @@
       }
 
       /* Ingest panel */
-      .ingest-section {
-        border-top: 1px solid #21262d;
-        padding-top: 12px;
-      }
       .ingest-row {
         display: flex;
         gap: 6px;
@@ -379,7 +539,7 @@
         font-size: 11px;
         color: #8b949e;
         margin-top: 6px;
-        max-height: 80px;
+        max-height: 120px;
         overflow-y: auto;
       }
       .log .ok {
@@ -390,6 +550,68 @@
       }
       .log .info {
         color: #58a6ff;
+      }
+
+      /* Blacklist entries */
+      .bl-entry {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 8px;
+        background: #0d1117;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+      .bl-entry .bl-type {
+        font-size: 10px;
+        color: #8b949e;
+        background: #21262d;
+        padding: 1px 6px;
+        border-radius: 4px;
+        margin-right: 8px;
+      }
+
+      /* Dial */
+      .dial-presets {
+        display: flex;
+        gap: 6px;
+      }
+      .dial-btn {
+        flex: 1;
+        padding: 6px 4px;
+        font-size: 12px;
+        background: #21262d;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+        border-radius: 4px;
+        cursor: pointer;
+        text-align: center;
+      }
+      .dial-btn:hover {
+        background: #30363d;
+      }
+      .dial-btn.active {
+        background: #238636;
+        border-color: #238636;
+        color: #fff;
+      }
+
+      /* Auth status */
+      .auth-status {
+        font-size: 11px;
+        padding: 6px 8px;
+        background: #0d1117;
+        border-radius: 4px;
+        margin-top: 6px;
+        word-break: break-all;
+      }
+      .auth-status .label {
+        color: #484f58;
+      }
+      .auth-status .value {
+        color: #3fb950;
+        font-family: monospace;
       }
 
       /* Mobile */
@@ -411,14 +633,68 @@
       <!-- Header -->
       <div class="header">
         <h1>SonarPoppy</h1>
+        <div class="header-group">
+          <label>API Key</label>
+          <input
+            type="text"
+            id="api-key"
+            placeholder="X-API-Key"
+            style="width: 180px"
+            oninput="saveApiKey()"
+          />
+        </div>
+        <div class="header-group">
+          <label>User ID</label>
+          <input
+            type="text"
+            id="global-user-id"
+            placeholder="userId"
+            style="width: 200px"
+            oninput="saveUserId()"
+          />
+        </div>
+        <button class="btn-sm success" onclick="init()" id="btn-connect">Verbinden</button>
         <div class="db-status">
           <span class="dot" id="status-dot"></span>
           <span id="track-count">laden...</span>
         </div>
       </div>
 
-      <!-- Sidebar: genres + profile -->
+      <!-- Sidebar -->
       <div class="sidebar">
+        <!-- Auth + API Keys -->
+        <div class="collapsible">
+          <div class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span class="section-title">Auth &amp; API Key</span>
+            <span class="collapsible-toggle">&#9660;</span>
+          </div>
+          <div class="collapsible-body">
+            <div class="form-row" style="margin-bottom: 6px">
+              <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="auth-username" placeholder="user1" />
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="auth-email" placeholder="user@test.nl" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 6px">
+              <label>Password</label>
+              <input type="password" id="auth-password" placeholder="wachtwoord" />
+            </div>
+            <div class="btn-row" style="margin-bottom: 8px">
+              <button class="btn-sm" onclick="authSignup()">1. Signup</button>
+              <button class="btn-sm" onclick="authLogin()">2. Login</button>
+              <button class="btn-sm success" onclick="createApiKey()">3. API Key</button>
+            </div>
+            <div id="auth-status"></div>
+            <div id="api-keys-list"></div>
+            <div class="log" id="auth-log"></div>
+          </div>
+        </div>
+
+        <!-- Genre weights -->
         <div>
           <div class="section-title">Genre weights</div>
           <div class="genre-list" id="genres"></div>
@@ -429,9 +705,33 @@
               <button class="btn-sm" onclick="presetRock()">Rock</button>
               <button class="btn-sm" onclick="presetElectronic()">Electronic</button>
             </div>
+            <div class="btn-row">
+              <button class="btn-sm" onclick="loadServerSliders()">Laden</button>
+              <button class="btn-sm" onclick="saveServerSliders()">Opslaan</button>
+              <button class="btn-sm" onclick="resetServerSliders()">Server reset</button>
+            </div>
             <button class="btn btn-primary" id="btn-compute" onclick="computeAndRecommend()">
               Bereken &amp; recommend
             </button>
+          </div>
+        </div>
+
+        <!-- Dial -->
+        <div class="collapsible">
+          <div class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span class="section-title">Dial</span>
+            <span class="collapsible-toggle">&#9660;</span>
+          </div>
+          <div class="collapsible-body">
+            <div class="dial-presets" id="dial-presets">
+              <button class="dial-btn" onclick="setDial(1)">1</button>
+              <button class="dial-btn" onclick="setDial(2)">2</button>
+              <button class="dial-btn active" onclick="setDial(3)">3</button>
+              <button class="dial-btn" onclick="setDial(4)">4</button>
+              <button class="dial-btn" onclick="setDial(5)">5</button>
+            </div>
+            <div id="dial-info" style="font-size: 11px; color: #8b949e; margin-top: 6px"></div>
+            <div class="log" id="dial-log"></div>
           </div>
         </div>
 
@@ -442,28 +742,1200 @@
         </div>
 
         <!-- Ingest -->
-        <div class="ingest-section">
-          <div class="section-title">Track toevoegen</div>
-          <div class="ingest-row">
-            <div class="field">
-              <label>Artist</label>
-              <input type="text" id="ingest-artist" placeholder="Radiohead" />
-            </div>
-            <div class="field">
-              <label>Title</label>
-              <input type="text" id="ingest-title" placeholder="Creep" />
-            </div>
-            <button class="btn-sm" onclick="ingestTrack()" style="margin-bottom: 1px">+</button>
+        <div class="collapsible">
+          <div class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span class="section-title">Track toevoegen</span>
+            <span class="collapsible-toggle">&#9660;</span>
           </div>
-          <button class="btn-sm" onclick="ingestBatch()" style="margin-top: 6px; width: 100%">
-            Quick batch (5 tracks)
-          </button>
-          <div class="log" id="ingest-log"></div>
+          <div class="collapsible-body">
+            <div class="ingest-row">
+              <div class="field">
+                <label>Artist</label>
+                <input type="text" id="ingest-artist" placeholder="Radiohead" />
+              </div>
+              <div class="field">
+                <label>Title</label>
+                <input type="text" id="ingest-title" placeholder="Creep" />
+              </div>
+              <button class="btn-sm" onclick="ingestTrack()" style="margin-bottom: 1px">+</button>
+            </div>
+            <div class="btn-row" style="margin-top: 6px">
+              <button class="btn-sm" onclick="ingestBatch(false)">Batch 5</button>
+              <button class="btn-sm" onclick="ingestBatch(true)">Batch 40</button>
+              <button class="btn-sm" onclick="enrichSpotify()">Enrich Spotify</button>
+              <button class="btn-sm" onclick="enrichCf()">Enrich CF</button>
+            </div>
+            <div class="log" id="ingest-log"></div>
+          </div>
+        </div>
+
+        <!-- Blacklist -->
+        <div class="collapsible closed">
+          <div class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span class="section-title">Blacklist</span>
+            <span class="collapsible-toggle">&#9660;</span>
+          </div>
+          <div class="collapsible-body">
+            <div class="form-row" style="margin-bottom: 6px">
+              <div class="form-group">
+                <label>Type</label>
+                <select id="bl-type">
+                  <option value="track">track</option>
+                  <option value="artist">artist</option>
+                  <option value="genre">genre</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex: 2">
+                <label>Value</label>
+                <input type="text" id="bl-value" placeholder="artist name / track id / genre" />
+              </div>
+            </div>
+            <div class="btn-row" style="margin-bottom: 6px">
+              <button class="btn-sm" onclick="addBlacklistEntry()">Toevoegen</button>
+              <button class="btn-sm" onclick="loadBlacklist()">Laden</button>
+            </div>
+            <div id="bl-entries"></div>
+            <div class="log" id="bl-log"></div>
+          </div>
+        </div>
+
+        <!-- Onboarding -->
+        <div class="collapsible closed">
+          <div class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span class="section-title">Onboarding</span>
+            <span class="collapsible-toggle">&#9660;</span>
+          </div>
+          <div class="collapsible-body">
+            <div class="form-group" style="margin-bottom: 6px">
+              <label>Genres (komma-gescheiden)</label>
+              <input type="text" id="ob-genres" placeholder="rock, electronic, jazz" />
+            </div>
+            <div class="form-group" style="margin-bottom: 6px">
+              <label>Artists (komma-gescheiden, optioneel)</label>
+              <input type="text" id="ob-artists" placeholder="Radiohead, Daft Punk" />
+            </div>
+            <div class="form-row" style="margin-bottom: 6px">
+              <div class="form-group">
+                <label>App</label>
+                <select id="ob-app">
+                  <option value="sonarpop">SonarPop</option>
+                  <option value="poppy">Poppy</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn-sm" onclick="runOnboarding()">Start onboarding</button>
+            <div class="log" id="ob-log"></div>
+          </div>
+        </div>
+
+        <!-- Feedback overzicht -->
+        <div class="collapsible closed">
+          <div class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span class="section-title">Feedback overzicht</span>
+            <span class="collapsible-toggle">&#9660;</span>
+          </div>
+          <div class="collapsible-body">
+            <button class="btn-sm" onclick="loadFeedback()" style="margin-bottom: 6px">
+              Laden
+            </button>
+            <div
+              id="feedback-list"
+              style="font-size: 12px; max-height: 200px; overflow-y: auto"
+            ></div>
+          </div>
         </div>
       </div>
 
       <!-- Main: recommendations -->
       <div class="main">
+        <!-- Algorithm overview (visual) -->
+        <div class="collapsible closed" id="algo-overview" style="margin-bottom: 16px">
+          <div class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span class="section-title">Hoe werkt het algoritme?</span>
+            <span class="collapsible-toggle">&#9660;</span>
+          </div>
+          <div class="collapsible-body" style="font-size: 13px; line-height: 1.6; color: #c9d1d9">
+            <style>
+              .algo-flow {
+                display: flex;
+                align-items: center;
+                gap: 0;
+                justify-content: center;
+                flex-wrap: wrap;
+                margin: 12px 0;
+              }
+              .algo-node {
+                background: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 8px;
+                padding: 10px 14px;
+                text-align: center;
+                min-width: 100px;
+              }
+              .algo-node .label {
+                font-size: 10px;
+                color: #484f58;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+              .algo-node .value {
+                font-size: 14px;
+                font-weight: 600;
+                font-family: monospace;
+                margin-top: 2px;
+              }
+              .algo-arrow {
+                font-size: 20px;
+                color: #30363d;
+                padding: 0 6px;
+                flex-shrink: 0;
+              }
+              .algo-op {
+                font-size: 16px;
+                color: #8b949e;
+                padding: 0 4px;
+                font-weight: 700;
+              }
+              .algo-card {
+                background: #161b22;
+                border: 1px solid #21262d;
+                border-radius: 8px;
+                padding: 14px;
+              }
+              .algo-card-title {
+                font-weight: 600;
+                font-size: 13px;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+              }
+              .algo-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                flex-shrink: 0;
+              }
+              .algo-bar {
+                height: 8px;
+                border-radius: 4px;
+                margin: 4px 0;
+              }
+              .algo-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 12px;
+              }
+              .dial-vis {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 6px;
+                margin-top: 10px;
+              }
+              .dial-vis-item {
+                text-align: center;
+                padding: 8px 4px;
+                border-radius: 6px;
+                background: #0d1117;
+                position: relative;
+              }
+              .dial-vis-item .bars {
+                display: flex;
+                gap: 3px;
+                justify-content: center;
+                align-items: end;
+                height: 32px;
+                margin-top: 6px;
+              }
+              .dial-vis-item .bar {
+                width: 14px;
+                border-radius: 2px 2px 0 0;
+                min-height: 4px;
+              }
+            </style>
+            <div style="display: grid; gap: 14px">
+              <!-- SCORING PIPELINE - visual flow -->
+              <div
+                style="
+                  background: #0d1117;
+                  border: 1px solid #21262d;
+                  border-radius: 8px;
+                  padding: 16px;
+                "
+              >
+                <div
+                  style="
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    color: #484f58;
+                    margin-bottom: 12px;
+                  "
+                >
+                  Scoring Pipeline
+                </div>
+                <div class="algo-flow">
+                  <div class="algo-node" style="border-color: #3fb950">
+                    <div class="label">Input</div>
+                    <div class="value" style="color: #3fb950">Profiel</div>
+                    <div style="font-size: 9px; color: #484f58; margin-top: 2px">20-dim vector</div>
+                  </div>
+                  <div class="algo-arrow">&rarr;</div>
+                  <div class="algo-node">
+                    <div class="label">Stap 1</div>
+                    <div class="value" style="color: #e6edf3">Score</div>
+                    <div style="font-size: 9px; color: #484f58; margin-top: 2px">per track</div>
+                  </div>
+                  <div class="algo-arrow">&rarr;</div>
+                  <div class="algo-node" style="border-color: #bc8cff">
+                    <div class="label">Stap 2</div>
+                    <div class="value" style="color: #bc8cff">&times; feedback</div>
+                    <div style="font-size: 9px; color: #484f58; margin-top: 2px">multiplier</div>
+                  </div>
+                  <div class="algo-arrow">&rarr;</div>
+                  <div class="algo-node" style="border-color: #d29922">
+                    <div class="label">Output</div>
+                    <div class="value" style="color: #d29922">Ranking</div>
+                    <div style="font-size: 9px; color: #484f58; margin-top: 2px">gesorteerd</div>
+                  </div>
+                </div>
+                <!-- Formula -->
+                <div
+                  style="
+                    text-align: center;
+                    margin-top: 10px;
+                    padding: 8px;
+                    background: #161b22;
+                    border-radius: 6px;
+                    font-family: monospace;
+                    font-size: 13px;
+                    color: #8b949e;
+                  "
+                >
+                  finalScore = (<span style="color: #3fb950">&alpha;</span> &middot; genre +
+                  <span style="color: #58a6ff">&beta;</span> &middot; cf) &times;
+                  <span style="color: #bc8cff">&delta;</span>
+                </div>
+              </div>
+
+              <!-- THREE SIGNALS - visual cards with bars -->
+              <div class="algo-grid">
+                <!-- Genre Similarity -->
+                <div class="algo-card">
+                  <div class="algo-card-title">
+                    <div class="algo-dot" style="background: #3fb950"></div>
+                    <span style="color: #3fb950">Genre Similarity</span>
+                    <span style="color: #484f58; font-size: 11px; font-weight: 400">&alpha;</span>
+                  </div>
+                  <!-- Visual: two vectors compared -->
+                  <div style="font-size: 11px; color: #8b949e; margin-bottom: 8px">
+                    Cosine similarity tussen profiel &amp; track vector
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      gap: 6px;
+                      align-items: end;
+                      height: 40px;
+                      margin-bottom: 4px;
+                    "
+                  >
+                    <div style="flex: 1; display: flex; gap: 2px; align-items: end; height: 100%">
+                      <div
+                        style="
+                          width: 100%;
+                          height: 80%;
+                          background: #238636;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.8;
+                        "
+                      ></div>
+                      <div
+                        style="
+                          width: 100%;
+                          height: 30%;
+                          background: #238636;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.6;
+                        "
+                      ></div>
+                      <div
+                        style="
+                          width: 100%;
+                          height: 60%;
+                          background: #238636;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.7;
+                        "
+                      ></div>
+                      <div
+                        style="
+                          width: 100%;
+                          height: 10%;
+                          background: #238636;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.4;
+                        "
+                      ></div>
+                      <div
+                        style="
+                          width: 100%;
+                          height: 45%;
+                          background: #238636;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.6;
+                        "
+                      ></div>
+                    </div>
+                    <div style="font-size: 16px; color: #30363d; padding: 0 2px">&harr;</div>
+                    <div style="flex: 1; display: flex; gap: 2px; align-items: end; height: 100%">
+                      <div
+                        style="
+                          width: 100%;
+                          height: 70%;
+                          background: #3fb950;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.8;
+                        "
+                      ></div>
+                      <div
+                        style="
+                          width: 100%;
+                          height: 40%;
+                          background: #3fb950;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.6;
+                        "
+                      ></div>
+                      <div
+                        style="
+                          width: 100%;
+                          height: 55%;
+                          background: #3fb950;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.7;
+                        "
+                      ></div>
+                      <div
+                        style="
+                          width: 100%;
+                          height: 15%;
+                          background: #3fb950;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.4;
+                        "
+                      ></div>
+                      <div
+                        style="
+                          width: 100%;
+                          height: 50%;
+                          background: #3fb950;
+                          border-radius: 2px 2px 0 0;
+                          opacity: 0.6;
+                        "
+                      ></div>
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                      font-size: 9px;
+                      color: #484f58;
+                    "
+                  >
+                    <span>Jouw profiel</span>
+                    <span>Track vector</span>
+                  </div>
+                  <div style="margin-top: 8px; font-size: 10px; color: #484f58">
+                    20 genres &middot; waarden 0&ndash;1 &middot; hoek = verschil
+                  </div>
+                </div>
+
+                <!-- CF -->
+                <div class="algo-card">
+                  <div class="algo-card-title">
+                    <div class="algo-dot" style="background: #58a6ff"></div>
+                    <span style="color: #58a6ff">Collaborative Filtering</span>
+                    <span style="color: #484f58; font-size: 11px; font-weight: 400">&beta;</span>
+                  </div>
+                  <div style="font-size: 11px; color: #8b949e; margin-bottom: 8px">
+                    Overlap met jouw likes via Last.fm data
+                  </div>
+                  <!-- Visual: two weighted bars -->
+                  <div style="margin-bottom: 6px">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px">
+                      <span style="font-size: 10px; color: #58a6ff; width: 50px">Tracks</span>
+                      <div
+                        style="
+                          flex: 1;
+                          background: #21262d;
+                          height: 10px;
+                          border-radius: 5px;
+                          overflow: hidden;
+                        "
+                      >
+                        <div
+                          style="width: 70%; height: 100%; background: #58a6ff; border-radius: 5px"
+                        ></div>
+                      </div>
+                      <span style="font-size: 10px; color: #58a6ff; font-family: monospace"
+                        >0.7</span
+                      >
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px">
+                      <span style="font-size: 10px; color: #388bfd; width: 50px">Artists</span>
+                      <div
+                        style="
+                          flex: 1;
+                          background: #21262d;
+                          height: 10px;
+                          border-radius: 5px;
+                          overflow: hidden;
+                        "
+                      >
+                        <div
+                          style="width: 30%; height: 100%; background: #388bfd; border-radius: 5px"
+                        ></div>
+                      </div>
+                      <span style="font-size: 10px; color: #388bfd; font-family: monospace"
+                        >0.3</span
+                      >
+                    </div>
+                  </div>
+                  <div style="margin-top: 8px; font-size: 10px; color: #484f58">
+                    Geen likes &rarr; cf = null &rarr; alleen genre telt
+                  </div>
+                </div>
+
+                <!-- Feedback Multiplier -->
+                <div class="algo-card">
+                  <div class="algo-card-title">
+                    <div class="algo-dot" style="background: #bc8cff"></div>
+                    <span style="color: #bc8cff">Feedback Multiplier</span>
+                    <span style="color: #484f58; font-size: 11px; font-weight: 400">&delta;</span>
+                  </div>
+                  <div style="font-size: 11px; color: #8b949e; margin-bottom: 8px">
+                    Jouw acties schalen de score
+                  </div>
+                  <!-- Visual: multiplier bars -->
+                  <div style="display: grid; gap: 4px">
+                    <div style="display: flex; align-items: center; gap: 6px">
+                      <span style="font-size: 10px; width: 50px; color: #8b949e">library</span>
+                      <div
+                        style="
+                          flex: 1;
+                          background: #21262d;
+                          height: 8px;
+                          border-radius: 4px;
+                          overflow: hidden;
+                          position: relative;
+                        "
+                      >
+                        <div
+                          style="
+                            position: absolute;
+                            left: 0;
+                            width: 50%;
+                            height: 100%;
+                            border-right: 1px dashed #484f58;
+                          "
+                        ></div>
+                        <div
+                          style="width: 60%; height: 100%; background: #3fb950; border-radius: 4px"
+                        ></div>
+                      </div>
+                      <span style="font-size: 10px; color: #3fb950; font-family: monospace"
+                        >1.2x</span
+                      >
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px">
+                      <span style="font-size: 10px; width: 50px; color: #8b949e">like</span>
+                      <div
+                        style="
+                          flex: 1;
+                          background: #21262d;
+                          height: 8px;
+                          border-radius: 4px;
+                          overflow: hidden;
+                          position: relative;
+                        "
+                      >
+                        <div
+                          style="
+                            position: absolute;
+                            left: 0;
+                            width: 50%;
+                            height: 100%;
+                            border-right: 1px dashed #484f58;
+                          "
+                        ></div>
+                        <div
+                          style="width: 55%; height: 100%; background: #3fb950; border-radius: 4px"
+                        ></div>
+                      </div>
+                      <span style="font-size: 10px; color: #3fb950; font-family: monospace"
+                        >1.1x</span
+                      >
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px">
+                      <span style="font-size: 10px; width: 50px; color: #8b949e">geen</span>
+                      <div
+                        style="
+                          flex: 1;
+                          background: #21262d;
+                          height: 8px;
+                          border-radius: 4px;
+                          overflow: hidden;
+                          position: relative;
+                        "
+                      >
+                        <div
+                          style="width: 50%; height: 100%; background: #484f58; border-radius: 4px"
+                        ></div>
+                      </div>
+                      <span style="font-size: 10px; color: #484f58; font-family: monospace"
+                        >1.0x</span
+                      >
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px">
+                      <span style="font-size: 10px; width: 50px; color: #8b949e">skip</span>
+                      <div
+                        style="
+                          flex: 1;
+                          background: #21262d;
+                          height: 8px;
+                          border-radius: 4px;
+                          overflow: hidden;
+                          position: relative;
+                        "
+                      >
+                        <div
+                          style="
+                            position: absolute;
+                            left: 0;
+                            width: 50%;
+                            height: 100%;
+                            border-right: 1px dashed #484f58;
+                          "
+                        ></div>
+                        <div
+                          style="width: 45%; height: 100%; background: #d29922; border-radius: 4px"
+                        ></div>
+                      </div>
+                      <span style="font-size: 10px; color: #d29922; font-family: monospace"
+                        >0.9x</span
+                      >
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px">
+                      <span style="font-size: 10px; width: 50px; color: #8b949e">dislike</span>
+                      <div
+                        style="
+                          flex: 1;
+                          background: #21262d;
+                          height: 8px;
+                          border-radius: 4px;
+                          overflow: hidden;
+                          position: relative;
+                        "
+                      >
+                        <div
+                          style="
+                            position: absolute;
+                            left: 0;
+                            width: 50%;
+                            height: 100%;
+                            border-right: 1px dashed #484f58;
+                          "
+                        ></div>
+                        <div
+                          style="width: 25%; height: 100%; background: #f85149; border-radius: 4px"
+                        ></div>
+                      </div>
+                      <span style="font-size: 10px; color: #f85149; font-family: monospace"
+                        >0.5x</span
+                      >
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      margin-top: 6px;
+                      font-size: 9px;
+                      color: #484f58;
+                      display: flex;
+                      align-items: center;
+                      gap: 4px;
+                    "
+                  >
+                    <span
+                      style="border-right: 1px dashed #484f58; height: 8px; display: inline-block"
+                    ></span>
+                    = neutraal (1.0) &nbsp;&middot;&nbsp; 10+ plays: +0.05 bonus (30d decay)
+                  </div>
+                </div>
+              </div>
+
+              <!-- DIAL - bubble filter visualization -->
+              <div class="algo-card">
+                <div class="algo-card-title">
+                  <span style="color: #e6edf3">De Dial</span>
+                  <span style="color: #484f58; font-size: 11px; font-weight: 400"
+                    >bubbel-filter &amp; sortering</span
+                  >
+                </div>
+                <div class="dial-vis">
+                  <div class="dial-vis-item">
+                    <div style="font-size: 11px; font-weight: 600; color: #e6edf3">1</div>
+                    <div style="font-size: 9px; color: #484f58">Strikt</div>
+                    <div class="bars">
+                      <div
+                        class="bar"
+                        style="height: 80%; background: #3fb950"
+                        title="filter: genreSim &ge; 0.6"
+                      ></div>
+                    </div>
+                    <div style="font-size: 9px; margin-top: 4px">
+                      <span style="color: #3fb950">&ge;.6</span>
+                    </div>
+                  </div>
+                  <div class="dial-vis-item">
+                    <div style="font-size: 11px; font-weight: 600; color: #e6edf3">2</div>
+                    <div style="font-size: 9px; color: #484f58">Dichtbij</div>
+                    <div class="bars">
+                      <div
+                        class="bar"
+                        style="height: 50%; background: #3fb950"
+                        title="filter: genreSim &ge; 0.3"
+                      ></div>
+                    </div>
+                    <div style="font-size: 9px; margin-top: 4px">
+                      <span style="color: #3fb950">&ge;.3</span>
+                    </div>
+                  </div>
+                  <div class="dial-vis-item" style="border: 1px solid #238636">
+                    <div style="font-size: 11px; font-weight: 600; color: #3fb950">3</div>
+                    <div style="font-size: 9px; color: #8b949e">Balanced</div>
+                    <div class="bars">
+                      <div
+                        class="bar"
+                        style="height: 20%; background: #484f58"
+                        title="geen filter"
+                      ></div>
+                    </div>
+                    <div style="font-size: 9px; margin-top: 4px">
+                      <span style="color: #8b949e">alles</span>
+                    </div>
+                  </div>
+                  <div class="dial-vis-item">
+                    <div style="font-size: 11px; font-weight: 600; color: #e6edf3">4</div>
+                    <div style="font-size: 9px; color: #484f58">Ontdekking</div>
+                    <div class="bars">
+                      <div
+                        class="bar"
+                        style="height: 60%; background: #58a6ff"
+                        title="sort: CF, alleen onbeluisterd"
+                      ></div>
+                    </div>
+                    <div style="font-size: 9px; margin-top: 4px">
+                      <span style="color: #58a6ff">CF</span>
+                      <span style="color: #d29922">&#9679;</span>
+                    </div>
+                  </div>
+                  <div class="dial-vis-item">
+                    <div style="font-size: 11px; font-weight: 600; color: #e6edf3">5</div>
+                    <div style="font-size: 9px; color: #484f58">Anti-bubbel</div>
+                    <div class="bars">
+                      <div
+                        class="bar"
+                        style="height: 40%; background: #bc8cff"
+                        title="sort: random"
+                      ></div>
+                    </div>
+                    <div style="font-size: 9px; margin-top: 4px">
+                      <span style="color: #bc8cff">rnd</span>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 8px;
+                    font-size: 9px;
+                    color: #484f58;
+                  "
+                >
+                  <span><span style="color: #3fb950">&#9632;</span> genre filter</span>
+                  <span><span style="color: #58a6ff">&#9632;</span> CF sort</span>
+                  <span><span style="color: #d29922">&#9679;</span> onbeluisterd</span>
+                  <span><span style="color: #bc8cff">&#9632;</span> random</span>
+                </div>
+              </div>
+
+              <!-- BOTTOM ROW: renorm + blacklist + data flow -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+                <!-- Re-normalisatie - visual -->
+                <div class="algo-card">
+                  <div class="algo-card-title">
+                    <div class="algo-dot" style="background: #d29922"></div>
+                    <span style="color: #d29922">Re-normalisatie</span>
+                  </div>
+                  <div style="font-size: 11px; color: #8b949e; margin-bottom: 8px">
+                    Als CF ontbreekt, wordt genre automatisch opgeschaald
+                  </div>
+                  <!-- Visual: before/after bars -->
+                  <div
+                    style="
+                      display: grid;
+                      grid-template-columns: 1fr auto 1fr;
+                      gap: 8px;
+                      align-items: center;
+                    "
+                  >
+                    <div>
+                      <div style="font-size: 9px; color: #484f58; margin-bottom: 4px">
+                        Geconfigureerd
+                      </div>
+                      <div style="display: flex; gap: 2px; height: 20px">
+                        <div
+                          style="
+                            width: 50%;
+                            background: #3fb950;
+                            border-radius: 3px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 9px;
+                            color: #0d1117;
+                          "
+                        >
+                          .5
+                        </div>
+                        <div
+                          style="
+                            width: 50%;
+                            background: #58a6ff;
+                            border-radius: 3px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 9px;
+                            color: #0d1117;
+                          "
+                        >
+                          .5
+                        </div>
+                      </div>
+                    </div>
+                    <div style="font-size: 14px; color: #484f58">&rarr;</div>
+                    <div>
+                      <div style="font-size: 9px; color: #484f58; margin-bottom: 4px">
+                        Applied (cf=null)
+                      </div>
+                      <div style="display: flex; gap: 2px; height: 20px">
+                        <div
+                          style="
+                            width: 100%;
+                            background: #3fb950;
+                            border-radius: 3px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 9px;
+                            color: #0d1117;
+                          "
+                        >
+                          1.0
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Blacklist - visual -->
+                <div class="algo-card">
+                  <div class="algo-card-title">
+                    <div class="algo-dot" style="background: #f85149"></div>
+                    <span style="color: #f85149">Blacklist &amp; Filters</span>
+                  </div>
+                  <div style="font-size: 11px; color: #8b949e; margin-bottom: 8px">
+                    Pre-score filtering van kandidaten
+                  </div>
+                  <!-- Visual: filter funnel -->
+                  <div style="text-align: center">
+                    <div
+                      style="
+                        display: inline-flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 2px;
+                      "
+                    >
+                      <div
+                        style="
+                          background: #21262d;
+                          border-radius: 4px;
+                          padding: 3px 24px;
+                          font-size: 10px;
+                          color: #8b949e;
+                          width: 140px;
+                        "
+                      >
+                        Alle tracks
+                      </div>
+                      <div style="color: #f85149; font-size: 10px">
+                        &darr; <span style="font-size: 9px">- geblokte tracks</span>
+                      </div>
+                      <div
+                        style="
+                          background: #21262d;
+                          border-radius: 4px;
+                          padding: 3px 20px;
+                          font-size: 10px;
+                          color: #8b949e;
+                          width: 120px;
+                        "
+                      >
+                        - artists
+                      </div>
+                      <div style="color: #f85149; font-size: 10px">
+                        &darr; <span style="font-size: 9px">- geblokte genres</span>
+                      </div>
+                      <div
+                        style="
+                          background: #21262d;
+                          border-radius: 4px;
+                          padding: 3px 16px;
+                          font-size: 10px;
+                          color: #8b949e;
+                          width: 100px;
+                        "
+                      >
+                        Kandidaten
+                      </div>
+                      <div style="color: #d29922; font-size: 10px">
+                        &darr; <span style="font-size: 9px">scoring + sort</span>
+                      </div>
+                      <div
+                        style="
+                          background: #238636;
+                          border-radius: 4px;
+                          padding: 3px 12px;
+                          font-size: 10px;
+                          color: #fff;
+                          width: 80px;
+                        "
+                      >
+                        Resultaat
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- DATA FLOW - visual pipeline -->
+              <div
+                style="
+                  background: #0d1117;
+                  border: 1px solid #21262d;
+                  border-radius: 8px;
+                  padding: 14px;
+                "
+              >
+                <div
+                  style="
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    color: #484f58;
+                    margin-bottom: 10px;
+                  "
+                >
+                  Data Flow
+                </div>
+                <div
+                  class="algo-flow"
+                  style="flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px"
+                >
+                  <div class="algo-node" style="min-width: 80px; padding: 6px 10px">
+                    <div style="font-size: 16px">&#9835;</div>
+                    <div style="font-size: 9px; color: #3fb950">Genre<br />weights</div>
+                  </div>
+                  <div class="algo-arrow">&rarr;</div>
+                  <div class="algo-node" style="min-width: 80px; padding: 6px 10px">
+                    <div style="font-size: 10px; color: #8b949e">POST</div>
+                    <div style="font-size: 9px; color: #e6edf3">/profile<br />/compute</div>
+                  </div>
+                  <div class="algo-arrow">&rarr;</div>
+                  <div
+                    class="algo-node"
+                    style="min-width: 80px; padding: 6px 10px; border-color: #3fb950"
+                  >
+                    <div style="font-size: 16px; color: #3fb950">&#10697;</div>
+                    <div style="font-size: 9px; color: #3fb950">Profiel<br />vector</div>
+                  </div>
+                  <div class="algo-arrow">&rarr;</div>
+                  <div class="algo-node" style="min-width: 80px; padding: 6px 10px">
+                    <div style="font-size: 10px; color: #8b949e">POST</div>
+                    <div style="font-size: 9px; color: #e6edf3">/recommen<br />dations</div>
+                  </div>
+                  <div class="algo-arrow">&rarr;</div>
+                  <div
+                    class="algo-node"
+                    style="min-width: 80px; padding: 6px 10px; border-color: #d29922"
+                  >
+                    <div style="font-size: 16px; color: #d29922">&#9733;</div>
+                    <div style="font-size: 9px; color: #d29922">Scored<br />tracks</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Panel -->
+        <div class="collapsible closed" style="margin-bottom: 16px">
+          <div class="collapsible-header" onclick="toggleCollapsible(this)">
+            <span class="section-title">Admin — Algoritme tweaken</span>
+            <span class="collapsible-toggle">&#9660;</span>
+          </div>
+          <div class="collapsible-body">
+            <!-- Scoring & overrides -->
+            <div
+              style="
+                display: flex;
+                gap: 16px;
+                align-items: start;
+                flex-wrap: wrap;
+                margin-bottom: 12px;
+              "
+            >
+              <div style="flex: 1; min-width: 200px">
+                <div class="section-title" style="margin-bottom: 6px">Scoring</div>
+                <div style="font-size: 12px; color: #8b949e; margin-bottom: 8px">
+                  Gewichten vast op 50/50 (genre/CF). Dial bepaalt filter &amp; sortering.
+                </div>
+              </div>
+
+              <!-- Feedback multipliers -->
+              <div style="flex: 1; min-width: 200px">
+                <div class="section-title" style="margin-bottom: 6px">Feedback multipliers</div>
+                <div
+                  style="
+                    display: grid;
+                    grid-template-columns: 60px 1fr 40px;
+                    gap: 4px 8px;
+                    align-items: center;
+                    font-size: 12px;
+                  "
+                >
+                  <label style="color: #8b949e">like</label>
+                  <input
+                    type="range"
+                    id="admin-fb-like"
+                    min="50"
+                    max="200"
+                    value="110"
+                    style="accent-color: #3fb950"
+                    oninput="updateAdminLabel(this)"
+                  />
+                  <span
+                    class="admin-val"
+                    style="font-family: monospace; color: #3fb950; font-size: 11px"
+                    >1.10</span
+                  >
+
+                  <label style="color: #8b949e">dislike</label>
+                  <input
+                    type="range"
+                    id="admin-fb-dislike"
+                    min="0"
+                    max="100"
+                    value="50"
+                    style="accent-color: #f85149"
+                    oninput="updateAdminLabel(this)"
+                  />
+                  <span
+                    class="admin-val"
+                    style="font-family: monospace; color: #f85149; font-size: 11px"
+                    >0.50</span
+                  >
+
+                  <label style="color: #8b949e">library</label>
+                  <input
+                    type="range"
+                    id="admin-fb-library"
+                    min="50"
+                    max="200"
+                    value="120"
+                    style="accent-color: #3fb950"
+                    oninput="updateAdminLabel(this)"
+                  />
+                  <span
+                    class="admin-val"
+                    style="font-family: monospace; color: #3fb950; font-size: 11px"
+                    >1.20</span
+                  >
+
+                  <label style="color: #8b949e">skip</label>
+                  <input
+                    type="range"
+                    id="admin-fb-skip"
+                    min="0"
+                    max="100"
+                    value="90"
+                    style="accent-color: #d29922"
+                    oninput="updateAdminLabel(this)"
+                  />
+                  <span
+                    class="admin-val"
+                    style="font-family: monospace; color: #d29922; font-size: 11px"
+                    >0.90</span
+                  >
+                </div>
+                <div
+                  style="
+                    margin-top: 8px;
+                    display: grid;
+                    grid-template-columns: 80px 1fr 40px;
+                    gap: 4px 8px;
+                    align-items: center;
+                    font-size: 12px;
+                  "
+                >
+                  <label style="color: #8b949e">play drempel</label>
+                  <input
+                    type="range"
+                    id="admin-fb-playthresh"
+                    min="1"
+                    max="50"
+                    value="10"
+                    style="accent-color: #58a6ff"
+                    oninput="updateAdminLabel(this, 'int')"
+                  />
+                  <span
+                    class="admin-val"
+                    style="font-family: monospace; color: #58a6ff; font-size: 11px"
+                    >10</span
+                  >
+
+                  <label style="color: #8b949e">play bonus</label>
+                  <input
+                    type="range"
+                    id="admin-fb-playbonus"
+                    min="0"
+                    max="50"
+                    value="5"
+                    style="accent-color: #58a6ff"
+                    oninput="updateAdminLabel(this)"
+                  />
+                  <span
+                    class="admin-val"
+                    style="font-family: monospace; color: #58a6ff; font-size: 11px"
+                    >0.05</span
+                  >
+
+                  <label style="color: #8b949e">decay dagen</label>
+                  <input
+                    type="range"
+                    id="admin-fb-halflife"
+                    min="1"
+                    max="90"
+                    value="30"
+                    style="accent-color: #58a6ff"
+                    oninput="updateAdminLabel(this, 'int')"
+                  />
+                  <span
+                    class="admin-val"
+                    style="font-family: monospace; color: #58a6ff; font-size: 11px"
+                    >30</span
+                  >
+                </div>
+              </div>
+
+              <!-- CF scoring -->
+              <div style="flex: 1; min-width: 200px">
+                <div class="section-title" style="margin-bottom: 6px">CF scoring</div>
+                <div
+                  style="
+                    display: grid;
+                    grid-template-columns: 80px 1fr 40px;
+                    gap: 4px 8px;
+                    align-items: center;
+                    font-size: 12px;
+                  "
+                >
+                  <label style="color: #8b949e">track overlap</label>
+                  <input
+                    type="range"
+                    id="admin-cf-track"
+                    min="0"
+                    max="100"
+                    value="70"
+                    style="accent-color: #58a6ff"
+                    oninput="updateAdminLabel(this)"
+                  />
+                  <span
+                    class="admin-val"
+                    style="font-family: monospace; color: #58a6ff; font-size: 11px"
+                    >0.70</span
+                  >
+
+                  <label style="color: #8b949e">artist overlap</label>
+                  <input
+                    type="range"
+                    id="admin-cf-artist"
+                    min="0"
+                    max="100"
+                    value="30"
+                    style="accent-color: #58a6ff"
+                    oninput="updateAdminLabel(this)"
+                  />
+                  <span
+                    class="admin-val"
+                    style="font-family: monospace; color: #58a6ff; font-size: 11px"
+                    >0.30</span
+                  >
+                </div>
+
+                <div class="section-title" style="margin-top: 12px; margin-bottom: 6px">
+                  Dial presets (read-only)
+                </div>
+                <div
+                  id="admin-dial-config"
+                  style="font-size: 11px; font-family: monospace; color: #c9d1d9"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px">
+              <button
+                class="btn-sm success"
+                onclick="
+                  if (currentVector) getRecommendations();
+                  else computeAndRecommend();
+                "
+              >
+                Toepassen
+              </button>
+              <button class="btn-sm" onclick="resetAdminDefaults()">Reset defaults</button>
+              <label
+                style="
+                  font-size: 12px;
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                  margin-left: auto;
+                "
+              >
+                <input type="checkbox" id="admin-show-breakdown" onchange="toggleBreakdown()" />
+                Score breakdown per track
+              </label>
+            </div>
+          </div>
+        </div>
+
         <div class="results-header">
           <h2>Recommendations</h2>
           <div class="results-stats" id="stats"></div>
@@ -494,31 +1966,126 @@
     </div>
 
     <script>
-      const API = "/api";
-      const H = { Accept: "application/json", "Content-Type": "application/json" };
+      const API = "/api/v1";
+      const AUTH_API = "/auth";
 
       let genres = [];
       let currentVector = null;
       let lastRecsData = null;
+      let currentDial = 3;
+      let dialPresets = null;
+      let jwtToken = null;
+
+      // --- Helpers ---
+      function getApiKey() {
+        return document.getElementById("api-key").value.trim();
+      }
+
+      function getUserId() {
+        return document.getElementById("global-user-id").value.trim();
+      }
+
+      function getHeaders(includeApiKey = true) {
+        const h = { Accept: "application/json", "Content-Type": "application/json" };
+        if (includeApiKey) {
+          const key = getApiKey();
+          if (key) h["X-API-Key"] = key;
+        }
+        if (jwtToken) h["Authorization"] = `Bearer ${jwtToken}`;
+        return h;
+      }
+
+      function saveApiKey() {
+        localStorage.setItem("sp_api_key", getApiKey());
+      }
+
+      function saveUserId() {
+        localStorage.setItem("sp_user_id", getUserId());
+      }
+
+      function esc(s) {
+        const d = document.createElement("div");
+        d.textContent = s || "";
+        return d.innerHTML;
+      }
+
+      function logTo(id, msg, cls) {
+        const log = document.getElementById(id);
+        log.innerHTML += `<div class="${cls || ""}">${msg}</div>`;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function toggleCollapsible(header) {
+        header.closest(".collapsible").classList.toggle("closed");
+      }
+
+      function requireUserId() {
+        const uid = getUserId();
+        if (!uid) {
+          alert("Vul eerst een User ID in (header)");
+          return null;
+        }
+        return uid;
+      }
+
+      async function apiFetch(url, options = {}) {
+        const isAuthRoute = url.startsWith(AUTH_API);
+        const headers = getHeaders(!isAuthRoute);
+        const res = await fetch(url, { ...options, headers });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || body.message || `HTTP ${res.status}`);
+        }
+        if (res.status === 204) return null;
+        return res.json();
+      }
 
       // --- Init ---
       async function init() {
+        // Restore saved values (only on first load)
+        if (!genres.length) {
+          const savedKey = localStorage.getItem("sp_api_key");
+          if (savedKey && !document.getElementById("api-key").value)
+            document.getElementById("api-key").value = savedKey;
+          const savedUid = localStorage.getItem("sp_user_id");
+          if (savedUid && !document.getElementById("global-user-id").value)
+            document.getElementById("global-user-id").value = savedUid;
+        }
+
+        // Check API key
+        if (!getApiKey()) {
+          document.getElementById("track-count").textContent = "geen API key";
+          document.getElementById("status-dot").style.background = "#d29922";
+          return;
+        }
+
+        // Reset status
+        document.getElementById("status-dot").style.background = "#484f58";
+        document.getElementById("track-count").textContent = "laden...";
+
+        // Clear logs
+        document.querySelectorAll(".log").forEach((el) => (el.innerHTML = ""));
+
         try {
-          const [genreRes, trackRes] = await Promise.all([
-            fetch(`${API}/genres`, { headers: H }),
-            fetch(`${API}/tracks`, { headers: H }),
+          const [genreData, trackData] = await Promise.all([
+            apiFetch(`${API}/genres`),
+            apiFetch(`${API}/tracks`),
           ]);
-          const genreData = await genreRes.json();
-          const trackData = await trackRes.json();
           genres = genreData.items;
           renderGenres();
           document.getElementById("track-count").textContent = `${trackData.items.length} tracks`;
-        } catch {
-          document.getElementById("track-count").textContent = "offline";
+          document.getElementById("status-dot").style.background = "#3fb950";
+        } catch (e) {
+          document.getElementById("track-count").textContent = esc(e.message);
           document.getElementById("status-dot").style.background = "#f85149";
+          return;
         }
+
+        // Load dial presets
+        loadDialPresets();
       }
 
+      // --- Genres / Sliders ---
       function renderGenres() {
         document.getElementById("genres").innerHTML = genres
           .map(
@@ -589,7 +2156,152 @@
         setSlider("funk", 30);
       }
 
-      // --- Compute + Recommend (combined) ---
+      // --- Server Sliders ---
+      async function loadServerSliders() {
+        const uid = requireUserId();
+        if (!uid) return;
+        try {
+          const data = await apiFetch(`${API}/sliders/${uid}`);
+          resetSliders();
+          for (const [genre, value] of Object.entries(data.sliders)) {
+            setSlider(genre, Math.round(value * 100));
+          }
+          logTo("ingest-log", `Sliders geladen voor ${uid}`, "ok");
+        } catch (e) {
+          logTo("ingest-log", e.message, "err");
+        }
+      }
+
+      async function saveServerSliders() {
+        const uid = requireUserId();
+        if (!uid) return;
+        try {
+          const weights = getWeights();
+          await apiFetch(`${API}/sliders/${uid}`, {
+            method: "PUT",
+            body: JSON.stringify({ sliders: weights }),
+          });
+          logTo("ingest-log", `Sliders opgeslagen voor ${uid}`, "ok");
+        } catch (e) {
+          logTo("ingest-log", e.message, "err");
+        }
+      }
+
+      async function resetServerSliders() {
+        const uid = requireUserId();
+        if (!uid) return;
+        try {
+          await apiFetch(`${API}/sliders/${uid}/reset`, { method: "POST" });
+          resetSliders();
+          logTo("ingest-log", `Server sliders gereset voor ${uid}`, "ok");
+        } catch (e) {
+          logTo("ingest-log", e.message, "err");
+        }
+      }
+
+      // --- Dial ---
+      async function loadDialPresets() {
+        try {
+          const data = await apiFetch(`${API}/dial`);
+          dialPresets = data.presets;
+          currentDial = data.default || 3;
+          updateDialUI();
+          renderDialConfig();
+        } catch (e) {
+          logTo("dial-log", e.message, "err");
+        }
+      }
+
+      function setDial(n) {
+        currentDial = n;
+        updateDialUI();
+        if (currentVector) getRecommendations();
+        else computeAndRecommend();
+      }
+
+      function updateDialUI() {
+        document.querySelectorAll(".dial-btn").forEach((btn) => {
+          const val = parseInt(btn.textContent);
+          btn.classList.toggle("active", val === currentDial);
+        });
+        const info = document.getElementById("dial-info");
+        if (!Array.isArray(dialPresets)) return;
+        const preset = dialPresets.find((p) => p.position === currentDial);
+        if (preset) {
+          const filterLabel =
+            preset.filter.type === "none"
+              ? "geen"
+              : `${preset.filter.type} \u2265 ${preset.filter.threshold}`;
+          const extras = preset.unplayedOnly ? " \u00b7 onbeluisterd" : "";
+          info.textContent = `${preset.name} \u2014 filter: ${filterLabel}, sort: ${preset.sortSignal}${extras}`;
+        }
+      }
+
+      // --- Admin panel ---
+      function updateAdminLabel(el, mode) {
+        const label = el.nextElementSibling;
+        if (!label) return;
+        const val = parseInt(el.value);
+        label.textContent = mode === "int" ? val : (val / 100).toFixed(2);
+      }
+
+      function getOverrides() {
+        return {
+          feedbackConfig: {
+            like: parseInt(document.getElementById("admin-fb-like").value) / 100,
+            dislike: parseInt(document.getElementById("admin-fb-dislike").value) / 100,
+            library: parseInt(document.getElementById("admin-fb-library").value) / 100,
+            skip: parseInt(document.getElementById("admin-fb-skip").value) / 100,
+            playThreshold: parseInt(document.getElementById("admin-fb-playthresh").value),
+            playBonus: parseInt(document.getElementById("admin-fb-playbonus").value) / 100,
+            halfLifeDays: parseInt(document.getElementById("admin-fb-halflife").value),
+          },
+          cfConfig: {
+            trackWeight: parseInt(document.getElementById("admin-cf-track").value) / 100,
+            artistWeight: parseInt(document.getElementById("admin-cf-artist").value) / 100,
+          },
+        };
+      }
+
+      const ADMIN_DEFAULTS = {
+        "admin-fb-like": 110,
+        "admin-fb-dislike": 50,
+        "admin-fb-library": 120,
+        "admin-fb-skip": 90,
+        "admin-fb-playthresh": 10,
+        "admin-fb-playbonus": 5,
+        "admin-fb-halflife": 30,
+        "admin-cf-track": 70,
+        "admin-cf-artist": 30,
+      };
+
+      function resetAdminDefaults() {
+        for (const [id, val] of Object.entries(ADMIN_DEFAULTS)) {
+          const el = document.getElementById(id);
+          if (!el) continue;
+          el.value = val;
+          const isInt = id.includes("playthresh") || id.includes("halflife");
+          updateAdminLabel(el, isInt ? "int" : undefined);
+        }
+      }
+
+      function renderDialConfig() {
+        if (!Array.isArray(dialPresets)) return;
+        document.getElementById("admin-dial-config").innerHTML = dialPresets
+          .map((p) => {
+            const f =
+              p.filter.type === "none" ? "geen" : `${p.filter.type} \u2265 ${p.filter.threshold}`;
+            const u = p.unplayedOnly ? ' <span style="color:#d29922">unplayed</span>' : "";
+            return `<div>${p.position}. ${p.name} \u2014 filter:<span style="color:#3fb950">${f}</span> sort:<span style="color:#58a6ff">${p.sortSignal}</span>${u}</div>`;
+          })
+          .join("");
+      }
+
+      function toggleBreakdown() {
+        if (lastRecsData) renderTracks(lastRecsData);
+      }
+
+      // --- Compute + Recommend ---
       async function computeAndRecommend() {
         const btn = document.getElementById("btn-compute");
         btn.textContent = "Laden...";
@@ -597,12 +2309,10 @@
 
         try {
           const weights = getWeights();
-          const profRes = await fetch(`${API}/profile/compute`, {
+          const profData = await apiFetch(`${API}/profile/compute`, {
             method: "POST",
-            headers: H,
             body: JSON.stringify({ weights }),
           });
-          const profData = await profRes.json();
           currentVector = profData.vector;
           renderProfile(profData);
           await getRecommendations();
@@ -637,13 +2347,15 @@
         html += `
           <div class="profile-meta">
             <span>Actief: <strong>${data.meta.activeGenres}</strong></span>
-            <span>Top: <strong>${data.meta.topGenre || "—"}</strong></span>
+            <span>Top: <strong>${data.meta.topGenre || "\u2014"}</strong></span>
           </div>`;
 
         document.getElementById("profile-bars").innerHTML = html;
       }
 
       // --- Recommendations ---
+      let feedbackMap = new Map(); // trackId -> { action, playCount }
+
       async function getRecommendations() {
         if (!currentVector) return;
         const minScore = parseInt(document.getElementById("min-score").value) / 100;
@@ -653,14 +2365,32 @@
           profileVector: currentVector,
           filters: { minScore },
         };
+        body.dial = currentDial;
         if (limitVal > 0) body.limit = limitVal;
+        body.overrides = getOverrides();
 
-        const res = await fetch(`${API}/recommendations`, {
-          method: "POST",
-          headers: H,
-          body: JSON.stringify(body),
-        });
-        const data = await res.json();
+        const uid = getUserId();
+        if (uid) body.userId = uid;
+
+        // Fetch recommendations + feedback in parallel
+        const requests = [
+          apiFetch(`${API}/recommendations`, {
+            method: "POST",
+            body: JSON.stringify(body),
+          }),
+        ];
+        if (uid) requests.push(apiFetch(`${API}/feedback/${uid}`).catch(() => []));
+
+        const [data, fbData] = await Promise.all(requests);
+
+        // Build feedback lookup
+        feedbackMap.clear();
+        if (Array.isArray(fbData)) {
+          for (const fb of fbData) {
+            feedbackMap.set(String(fb.trackId), fb);
+          }
+        }
+
         lastRecsData = data;
         renderTracks(data);
       }
@@ -679,7 +2409,7 @@
         statsEl.innerHTML = `
           <span><strong>${data.total}</strong> resultaten</span>
           <span>avg <strong>${data.meta.avgScore.toFixed(2)}</strong></span>
-          <span>${data.meta.scoreRange.min.toFixed(2)} — ${data.meta.scoreRange.max.toFixed(2)}</span>
+          <span>${data.meta.scoreRange.min.toFixed(2)} \u2014 ${data.meta.scoreRange.max.toFixed(2)}</span>
         `;
 
         const el = document.getElementById("tracks");
@@ -689,23 +2419,53 @@
           return;
         }
 
+        const uid = getUserId();
         el.innerHTML = data.tracks
           .map((item, i) => {
             const t = item.track;
             const sc =
-              item.score >= 0.6 ? "score-high" : item.score >= 0.3 ? "score-mid" : "score-low";
+              item.finalScore >= 0.6
+                ? "score-high"
+                : item.finalScore >= 0.3
+                  ? "score-mid"
+                  : "score-low";
             const topG = getTopGenres(t.genreVector, 3);
+            const trackId = t._id || t.id || "";
+            const fb = feedbackMap.get(trackId);
+            const likeClass = fb?.action === "like" ? " liked" : "";
+            const dislikeClass = fb?.action === "dislike" ? " disliked" : "";
+            const playLabel = fb?.playCount ? `${fb.playCount}x` : "&#9654;";
+            const feedbackBtns =
+              uid && trackId
+                ? `<div class="track-actions">
+                   <button onclick="sendFeedback(this,'${trackId}','like')" title="Like" class="${likeClass}">&#9829;</button>
+                   <button onclick="sendFeedback(this,'${trackId}','dislike')" title="Dislike" class="${dislikeClass}">&#9747;</button>
+                   <button onclick="playTrack(this,'${trackId}')" title="Play count +1">${playLabel}</button>
+                   <button onclick="blacklistTrack('${esc(t.artist)}','${trackId}')" title="Blacklist" class="danger">&#10007;</button>
+                 </div>`
+                : "";
+            const showBreakdown = document.getElementById("admin-show-breakdown")?.checked;
+            const breakdown = showBreakdown
+              ? `<div style="font-size:10px;font-family:monospace;color:#8b949e;margin-top:4px;padding-top:4px;border-top:1px solid #21262d">
+                  genre:<span style="color:#3fb950">${item.signals?.genre?.toFixed(3) ?? "null"}</span>
+                  cf:<span style="color:#58a6ff">${item.signals?.cf?.toFixed(3) ?? "null"}</span>
+                  dial:<span style="color:#d29922">${currentDial}</span>
+                  fb:<span style="color:#bc8cff">${item.feedbackMultiplier?.toFixed(2) ?? "1.00"}x</span>
+                </div>`
+              : "";
             return `
             <div class="track-card">
               <span class="track-rank">${i + 1}</span>
-              <span class="track-score ${sc}">${item.score.toFixed(3)}</span>
+              <span class="track-score ${sc}">${item.finalScore.toFixed(3)}</span>
               <div class="track-info">
                 <h3>${esc(t.title)}</h3>
-                <span class="artist"> — ${esc(t.artist)}</span>
+                <span class="artist"> \u2014 ${esc(t.artist)}</span>
                 <div class="track-tags">
                   ${topG.map((g) => `<span class="tag">${g.name} ${(g.weight * 100).toFixed(0)}%</span>`).join("")}
                 </div>
+                ${breakdown}
               </div>
+              ${feedbackBtns}
             </div>`;
           })
           .join("");
@@ -720,74 +2480,422 @@
           .slice(0, n);
       }
 
-      function esc(s) {
-        const d = document.createElement("div");
-        d.textContent = s || "";
-        return d.innerHTML;
+      // --- Feedback ---
+      async function sendFeedback(btn, trackId, action) {
+        const uid = requireUserId();
+        if (!uid) return;
+        try {
+          await apiFetch(`${API}/feedback`, {
+            method: "POST",
+            body: JSON.stringify({ userId: uid, trackId, action }),
+          });
+          // Reset siblings, highlight this one
+          btn
+            .closest(".track-actions")
+            .querySelectorAll("button")
+            .forEach((b) => {
+              b.classList.remove("liked", "disliked");
+            });
+          btn.classList.add(action === "like" ? "liked" : "disliked");
+        } catch (e) {
+          alert(`Feedback fout: ${e.message}`);
+        }
+      }
+
+      async function playTrack(btn, trackId) {
+        const uid = requireUserId();
+        if (!uid) return;
+        try {
+          const data = await apiFetch(`${API}/feedback/${uid}/${trackId}/play`, { method: "POST" });
+          btn.textContent = `${data.playCount}x`;
+          btn.style.color = "#3fb950";
+        } catch (e) {
+          alert(`Play count fout: ${e.message}`);
+        }
+      }
+
+      async function loadFeedback() {
+        const uid = requireUserId();
+        if (!uid) return;
+        try {
+          const data = await apiFetch(`${API}/feedback/${uid}`);
+          const list = document.getElementById("feedback-list");
+          if (!data.length) {
+            list.innerHTML = '<span style="color:#484f58">Geen feedback</span>';
+            return;
+          }
+          list.innerHTML = data
+            .map(
+              (f) =>
+                `<div style="padding:2px 0;border-bottom:1px solid #21262d">
+                  <span style="color:#58a6ff">${f.action || "?"}</span>
+                  track: ${f.trackId?.slice(-6) || "?"}
+                  ${f.playCount ? `plays: ${f.playCount}` : ""}
+                </div>`,
+            )
+            .join("");
+        } catch (e) {
+          document.getElementById("feedback-list").innerHTML =
+            `<span class="err">${esc(e.message)}</span>`;
+        }
+      }
+
+      // --- Blacklist ---
+      async function loadBlacklist() {
+        const uid = requireUserId();
+        if (!uid) return;
+        try {
+          const data = await apiFetch(`${API}/blacklist/${uid}`);
+          renderBlacklistEntries(data.entries, uid);
+        } catch (e) {
+          logTo("bl-log", e.message, "err");
+        }
+      }
+
+      function renderBlacklistEntries(entries, uid) {
+        const el = document.getElementById("bl-entries");
+        if (!entries.length) {
+          el.innerHTML = '<span style="color:#484f58;font-size:12px">Geen entries</span>';
+          return;
+        }
+        el.innerHTML = entries
+          .map(
+            (e) =>
+              `<div class="bl-entry">
+                <span><span class="bl-type">${e.type}</span>${esc(e.value)}</span>
+                <button class="btn-sm danger" onclick="removeBlacklistEntry('${uid}','${e._id}')" style="padding:2px 6px;font-size:10px">x</button>
+              </div>`,
+          )
+          .join("");
+      }
+
+      async function addBlacklistEntry() {
+        const uid = requireUserId();
+        if (!uid) return;
+        const type = document.getElementById("bl-type").value;
+        const value = document.getElementById("bl-value").value.trim();
+        if (!value) return;
+        try {
+          const data = await apiFetch(`${API}/blacklist/${uid}`, {
+            method: "POST",
+            body: JSON.stringify({ type, value }),
+          });
+          document.getElementById("bl-value").value = "";
+          renderBlacklistEntries(data.entries, uid);
+          logTo("bl-log", `${type} "${value}" toegevoegd`, "ok");
+        } catch (e) {
+          logTo("bl-log", e.message, "err");
+        }
+      }
+
+      async function removeBlacklistEntry(uid, entryId) {
+        try {
+          const data = await apiFetch(`${API}/blacklist/${uid}/${entryId}`, {
+            method: "DELETE",
+          });
+          renderBlacklistEntries(data.entries, uid);
+          logTo("bl-log", "Entry verwijderd", "ok");
+        } catch (e) {
+          logTo("bl-log", e.message, "err");
+        }
+      }
+
+      function blacklistTrack(artist, trackId) {
+        const uid = getUserId();
+        if (!uid) return;
+        apiFetch(`${API}/blacklist/${uid}`, {
+          method: "POST",
+          body: JSON.stringify({ type: "track", value: trackId }),
+        }).catch((e) => console.error("Blacklist error:", e.message));
       }
 
       // --- Ingest ---
-      function ingestLog(msg, cls) {
-        const log = document.getElementById("ingest-log");
-        log.innerHTML += `<div class="${cls || ""}">${msg}</div>`;
-        log.scrollTop = log.scrollHeight;
-      }
-
       async function ingestTrack() {
         const artist = document.getElementById("ingest-artist").value.trim();
         const title = document.getElementById("ingest-title").value.trim();
         if (!artist || !title) return;
-        ingestLog(`${artist} — ${title}...`, "info");
+        logTo("ingest-log", `${artist} \u2014 ${title}...`, "info");
         try {
-          const res = await fetch(`${API}/tracks/ingest`, {
+          const data = await apiFetch(`${API}/tracks/ingest`, {
             method: "POST",
-            headers: H,
             body: JSON.stringify({ artist, title }),
           });
-          const data = await res.json();
-          ingestLog(data.status, data.status === "failed" ? "err" : "ok");
+          logTo("ingest-log", data.status, data.status === "failed" ? "err" : "ok");
           document.getElementById("ingest-artist").value = "";
           document.getElementById("ingest-title").value = "";
           refreshTrackCount();
+          if (data.status === "created") await enrichCf();
         } catch (e) {
-          ingestLog(e.message, "err");
+          logTo("ingest-log", e.message, "err");
         }
       }
 
-      async function ingestBatch() {
-        const tracks = [
-          { artist: "Radiohead", title: "Creep" },
-          { artist: "Daft Punk", title: "Get Lucky" },
-          { artist: "Miles Davis", title: "So What" },
-          { artist: "Metallica", title: "Enter Sandman" },
-          { artist: "Bob Marley", title: "No Woman, No Cry" },
-        ];
-        ingestLog("Batch (5 tracks)...", "info");
+      const BATCH_SMALL = [
+        { artist: "Radiohead", title: "Creep" },
+        { artist: "Daft Punk", title: "Get Lucky" },
+        { artist: "Miles Davis", title: "So What" },
+        { artist: "Metallica", title: "Enter Sandman" },
+        { artist: "Bob Marley", title: "No Woman, No Cry" },
+      ];
+
+      const BATCH_LARGE = [
+        { artist: "Nirvana", title: "Smells Like Teen Spirit" },
+        { artist: "The Beatles", title: "Come Together" },
+        { artist: "Pink Floyd", title: "Comfortably Numb" },
+        { artist: "Led Zeppelin", title: "Stairway to Heaven" },
+        { artist: "Queen", title: "Bohemian Rhapsody" },
+        { artist: "David Bowie", title: "Space Oddity" },
+        { artist: "Fleetwood Mac", title: "Dreams" },
+        { artist: "Arctic Monkeys", title: "Do I Wanna Know?" },
+        { artist: "Tame Impala", title: "The Less I Know the Better" },
+        { artist: "Kendrick Lamar", title: "HUMBLE." },
+        { artist: "Frank Ocean", title: "Nights" },
+        { artist: "Tyler, The Creator", title: "EARFQUAKE" },
+        { artist: "Billie Eilish", title: "bad guy" },
+        { artist: "The Weeknd", title: "Blinding Lights" },
+        { artist: "Gorillaz", title: "Feel Good Inc." },
+        { artist: "Massive Attack", title: "Teardrop" },
+        { artist: "Portishead", title: "Glory Box" },
+        { artist: "Aphex Twin", title: "Windowlicker" },
+        { artist: "Boards of Canada", title: "Roygbiv" },
+        { artist: "Burial", title: "Archangel" },
+        { artist: "John Coltrane", title: "A Love Supreme" },
+        { artist: "Nina Simone", title: "Feeling Good" },
+        { artist: "Stevie Wonder", title: "Superstition" },
+        { artist: "Marvin Gaye", title: "What's Going On" },
+        { artist: "Amy Winehouse", title: "Back to Black" },
+        { artist: "Erykah Badu", title: "On & On" },
+        { artist: "D'Angelo", title: "Untitled (How Does It Feel)" },
+        { artist: "OutKast", title: "Hey Ya!" },
+        { artist: "A Tribe Called Quest", title: "Can I Kick It?" },
+        { artist: "MF DOOM", title: "Rapp Snitch Knishes" },
+        { artist: "Joy Division", title: "Love Will Tear Us Apart" },
+        { artist: "The Cure", title: "Just Like Heaven" },
+        { artist: "Depeche Mode", title: "Enjoy the Silence" },
+        { artist: "New Order", title: "Blue Monday" },
+        { artist: "Talking Heads", title: "Once in a Lifetime" },
+        { artist: "Pixies", title: "Where Is My Mind?" },
+        { artist: "Sonic Youth", title: "Teen Age Riot" },
+        { artist: "My Bloody Valentine", title: "Only Shallow" },
+        { artist: "Sigur Ros", title: "Hoppipolla" },
+        { artist: "Bjork", title: "Hyperballad" },
+      ];
+
+      async function ingestBatch(large) {
+        const tracks = large ? BATCH_LARGE : BATCH_SMALL;
+        logTo("ingest-log", `Batch (${tracks.length} tracks)...`, "info");
         try {
-          const res = await fetch(`${API}/tracks/ingest-batch`, {
+          const data = await apiFetch(`${API}/tracks/ingest-batch`, {
             method: "POST",
-            headers: H,
             body: JSON.stringify({ tracks }),
           });
-          const data = await res.json();
-          ingestLog(
-            `${data.summary.created}+ ${data.summary.skipped}= ${data.summary.failed}x`,
+          logTo(
+            "ingest-log",
+            `${data.summary.created} nieuw, ${data.summary.skipped} overgeslagen, ${data.summary.failed} mislukt`,
             data.summary.failed > 0 ? "err" : "ok",
           );
           refreshTrackCount();
+          // Auto-enrich nieuwe tracks
+          if (data.summary.created > 0) {
+            await enrichCf();
+          }
         } catch (e) {
-          ingestLog(e.message, "err");
+          logTo("ingest-log", e.message, "err");
+        }
+      }
+
+      async function enrichSpotify() {
+        logTo("ingest-log", "Spotify enrichment...", "info");
+        try {
+          const data = await apiFetch(`${API}/tracks/enrich-spotify`, { method: "POST" });
+          logTo(
+            "ingest-log",
+            `Enriched: ${data.enriched ?? "?"}, skipped: ${data.skipped ?? "?"}`,
+            "ok",
+          );
+        } catch (e) {
+          logTo("ingest-log", e.message, "err");
+        }
+      }
+
+      async function enrichCf() {
+        logTo("ingest-log", "CF enrichment...", "info");
+        try {
+          const data = await apiFetch(`${API}/tracks/enrich-cf`, { method: "POST" });
+          logTo(
+            "ingest-log",
+            `Enriched: ${data.enriched ?? "?"}, skipped: ${data.skipped ?? "?"}`,
+            "ok",
+          );
+        } catch (e) {
+          logTo("ingest-log", e.message, "err");
         }
       }
 
       async function refreshTrackCount() {
         try {
-          const res = await fetch(`${API}/tracks`, { headers: H });
-          const data = await res.json();
+          const data = await apiFetch(`${API}/tracks`);
           document.getElementById("track-count").textContent = `${data.items.length} tracks`;
         } catch {}
       }
 
+      // --- Auth ---
+      async function authSignup() {
+        const username = document.getElementById("auth-username").value.trim();
+        const email = document.getElementById("auth-email").value.trim();
+        const password = document.getElementById("auth-password").value;
+        if (!username || !email || !password) {
+          logTo("auth-log", "Vul alle velden in", "err");
+          return;
+        }
+        try {
+          const data = await apiFetch(`${AUTH_API}/signup`, {
+            method: "POST",
+            body: JSON.stringify({ username, email, password }),
+          });
+          logTo("auth-log", `Signup ok: ${data.username} (${data.id})`, "ok");
+          if (data.id) {
+            document.getElementById("global-user-id").value = data.id;
+            saveUserId();
+          }
+        } catch (e) {
+          logTo("auth-log", e.message, "err");
+        }
+      }
+
+      async function authLogin() {
+        const username = document.getElementById("auth-username").value.trim();
+        const password = document.getElementById("auth-password").value;
+        if (!username || !password) {
+          logTo("auth-log", "Vul username + password in", "err");
+          return;
+        }
+        try {
+          const data = await apiFetch(`${AUTH_API}/login`, {
+            method: "POST",
+            body: JSON.stringify({ username, password }),
+          });
+          jwtToken = data.token;
+          const statusEl = document.getElementById("auth-status");
+          statusEl.innerHTML = `
+            <div class="auth-status">
+              <span class="label">JWT:</span> <span class="value">${data.token.slice(0, 20)}...</span><br/>
+              <span class="label">User:</span> <span class="value">${data.user.username} (${data.user.id})</span>
+            </div>`;
+          logTo("auth-log", `Login ok: ${data.user.username}`, "ok");
+          if (data.user.id) {
+            document.getElementById("global-user-id").value = data.user.id;
+            saveUserId();
+          }
+          listApiKeys();
+        } catch (e) {
+          logTo("auth-log", e.message, "err");
+        }
+      }
+
+      // --- API Keys ---
+      async function createApiKey() {
+        if (!jwtToken) {
+          logTo("auth-log", "Eerst inloggen (stap 2)", "err");
+          return;
+        }
+        try {
+          const data = await apiFetch(`${API}/api-keys`, {
+            method: "POST",
+            body: JSON.stringify({ name: `test-${Date.now()}` }),
+          });
+          // Auto-fill and save the new key
+          document.getElementById("api-key").value = data.key;
+          saveApiKey();
+          logTo("auth-log", `API key aangemaakt: ${data.prefix}...`, "ok");
+          logTo("auth-log", `Key: ${data.key}`, "info");
+          // Auto-connect
+          init();
+        } catch (e) {
+          logTo("auth-log", e.message, "err");
+        }
+      }
+
+      async function listApiKeys() {
+        if (!jwtToken) return;
+        try {
+          const data = await apiFetch(`${API}/api-keys`);
+          const el = document.getElementById("api-keys-list");
+          if (!data.items.length) {
+            el.innerHTML = "";
+            return;
+          }
+          el.innerHTML = data.items
+            .map(
+              (k) =>
+                `<div class="bl-entry">
+                  <span style="font-size:11px">${esc(k.name)} <span style="color:#58a6ff;font-family:monospace">${k.prefix}...</span> ${k.active ? '<span style="color:#3fb950">actief</span>' : '<span style="color:#f85149">inactief</span>'}</span>
+                  ${k.active ? `<button class="btn-sm danger" onclick="revokeApiKey('${k.id}')" style="padding:2px 6px;font-size:10px">x</button>` : ""}
+                </div>`,
+            )
+            .join("");
+        } catch {}
+      }
+
+      async function revokeApiKey(id) {
+        if (!jwtToken) return;
+        try {
+          await apiFetch(`${API}/api-keys/${id}`, { method: "DELETE" });
+          logTo("auth-log", "Key ingetrokken", "ok");
+          listApiKeys();
+        } catch (e) {
+          logTo("auth-log", e.message, "err");
+        }
+      }
+
+      // --- Onboarding ---
+      async function runOnboarding() {
+        const uid = requireUserId();
+        if (!uid) return;
+        const genresInput = document.getElementById("ob-genres").value.trim();
+        if (!genresInput) {
+          logTo("ob-log", "Vul genres in", "err");
+          return;
+        }
+        const obGenres = genresInput
+          .split(",")
+          .map((g) => g.trim())
+          .filter(Boolean);
+        const artistsInput = document.getElementById("ob-artists").value.trim();
+        const obArtists = artistsInput
+          ? artistsInput
+              .split(",")
+              .map((a) => a.trim())
+              .filter(Boolean)
+          : [];
+        const app = document.getElementById("ob-app").value;
+
+        logTo("ob-log", "Onboarding starten...", "info");
+        try {
+          const data = await apiFetch(`${API}/onboarding`, {
+            method: "POST",
+            body: JSON.stringify({
+              userId: uid,
+              genres: obGenres,
+              artists: obArtists,
+              app,
+            }),
+          });
+          logTo("ob-log", "Onboarding voltooid", "ok");
+          // Apply sliders to UI
+          if (data.sliders) {
+            resetSliders();
+            for (const [genre, value] of Object.entries(data.sliders)) {
+              setSlider(genre, Math.round(value * 100));
+            }
+            logTo("ob-log", "Sliders bijgewerkt", "ok");
+          }
+        } catch (e) {
+          logTo("ob-log", e.message, "err");
+        }
+      }
+
+      // --- Keyboard shortcuts ---
       document.getElementById("ingest-artist").addEventListener("keydown", (e) => {
         if (e.key === "Enter") document.getElementById("ingest-title").focus();
       });

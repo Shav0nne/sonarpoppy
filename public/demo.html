@@ -1,0 +1,1697 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SonarPoppy — Demo</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #0d1117;
+        color: #c9d1d9;
+        line-height: 1.6;
+        font-size: 16px;
+      }
+
+      /* Header */
+      .header {
+        background: #161b22;
+        border-bottom: 1px solid #21262d;
+        padding: 16px 32px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .header h1 {
+        font-size: 24px;
+        color: #e6edf3;
+      }
+      .header .status {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #8b949e;
+      }
+      .header .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #484f58;
+      }
+
+      /* Main layout */
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px;
+      }
+
+      /* Steps navigation */
+      .steps-nav {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 32px;
+        flex-wrap: wrap;
+      }
+      .step-tab {
+        padding: 10px 20px;
+        background: #161b22;
+        border: 1px solid #21262d;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #8b949e;
+        transition: all 0.2s;
+        font-family: inherit;
+      }
+      .step-tab:hover {
+        color: #c9d1d9;
+        border-color: #30363d;
+      }
+      .step-tab.active {
+        background: #238636;
+        border-color: #238636;
+        color: #fff;
+        font-weight: 600;
+      }
+      .step-tab.done {
+        background: #1a3a2a;
+        border-color: #238636;
+        color: #3fb950;
+      }
+
+      /* Step panels */
+      .step-panel {
+        display: none;
+      }
+      .step-panel.active {
+        display: block;
+      }
+
+      .step-header {
+        margin-bottom: 24px;
+      }
+      .step-header h2 {
+        font-size: 28px;
+        color: #e6edf3;
+        margin-bottom: 8px;
+      }
+      .step-header p {
+        font-size: 16px;
+        color: #8b949e;
+      }
+
+      /* Cards */
+      .card {
+        background: #161b22;
+        border: 1px solid #21262d;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 16px;
+      }
+      .card h3 {
+        font-size: 16px;
+        color: #e6edf3;
+        margin-bottom: 12px;
+      }
+
+      /* Forms */
+      .form-row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 12px;
+        align-items: end;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+      }
+      .form-group label {
+        font-size: 12px;
+        color: #8b949e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      input,
+      select {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        color: #c9d1d9;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-family: inherit;
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #58a6ff;
+      }
+
+      /* Buttons */
+      .btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 15px;
+        cursor: pointer;
+        border: none;
+        font-family: inherit;
+        font-weight: 600;
+        transition: all 0.15s;
+      }
+      .btn-primary {
+        background: #238636;
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: #2ea043;
+      }
+      .btn-primary:disabled {
+        background: #21262d;
+        color: #484f58;
+        cursor: not-allowed;
+      }
+      .btn-secondary {
+        background: #21262d;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+      }
+      .btn-secondary:hover {
+        background: #30363d;
+      }
+      .btn-danger {
+        background: #21262d;
+        color: #f85149;
+        border: 1px solid #f85149;
+      }
+      .btn-danger:hover {
+        background: #f8514922;
+      }
+      .btn-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      /* Status indicator */
+      .status-msg {
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-top: 12px;
+        font-family: monospace;
+      }
+      .status-msg.ok {
+        background: #0d2818;
+        color: #3fb950;
+        border: 1px solid #238636;
+      }
+      .status-msg.err {
+        background: #2d1215;
+        color: #f85149;
+        border: 1px solid #f85149;
+      }
+      .status-msg.info {
+        background: #0d1d30;
+        color: #58a6ff;
+        border: 1px solid #1f6feb;
+      }
+      .status-msg.warn {
+        background: #2d2200;
+        color: #d29922;
+        border: 1px solid #d29922;
+      }
+
+      /* Check marks for auth steps */
+      .auth-step {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: #0d1117;
+        border-radius: 8px;
+        margin-bottom: 8px;
+      }
+      .auth-step .check {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid #30363d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+      .auth-step.done .check {
+        background: #238636;
+        border-color: #238636;
+        color: #fff;
+      }
+      .auth-step .info {
+        font-size: 13px;
+        color: #8b949e;
+        font-family: monospace;
+        word-break: break-all;
+      }
+
+      /* Genre sliders (large) */
+      .genre-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      .genre-row {
+        display: grid;
+        grid-template-columns: 100px 1fr 48px;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 0;
+      }
+      .genre-row label {
+        font-size: 15px;
+        color: #8b949e;
+      }
+      .genre-row input[type="range"] {
+        width: 100%;
+        accent-color: #238636;
+        cursor: pointer;
+        height: 6px;
+      }
+      .genre-row .val {
+        font-size: 14px;
+        color: #58a6ff;
+        text-align: right;
+        font-family: monospace;
+        font-weight: 600;
+      }
+      .genre-row.active label {
+        color: #e6edf3;
+      }
+      .genre-row.active .val {
+        color: #3fb950;
+      }
+
+      /* Dial */
+      .dial-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        margin: 16px 0;
+      }
+      .dial-btn {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 2px solid #30363d;
+        background: #0d1117;
+        color: #8b949e;
+        font-size: 20px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .dial-btn:hover {
+        border-color: #58a6ff;
+        color: #c9d1d9;
+      }
+      .dial-btn.active {
+        background: #238636;
+        border-color: #238636;
+        color: #fff;
+      }
+      .dial-label {
+        font-size: 11px;
+        color: #8b949e;
+        text-align: center;
+        margin-top: 4px;
+      }
+      .dial-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .dial-info {
+        text-align: center;
+        font-size: 16px;
+        color: #e6edf3;
+        margin-top: 8px;
+      }
+
+      /* Profile bars */
+      .profile-bar-row {
+        display: grid;
+        grid-template-columns: 100px 1fr 50px;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+      .profile-bar-row .name {
+        font-size: 13px;
+        color: #8b949e;
+      }
+      .bar-bg {
+        height: 12px;
+        background: #21262d;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #238636, #3fb950);
+        border-radius: 6px;
+        transition: width 0.3s;
+      }
+      .profile-bar-row .pct {
+        font-size: 13px;
+        color: #3fb950;
+        font-family: monospace;
+        text-align: right;
+      }
+
+      /* Track cards */
+      .track-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .track-card {
+        background: #161b22;
+        border: 1px solid #21262d;
+        border-radius: 12px;
+        padding: 20px;
+        display: grid;
+        grid-template-columns: 48px 80px 1fr auto;
+        align-items: start;
+        gap: 16px;
+      }
+      .track-rank {
+        font-size: 24px;
+        font-weight: 700;
+        color: #484f58;
+        text-align: center;
+      }
+      .track-score {
+        font-size: 20px;
+        font-weight: 700;
+        font-family: monospace;
+        text-align: center;
+        padding-top: 2px;
+      }
+      .score-high {
+        color: #3fb950;
+      }
+      .score-mid {
+        color: #d29922;
+      }
+      .score-low {
+        color: #f85149;
+      }
+      .track-info h3 {
+        font-size: 18px;
+        color: #e6edf3;
+        margin-bottom: 2px;
+      }
+      .track-info .artist {
+        font-size: 15px;
+        color: #8b949e;
+      }
+      .track-tags {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .tag {
+        background: #21262d;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        color: #8b949e;
+      }
+
+      /* Score breakdown */
+      .breakdown {
+        display: flex;
+        gap: 16px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #21262d;
+        font-size: 13px;
+        font-family: monospace;
+      }
+      .breakdown .signal {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .breakdown .signal-label {
+        color: #8b949e;
+      }
+      .breakdown .genre-val {
+        color: #3fb950;
+      }
+      .breakdown .cf-val {
+        color: #58a6ff;
+      }
+      .breakdown .weight-val {
+        color: #d29922;
+      }
+      .breakdown .fb-val {
+        color: #bc8cff;
+      }
+
+      /* Feedback buttons */
+      .track-actions {
+        display: flex;
+        gap: 6px;
+        flex-direction: column;
+      }
+      .track-actions button {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        background: #0d1117;
+        color: #8b949e;
+        cursor: pointer;
+        font-size: 18px;
+        transition: all 0.15s;
+      }
+      .track-actions button:hover {
+        border-color: #58a6ff;
+        color: #c9d1d9;
+      }
+      .track-actions button.liked {
+        color: #3fb950;
+        border-color: #3fb950;
+        background: #0d2818;
+      }
+      .track-actions button.disliked {
+        color: #f85149;
+        border-color: #f85149;
+        background: #2d1215;
+      }
+
+      /* Error demo */
+      .error-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+      .error-card {
+        background: #0d1117;
+        border: 1px solid #21262d;
+        border-radius: 8px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .error-card:hover {
+        border-color: #f85149;
+      }
+      .error-card h4 {
+        font-size: 14px;
+        color: #e6edf3;
+        margin-bottom: 4px;
+      }
+      .error-card p {
+        font-size: 13px;
+        color: #8b949e;
+      }
+      .error-result {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 13px;
+        display: none;
+      }
+      .error-result.visible {
+        display: block;
+      }
+      .error-result .status-code {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      /* Loading spinner */
+      .loading-dots::after {
+        content: "";
+        animation: dots 1.5s steps(4, end) infinite;
+      }
+      @keyframes dots {
+        0% {
+          content: "";
+        }
+        25% {
+          content: ".";
+        }
+        50% {
+          content: "..";
+        }
+        75% {
+          content: "...";
+        }
+      }
+
+      /* Stats bar */
+      .stats-bar {
+        display: flex;
+        gap: 16px;
+        padding: 12px 16px;
+        background: #161b22;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        color: #8b949e;
+      }
+      .stats-bar strong {
+        color: #e6edf3;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <div class="header">
+      <h1>SonarPoppy</h1>
+      <span style="color: #8b949e; font-size: 14px">Muziek-aanbevelingsengine</span>
+      <div class="status">
+        <span class="dot" id="status-dot"></span>
+        <span id="track-count">niet verbonden</span>
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- Steps navigation -->
+      <div class="steps-nav">
+        <button class="step-tab active" onclick="showStep(0)">A. Start</button>
+        <button class="step-tab" onclick="showStep(1)">B. Data</button>
+        <button class="step-tab" onclick="showStep(2)">C. Profiel</button>
+        <button class="step-tab" onclick="showStep(3)">D. Aanbevelingen</button>
+        <button class="step-tab" onclick="showStep(4)">E. Robuustheid</button>
+      </div>
+
+      <!-- Step A: Auth -->
+      <div class="step-panel active" id="step-0">
+        <div class="step-header">
+          <h2>Authenticatie</h2>
+          <p>Twee lagen beveiliging: JWT token (gebruiker) + API key (applicatie)</p>
+        </div>
+
+        <div class="card">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="auth-username" placeholder="lisa" />
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="auth-email" placeholder="lisa@sonarpoppy.nl" />
+            </div>
+            <div class="form-group">
+              <label>Wachtwoord</label>
+              <input type="password" id="auth-password" placeholder="wachtwoord" />
+            </div>
+          </div>
+
+          <!-- Stap 1 & 2: Gebruiker -->
+          <div
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #58a6ff;
+              margin: 16px 0 8px;
+              font-weight: 600;
+            "
+          >
+            Gebruiker (eindgebruiker)
+          </div>
+
+          <div id="auth-step-1" class="auth-step">
+            <div class="check">1</div>
+            <div style="flex: 1">
+              <strong>Account aanmaken</strong>
+              <div class="info" id="signup-info">Registreer een nieuw gebruikersaccount</div>
+            </div>
+            <button class="btn btn-primary" onclick="doSignup()">Signup</button>
+          </div>
+
+          <div id="auth-step-2" class="auth-step">
+            <div class="check">2</div>
+            <div style="flex: 1">
+              <strong>Inloggen</strong>
+              <div class="info" id="login-info">JWT token ontvangen voor authenticatie</div>
+            </div>
+            <button class="btn btn-primary" onclick="doLogin()">Login</button>
+          </div>
+
+          <!-- Stap 3: Ontwikkelaar/app -->
+          <div
+            style="
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #d29922;
+              margin: 16px 0 8px;
+              font-weight: 600;
+            "
+          >
+            Applicatie (ontwikkelaar)
+          </div>
+
+          <div id="auth-step-3" class="auth-step">
+            <div class="check">3</div>
+            <div style="flex: 1">
+              <strong>API Key genereren</strong>
+              <div class="info" id="apikey-info">
+                App-level key &mdash; in productie wordt deze per app aangemaakt door de
+                ontwikkelaar, niet per eindgebruiker
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="doCreateApiKey()">Genereer</button>
+          </div>
+        </div>
+
+        <div id="auth-msg"></div>
+
+        <button class="btn btn-primary" onclick="showStep(1)" style="width: 100%; margin-top: 16px">
+          Verder &rarr;
+        </button>
+      </div>
+
+      <!-- Step B: Data -->
+      <div class="step-panel" id="step-1">
+        <div class="step-header">
+          <h2>Data ophalen</h2>
+          <p>
+            Elke track krijgt een vingerafdruk (genre-vector, 20 dimensies) op basis van Last.fm
+            tags, plus collaborative filtering data van miljoenen luisteraars.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Batch ingest</h3>
+          <p style="color: #8b949e; margin-bottom: 16px">
+            Haal tracks op van Last.fm, bereken genre-vectoren (20-dimensionaal), en verrijk met
+            similar tracks/artists data.
+          </p>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="demoIngestBatch()" id="btn-ingest">
+              Demo data laden (15 tracks)
+            </button>
+            <button class="btn btn-secondary" onclick="demoEnrichCf()" id="btn-enrich">
+              CF data verrijken
+            </button>
+            <button
+              class="btn btn-danger"
+              onclick="demoDeleteTracks()"
+              id="btn-delete-tracks"
+              style="font-size: 12px; padding: 8px 12px; margin-left: auto"
+            >
+              Tracks wissen
+            </button>
+          </div>
+          <div id="ingest-msg"></div>
+        </div>
+
+        <div class="card" id="vector-example" style="display: none">
+          <h3>Voorbeeld: Genre Vector</h3>
+          <p style="color: #8b949e; margin-bottom: 12px">
+            Elke track krijgt een 20-dimensionale vector op basis van Last.fm tags. Hieronder een
+            voorbeeld:
+          </p>
+          <div id="vector-bars"></div>
+        </div>
+
+        <button class="btn btn-primary" onclick="showStep(2)" style="width: 100%; margin-top: 16px">
+          Verder &rarr;
+        </button>
+      </div>
+
+      <!-- Step C: Profile -->
+      <div class="step-panel" id="step-2">
+        <div class="step-header">
+          <h2>Profiel instellen</h2>
+          <p>
+            Bouw je profielvector (dezelfde 20 dimensies als de tracks) via onboarding of sliders.
+            Cosine similarity vergelijkt jouw profiel met elke track.
+          </p>
+        </div>
+
+        <!-- Onboarding -->
+        <div class="card" id="onboarding-card">
+          <h3>Onboarding (cold start)</h3>
+          <p style="color: #8b949e; margin-bottom: 16px">
+            Nieuwe gebruiker kiest minimaal 3 genres en 3 artiesten. Het systeem berekent een
+            initieel profiel op basis van deze keuzes.
+          </p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Genres (min. 3)</label>
+              <input
+                type="text"
+                id="ob-genres"
+                placeholder="rock, electronic, hip-hop"
+                value="rock, pop, electronic, jazz"
+              />
+            </div>
+            <div class="form-group">
+              <label>Artiesten (min. 3 voor SonarPop)</label>
+              <input
+                type="text"
+                id="ob-artists"
+                placeholder="Radiohead, Daft Punk, Kendrick Lamar"
+                value="Foo Fighters, Adele, Kanye West, Herbie Hancock"
+              />
+            </div>
+          </div>
+          <div class="form-row" style="align-items: center">
+            <div class="form-group" style="flex: 0 0 auto">
+              <label>App</label>
+              <select id="ob-app">
+                <option value="sonarpop">SonarPop</option>
+                <option value="poppy">Poppy</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="doOnboarding()" id="btn-onboarding">
+              Onboarding starten
+            </button>
+          </div>
+          <div id="onboarding-msg"></div>
+        </div>
+
+        <!-- Genre sliders (fijn-tuning na onboarding) -->
+        <div class="card">
+          <h3>
+            Genre gewichten
+            <span style="font-size: 13px; color: #8b949e; font-weight: 400">(fijn-tunen)</span>
+          </h3>
+          <div class="btn-row" style="margin-bottom: 16px">
+            <button class="btn btn-secondary" onclick="presetRock()">Rock fan</button>
+            <button class="btn btn-secondary" onclick="presetElectronic()">Electronic fan</button>
+            <button class="btn btn-secondary" onclick="presetBroad()">Breed profiel</button>
+            <button class="btn btn-secondary" onclick="resetSliders()">Reset</button>
+          </div>
+          <div class="genre-grid" id="genres"></div>
+        </div>
+
+        <div id="profile-section" style="display: none; margin-top: 16px">
+          <div class="card">
+            <h3>Profielvector</h3>
+            <div id="profile-bars"></div>
+            <div id="profile-meta" style="margin-top: 12px; color: #8b949e; font-size: 14px"></div>
+          </div>
+        </div>
+
+        <button
+          class="btn btn-primary"
+          onclick="doComputeAndRecommend()"
+          id="btn-compute"
+          style="width: 100%; margin-top: 8px"
+        >
+          Bereken profiel &amp; toon aanbevelingen
+        </button>
+      </div>
+
+      <!-- Step D: Recommendations -->
+      <div class="step-panel" id="step-3">
+        <div class="step-header">
+          <h2>Aanbevelingen</h2>
+          <p>
+            Score = (<span style="color: #d29922">&alpha;</span> &times;
+            <span style="color: #3fb950">genre</span> +
+            <span style="color: #d29922">&beta;</span> &times;
+            <span style="color: #58a6ff">cf</span>) &times;
+            <span style="color: #bc8cff">feedback</span>
+          </p>
+        </div>
+
+        <div class="card" style="padding: 16px">
+          <div class="btn-row" style="align-items: center">
+            <span style="color: #8b949e; font-size: 14px">Dial (van veilig tot avontuurlijk):</span>
+            <div class="dial-row" id="dial-row-mini" style="margin: 0; gap: 4px"></div>
+          </div>
+        </div>
+
+        <div class="stats-bar" id="stats-bar" style="display: none"></div>
+
+        <div class="track-list" id="tracks">
+          <div style="color: #484f58; text-align: center; padding: 40px">
+            Ga eerst naar stap C om een profiel in te stellen
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="showStep(4)" style="width: 100%; margin-top: 16px">
+          Verder &rarr;
+        </button>
+      </div>
+
+      <!-- Step E: Robustness -->
+      <div class="step-panel" id="step-4">
+        <div class="step-header">
+          <h2>Robuustheid</h2>
+          <p>Wat gebeurt er bij foutieve input? Elke knop stuurt een bewust verkeerd request.</p>
+        </div>
+
+        <div class="error-grid">
+          <div class="error-card" onclick="testError('no-auth')">
+            <h4>Zonder authenticatie</h4>
+            <p>Request zonder JWT token</p>
+            <div class="error-result" id="err-no-auth"></div>
+          </div>
+          <div class="error-card" onclick="testError('bad-apikey')">
+            <h4>Verkeerde API key</h4>
+            <p>Request met een ongeldige key</p>
+            <div class="error-result" id="err-bad-apikey"></div>
+          </div>
+          <div class="error-card" onclick="testError('invalid-genre')">
+            <h4>Ongeldig genre</h4>
+            <p>Slider opslaan met "reggaeton"</p>
+            <div class="error-result" id="err-invalid-genre"></div>
+          </div>
+          <div class="error-card" onclick="testError('too-few-genres')">
+            <h4>Te weinig genres</h4>
+            <p>Onboarding met slechts 1 genre</p>
+            <div class="error-result" id="err-too-few-genres"></div>
+          </div>
+          <div class="error-card" onclick="testError('wrong-user')">
+            <h4>Andere gebruiker</h4>
+            <p>Toegang tot data van iemand anders</p>
+            <div class="error-result" id="err-wrong-user"></div>
+          </div>
+          <div class="error-card" onclick="testError('duplicate-blacklist')">
+            <h4>Duplicate blacklist</h4>
+            <p>Dezelfde entry twee keer toevoegen</p>
+            <div class="error-result" id="err-duplicate-blacklist"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API = "/api/v1";
+      const AUTH_API = "/api/v1/auth";
+
+      let genres = [];
+      let currentVector = null;
+      let currentDial = 3;
+      let dialPresets = null;
+      let jwtToken = null;
+      let userId = null;
+      let apiKey = null;
+      let feedbackMap = new Map();
+
+      // --- Navigation ---
+      function showStep(n) {
+        document.querySelectorAll(".step-panel").forEach((p, i) => {
+          p.classList.toggle("active", i === n);
+        });
+        document.querySelectorAll(".step-tab").forEach((t, i) => {
+          t.classList.toggle("active", i === n);
+        });
+      }
+
+      function markStepDone(n) {
+        document.querySelectorAll(".step-tab")[n].classList.add("done");
+      }
+
+      // --- Helpers ---
+      function getHeaders(includeApiKey = true) {
+        const h = { Accept: "application/json", "Content-Type": "application/json" };
+        if (includeApiKey && apiKey) h["X-API-Key"] = apiKey;
+        if (jwtToken) h["Authorization"] = `Bearer ${jwtToken}`;
+        return h;
+      }
+
+      function esc(s) {
+        const d = document.createElement("div");
+        d.textContent = s || "";
+        return d.innerHTML;
+      }
+
+      function showMsg(containerId, msg, cls) {
+        const el = document.getElementById(containerId);
+        el.innerHTML = `<div class="status-msg ${cls}">${msg}</div>`;
+      }
+
+      function appendMsg(containerId, msg, cls) {
+        const el = document.getElementById(containerId);
+        el.innerHTML += `<div class="status-msg ${cls}" style="margin-top:8px">${msg}</div>`;
+      }
+
+      async function apiFetch(url, options = {}) {
+        const isAuthRoute = url.includes("/auth/");
+        const headers = getHeaders(!isAuthRoute);
+        const res = await fetch(url, { ...options, headers });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const err = new Error(body.error || body.message || `HTTP ${res.status}`);
+          err.status = res.status;
+          err.body = body;
+          throw err;
+        }
+        if (res.status === 204) return null;
+        return res.json();
+      }
+
+      // Raw fetch for error demos (no exception on error)
+      async function rawFetch(url, options = {}) {
+        const res = await fetch(url, options);
+        const body = await res.json().catch(() => ({}));
+        return { status: res.status, body };
+      }
+
+      // --- Step A: Auth ---
+      // Pre-fill demo user on page load
+      (function prefillDemoUser() {
+        const ts = Date.now();
+        document.getElementById("auth-username").value = `demo_${ts}`;
+        document.getElementById("auth-email").value = `demo_${ts}@sonarpoppy.nl`;
+        document.getElementById("auth-password").value = "demo1234";
+      })();
+
+      async function doSignup() {
+        const username = document.getElementById("auth-username").value.trim();
+        const email = document.getElementById("auth-email").value.trim();
+        const password = document.getElementById("auth-password").value;
+        if (!username || !email || !password) {
+          showMsg("auth-msg", "Vul alle velden in", "err");
+          return;
+        }
+        try {
+          const data = await apiFetch(`${AUTH_API}/signup`, {
+            method: "POST",
+            body: JSON.stringify({ username, email, password }),
+          });
+          userId = data.id;
+          document.getElementById("auth-step-1").classList.add("done");
+          document.getElementById("signup-info").textContent =
+            `Account: ${data.username} (${data.id})`;
+          showMsg("auth-msg", `Account aangemaakt: ${esc(data.username)}`, "ok");
+        } catch (e) {
+          showMsg("auth-msg", `Signup mislukt: ${esc(e.message)}`, "err");
+        }
+      }
+
+      async function doLogin() {
+        const username = document.getElementById("auth-username").value.trim();
+        const password = document.getElementById("auth-password").value;
+        if (!username || !password) {
+          showMsg("auth-msg", "Vul username + wachtwoord in", "err");
+          return;
+        }
+        try {
+          const data = await apiFetch(`${AUTH_API}/login`, {
+            method: "POST",
+            body: JSON.stringify({ username, password }),
+          });
+          jwtToken = data.token;
+          userId = data.user.id;
+          document.getElementById("auth-step-2").classList.add("done");
+          document.getElementById("login-info").textContent = `JWT: ${data.token.slice(0, 24)}...`;
+          showMsg("auth-msg", `Ingelogd als ${esc(data.user.username)}`, "ok");
+        } catch (e) {
+          showMsg("auth-msg", `Login mislukt: ${esc(e.message)}`, "err");
+        }
+      }
+
+      async function doCreateApiKey() {
+        if (!jwtToken) {
+          showMsg("auth-msg", "Eerst inloggen (stap 2)", "err");
+          return;
+        }
+        try {
+          const data = await apiFetch(`${API}/api-keys`, {
+            method: "POST",
+            body: JSON.stringify({ name: `demo-${Date.now()}` }),
+          });
+          apiKey = data.key;
+          document.getElementById("auth-step-3").classList.add("done");
+          document.getElementById("apikey-info").textContent = `Key: ${data.prefix}...`;
+          showMsg("auth-msg", "API key actief — klaar om endpoints aan te spreken", "ok");
+          markStepDone(0);
+          initConnection();
+        } catch (e) {
+          showMsg("auth-msg", `API key mislukt: ${esc(e.message)}`, "err");
+        }
+      }
+
+      async function initConnection() {
+        try {
+          const [genreData, trackData] = await Promise.all([
+            apiFetch(`${API}/genres`),
+            apiFetch(`${API}/tracks`),
+          ]);
+          genres = genreData.items;
+          renderGenres();
+          document.getElementById("track-count").textContent = `${trackData.items.length} tracks`;
+          document.getElementById("status-dot").style.background = "#3fb950";
+          loadDialPresets();
+        } catch (e) {
+          document.getElementById("track-count").textContent = esc(e.message);
+          document.getElementById("status-dot").style.background = "#f85149";
+        }
+      }
+
+      // --- Step B: Data ---
+      const DEMO_TRACKS = [
+        // Rock
+        { artist: "Foo Fighters", title: "Everlong" },
+        { artist: "Red Hot Chili Peppers", title: "Californication" },
+        { artist: "Oasis", title: "Wonderwall" },
+        // Pop
+        { artist: "Adele", title: "Rolling in the Deep" },
+        { artist: "Dua Lipa", title: "Levitating" },
+        { artist: "Bruno Mars", title: "Uptown Funk" },
+        // Electronic
+        { artist: "Chemical Brothers", title: "Block Rockin' Beats" },
+        { artist: "Bonobo", title: "Kerala" },
+        { artist: "ODESZA", title: "A Moment Apart" },
+        // Hip-Hop
+        { artist: "Kanye West", title: "Stronger" },
+        { artist: "Kendrick Lamar", title: "HUMBLE." },
+        { artist: "Lauryn Hill", title: "Doo Wop (That Thing)" },
+        // Jazz / Soul
+        { artist: "Herbie Hancock", title: "Chameleon" },
+        { artist: "Al Green", title: "Let's Stay Together" },
+        { artist: "Ray Charles", title: "Hit the Road Jack" },
+      ];
+
+      async function demoIngestBatch() {
+        const btn = document.getElementById("btn-ingest");
+        btn.disabled = true;
+        btn.textContent = "Bezig met ophalen...";
+        showMsg("ingest-msg", "Tracks ophalen van Last.fm + genre vectoren berekenen...", "info");
+
+        try {
+          const data = await apiFetch(`${API}/tracks/ingest-batch`, {
+            method: "POST",
+            body: JSON.stringify({ tracks: DEMO_TRACKS }),
+          });
+          showMsg(
+            "ingest-msg",
+            `${data.summary.created} nieuw, ${data.summary.skipped} al aanwezig, ${data.summary.failed} mislukt`,
+            data.summary.failed > 0 ? "warn" : "ok",
+          );
+          refreshTrackCount();
+
+          // Show example vector — pick track with most genre tags
+          if (data.results) {
+            const candidates = data.results.filter((r) => r.track?.genreVector);
+            const best = candidates.sort(
+              (a, b) =>
+                b.track.genreVector.filter((v) => v >= 0.01).length -
+                a.track.genreVector.filter((v) => v >= 0.01).length,
+            )[0];
+            if (best) showVectorExample(best.track);
+          }
+        } catch (e) {
+          showMsg("ingest-msg", `Fout: ${esc(e.message)}`, "err");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Demo data laden (15 tracks)";
+        }
+      }
+
+      async function demoEnrichCf() {
+        const btn = document.getElementById("btn-enrich");
+        btn.disabled = true;
+        btn.textContent = "CF ophalen...";
+        appendMsg("ingest-msg", "Collaborative filtering data ophalen van Last.fm...", "info");
+
+        try {
+          const data = await apiFetch(`${API}/tracks/enrich-cf`, { method: "POST" });
+          appendMsg(
+            "ingest-msg",
+            `CF verrijkt: ${data.enriched ?? "?"} tracks, ${data.skipped ?? "?"} overgeslagen`,
+            "ok",
+          );
+          markStepDone(1);
+        } catch (e) {
+          appendMsg("ingest-msg", `CF fout: ${esc(e.message)}`, "err");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "CF data verrijken";
+        }
+      }
+
+      function showVectorExample(track) {
+        if (!genres.length || !track?.genreVector) return;
+        const container = document.getElementById("vector-example");
+        container.style.display = "";
+        container.querySelector("h3").textContent = `Voorbeeld: ${track.artist} — ${track.title}`;
+
+        const maxVal = Math.max(...track.genreVector);
+        document.getElementById("vector-bars").innerHTML = track.genreVector
+          .map((v, i) => {
+            const pct = maxVal > 0 ? (v / maxVal) * 100 : 0;
+            const dimStyle = v < 0.01 ? "opacity:0.4" : "";
+            return `
+              <div class="profile-bar-row" style="${dimStyle}">
+                <span class="name">${genres[i]?.name || i}</span>
+                <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+                <span class="pct">${(v * 100).toFixed(0)}%</span>
+              </div>`;
+          })
+          .join("");
+      }
+
+      async function refreshTrackCount() {
+        try {
+          const data = await apiFetch(`${API}/tracks`);
+          document.getElementById("track-count").textContent = `${data.items.length} tracks`;
+        } catch {}
+      }
+
+      async function demoDeleteTracks() {
+        if (!confirm("Demo tracks verwijderen?")) return;
+        try {
+          const data = await apiFetch(`${API}/tracks`, {
+            method: "DELETE",
+            body: JSON.stringify({ tracks: DEMO_TRACKS }),
+          });
+          showMsg("ingest-msg", `${data.deleted} demo tracks verwijderd`, "ok");
+          refreshTrackCount();
+        } catch (e) {
+          showMsg("ingest-msg", `Fout: ${esc(e.message)}`, "err");
+        }
+      }
+
+      // --- Step C: Profile ---
+      async function doOnboarding() {
+        if (!userId) {
+          showMsg("onboarding-msg", "Eerst inloggen (stap A)", "err");
+          return;
+        }
+        const genresInput = document.getElementById("ob-genres").value.trim();
+        const artistsInput = document.getElementById("ob-artists").value.trim();
+        const app = document.getElementById("ob-app").value;
+
+        const obGenres = genresInput
+          .split(",")
+          .map((g) => g.trim())
+          .filter(Boolean);
+        const obArtists = artistsInput
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean);
+
+        const btn = document.getElementById("btn-onboarding");
+        btn.disabled = true;
+        btn.textContent = "Bezig...";
+        showMsg(
+          "onboarding-msg",
+          "Onboarding starten — artiest-tags ophalen van Last.fm...",
+          "info",
+        );
+
+        try {
+          const data = await apiFetch(`${API}/onboarding`, {
+            method: "POST",
+            body: JSON.stringify({ userId, genres: obGenres, artists: obArtists, app }),
+          });
+
+          // Apply returned sliders to UI
+          if (data.sliders) {
+            resetSliders();
+            for (const [genre, value] of Object.entries(data.sliders)) {
+              setSlider(genre, Math.round(value * 100));
+            }
+          }
+
+          // Show profile vector if returned
+          if (data.profile) {
+            currentVector = data.profile.vector;
+            renderProfile(data.profile);
+          }
+
+          showMsg(
+            "onboarding-msg",
+            `Profiel aangemaakt! Top genre: <strong>${data.profile?.meta?.topGenre || "—"}</strong>, ${data.profile?.meta?.activeGenres || 0} actieve genres. Sliders zijn bijgewerkt.`,
+            "ok",
+          );
+        } catch (e) {
+          showMsg("onboarding-msg", `Onboarding mislukt: ${esc(e.message)}`, "err");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Onboarding starten";
+        }
+      }
+
+      function renderGenres() {
+        document.getElementById("genres").innerHTML = genres
+          .map(
+            (g) => `
+            <div class="genre-row" id="gr-${g.name}">
+              <label>${g.name}</label>
+              <input type="range" min="0" max="100" value="0"
+                data-genre="${g.name}" oninput="onSliderChange(this)" />
+              <span class="val">0</span>
+            </div>`,
+          )
+          .join("");
+      }
+
+      function onSliderChange(el) {
+        const v = parseInt(el.value);
+        const row = el.closest(".genre-row");
+        row.querySelector(".val").textContent = v > 0 ? v : "0";
+        row.classList.toggle("active", v > 0);
+        updateProfileFromSliders();
+      }
+
+      function updateProfileFromSliders() {
+        const weights = getWeights();
+        if (Object.keys(weights).length === 0) {
+          document.getElementById("profile-section").style.display = "none";
+          return;
+        }
+        // Bouw een lokale profielvector op basis van slider-waarden
+        const vector = genres.map((g) => weights[g.name] || 0);
+        const total = vector.reduce((a, b) => a + b, 0);
+        const normalized = total > 0 ? vector.map((v) => v / total) : vector;
+        currentVector = normalized;
+        renderProfile({
+          vector: normalized,
+          meta: {
+            activeGenres: Object.keys(weights).length,
+            topGenre: genres[normalized.indexOf(Math.max(...normalized))]?.name || "\u2014",
+          },
+        });
+      }
+
+      function getWeights() {
+        const w = {};
+        document.querySelectorAll("#genres input[type=range]").forEach((s) => {
+          const v = parseInt(s.value);
+          if (v > 0) w[s.dataset.genre] = v / 100;
+        });
+        return w;
+      }
+
+      function setSlider(name, val) {
+        const row = document.getElementById(`gr-${name}`);
+        if (!row) return;
+        const input = row.querySelector("input");
+        input.value = val;
+        row.querySelector(".val").textContent = val > 0 ? val : "0";
+        row.classList.toggle("active", val > 0);
+      }
+
+      function resetSliders() {
+        document.querySelectorAll("#genres input[type=range]").forEach((s) => {
+          s.value = 0;
+          onSliderChange(s);
+        });
+      }
+
+      function presetRock() {
+        resetSliders();
+        setSlider("rock", 90);
+        setSlider("indie", 60);
+        setSlider("punk", 40);
+        setSlider("metal", 30);
+      }
+
+      function presetElectronic() {
+        resetSliders();
+        setSlider("electronic", 90);
+        setSlider("ambient", 60);
+        setSlider("dance", 50);
+        setSlider("funk", 30);
+      }
+
+      function presetBroad() {
+        resetSliders();
+        setSlider("rock", 60);
+        setSlider("pop", 50);
+        setSlider("electronic", 50);
+        setSlider("hip-hop", 40);
+        setSlider("jazz", 30);
+        setSlider("soul", 30);
+      }
+
+      // --- Dial ---
+      const DIAL_LABELS = ["Strikt", "Dichtbij", "Balanced", "Ontdek", "Anti-bubbel"];
+
+      async function loadDialPresets() {
+        try {
+          const data = await apiFetch(`${API}/dial`);
+          dialPresets = data.presets;
+          currentDial = data.default || 3;
+          renderDials();
+        } catch {}
+      }
+
+      function renderDials() {
+        const html = (dialPresets || [])
+          .map(
+            (p) => `
+            <div class="dial-item">
+              <button class="dial-btn ${p.position === currentDial ? "active" : ""}"
+                onclick="setDial(${p.position})">${p.position}</button>
+              <span class="dial-label">${p.name}</span>
+            </div>`,
+          )
+          .join("");
+
+        const dialRow = document.getElementById("dial-row");
+        if (dialRow) dialRow.innerHTML = html;
+        // Mini dial in recommendations tab
+        const dialRowMini = document.getElementById("dial-row-mini");
+        if (dialRowMini)
+          dialRowMini.innerHTML = (dialPresets || [])
+            .map(
+              (p) => `
+            <button class="dial-btn ${p.position === currentDial ? "active" : ""}"
+              onclick="setDial(${p.position})"
+              style="width:40px;height:40px;font-size:14px">${p.position}</button>`,
+            )
+            .join("");
+
+        updateDialInfo();
+      }
+
+      function setDial(n) {
+        currentDial = n;
+        renderDials();
+        doGetRecommendations();
+      }
+
+      function updateDialInfo() {
+        const preset = (dialPresets || []).find((p) => p.position === currentDial);
+        if (preset) {
+          const filterLabel =
+            preset.filter.type === "none"
+              ? "geen"
+              : `${preset.filter.type} \u2265 ${preset.filter.threshold}`;
+          const extras = [];
+          if (preset.unplayedOnly)
+            extras.push('<span style="color:#d29922">alleen onbeluisterd</span>');
+          const dialInfo = document.getElementById("dial-info");
+          if (dialInfo)
+            dialInfo.innerHTML = `<strong>${preset.name}</strong> &mdash; filter: <span style="color:#3fb950">${filterLabel}</span>, sort: <span style="color:#58a6ff">${preset.sortSignal}</span>${extras.length ? " \u00b7 " + extras.join(", ") : ""}`;
+        }
+      }
+
+      // --- Compute + Recommend ---
+      async function doComputeAndRecommend() {
+        const btn = document.getElementById("btn-compute");
+        btn.disabled = true;
+        btn.textContent = "Berekenen...";
+
+        try {
+          const weights = getWeights();
+          if (Object.keys(weights).length === 0) {
+            alert("Stel eerst minimaal 1 genre-gewicht in");
+            return;
+          }
+          const profData = await apiFetch(`${API}/profile/compute`, {
+            method: "POST",
+            body: JSON.stringify({ weights }),
+          });
+          currentVector = profData.vector;
+          renderProfile(profData);
+          markStepDone(2);
+          await doGetRecommendations();
+          showStep(3);
+        } catch (e) {
+          alert(`Fout: ${e.message}`);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Bereken profiel & toon aanbevelingen";
+        }
+      }
+
+      function renderProfile(data) {
+        document.getElementById("profile-section").style.display = "";
+        const maxVal = Math.max(...data.vector);
+
+        document.getElementById("profile-bars").innerHTML = data.vector
+          .map((v, i) => {
+            if (v === 0) return "";
+            const pct = maxVal > 0 ? (v / maxVal) * 100 : 0;
+            return `
+              <div class="profile-bar-row">
+                <span class="name">${genres[i]?.name || i}</span>
+                <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+                <span class="pct">${(v * 100).toFixed(0)}%</span>
+              </div>`;
+          })
+          .filter(Boolean)
+          .join("");
+
+        document.getElementById("profile-meta").innerHTML =
+          `Actieve genres: <strong>${data.meta.activeGenres}</strong> &mdash; Top genre: <strong>${data.meta.topGenre || "\u2014"}</strong>`;
+      }
+
+      // --- Recommendations ---
+      async function doGetRecommendations() {
+        if (!currentVector) {
+          document.getElementById("tracks").innerHTML =
+            '<div style="color:#f85149;text-align:center;padding:40px">Geen profiel — doorloop eerst stap C (onboarding of sliders)</div>';
+          return;
+        }
+
+        try {
+          const body = {
+            profileVector: currentVector,
+            dial: currentDial,
+          };
+          if (userId) body.userId = userId;
+
+          const requests = [
+            apiFetch(`${API}/recommendations`, {
+              method: "POST",
+              body: JSON.stringify(body),
+            }),
+          ];
+          if (userId) requests.push(apiFetch(`${API}/feedback`).catch(() => []));
+
+          const [data, fbData] = await Promise.all(requests);
+
+          feedbackMap.clear();
+          if (Array.isArray(fbData)) {
+            for (const fb of fbData) {
+              feedbackMap.set(String(fb.trackId), fb);
+            }
+          }
+
+          renderTracks(data);
+          markStepDone(3);
+        } catch (e) {
+          document.getElementById("tracks").innerHTML =
+            `<div style="color:#f85149;text-align:center;padding:40px">Fout: ${esc(e.message)}</div>`;
+        }
+      }
+
+      function getTopGenres(vector, n) {
+        if (!vector || !genres.length) return [];
+        return vector
+          .map((w, i) => ({ name: genres[i]?.name || `?${i}`, weight: w }))
+          .filter((g) => g.weight > 0.01)
+          .sort((a, b) => b.weight - a.weight)
+          .slice(0, n);
+      }
+
+      function renderTracks(data) {
+        const statsBar = document.getElementById("stats-bar");
+        statsBar.style.display = "";
+
+        statsBar.innerHTML = `
+          <span><strong>${data.total}</strong> resultaten</span>
+          <span>gem. score: <strong>${data.meta.avgScore.toFixed(3)}</strong></span>
+          <span>range: <strong>${data.meta.scoreRange.min.toFixed(3)}</strong> &mdash; <strong>${data.meta.scoreRange.max.toFixed(3)}</strong></span>
+        `;
+
+        const el = document.getElementById("tracks");
+        if (!data.tracks.length) {
+          el.innerHTML =
+            '<div style="color:#484f58;text-align:center;padding:40px">Geen tracks gevonden</div>';
+          return;
+        }
+
+        el.innerHTML = data.tracks
+          .map((item, i) => {
+            const t = item.track;
+            const sc =
+              item.finalScore >= 0.6
+                ? "score-high"
+                : item.finalScore >= 0.3
+                  ? "score-mid"
+                  : "score-low";
+            const topG = getTopGenres(t.genreVector, 3);
+            const trackId = t._id || t.id || "";
+            const fb = feedbackMap.get(trackId);
+            const likeClass = fb?.action === "like" ? " liked" : "";
+            const dislikeClass = fb?.action === "dislike" ? " disliked" : "";
+
+            const feedbackBtns =
+              userId && trackId
+                ? `<div class="track-actions">
+                   <button onclick="doFeedback(this,'${trackId}','like')" title="Like" class="${likeClass}">&#9829;</button>
+                   <button onclick="doFeedback(this,'${trackId}','dislike')" title="Dislike" class="${dislikeClass}">&#9747;</button>
+                 </div>`
+                : "";
+
+            const breakdown = `
+              <div class="breakdown">
+                <div class="signal">
+                  <span class="signal-label">genre:</span>
+                  <span class="genre-val">${item.signals?.genre?.toFixed(3) ?? "null"}</span>
+                </div>
+                <div class="signal">
+                  <span class="signal-label">cf:</span>
+                  <span class="cf-val">${item.signals?.cf?.toFixed(3) ?? "null"}</span>
+                </div>
+                <div class="signal">
+                  <span class="signal-label">dial:</span>
+                  <span class="weight-val">${currentDial}</span>
+                </div>
+                <div class="signal">
+                  <span class="signal-label">feedback:</span>
+                  <span class="fb-val">${item.feedbackMultiplier?.toFixed(2) ?? "1.00"}x</span>
+                </div>
+              </div>`;
+
+            return `
+              <div class="track-card">
+                <span class="track-rank">${i + 1}</span>
+                <span class="track-score ${sc}">${item.finalScore.toFixed(3)}</span>
+                <div class="track-info">
+                  <h3>${esc(t.title)}</h3>
+                  <span class="artist">${esc(t.artist)}</span>
+                  <div class="track-tags">
+                    ${topG.map((g) => `<span class="tag">${g.name} ${(g.weight * 100).toFixed(0)}%</span>`).join("")}
+                  </div>
+                  ${breakdown}
+                </div>
+                ${feedbackBtns}
+              </div>`;
+          })
+          .join("");
+      }
+
+      // --- Feedback ---
+      async function doFeedback(btn, trackId, action) {
+        if (!userId) return;
+        try {
+          await apiFetch(`${API}/feedback`, {
+            method: "POST",
+            body: JSON.stringify({ userId, trackId, action }),
+          });
+          btn
+            .closest(".track-actions")
+            .querySelectorAll("button")
+            .forEach((b) => {
+              b.classList.remove("liked", "disliked");
+            });
+          btn.classList.add(action === "like" ? "liked" : "disliked");
+
+          // Auto-recalculate after feedback so CF scores appear
+          await doGetRecommendations();
+        } catch (e) {
+          console.error("Feedback error:", e.message);
+        }
+      }
+
+      // --- Step E: Error Demos ---
+      async function testError(type) {
+        const elId = `err-${type}`;
+        const el = document.getElementById(elId);
+        el.className = "error-result visible";
+        el.innerHTML = '<span style="color:#8b949e">Bezig...</span>';
+
+        let result;
+        const headers = { Accept: "application/json", "Content-Type": "application/json" };
+        const authHeaders = { ...headers };
+        if (jwtToken) authHeaders["Authorization"] = `Bearer ${jwtToken}`;
+        if (apiKey) authHeaders["X-API-Key"] = apiKey;
+
+        try {
+          switch (type) {
+            case "no-auth":
+              result = await rawFetch(`${API}/genres`, { headers });
+              break;
+
+            case "bad-apikey":
+              result = await rawFetch(`${API}/genres`, {
+                headers: { ...authHeaders, "X-API-Key": "sk_live_fakefakefake" },
+              });
+              break;
+
+            case "invalid-genre":
+              result = await rawFetch(`${API}/sliders/${userId}`, {
+                method: "PUT",
+                headers: authHeaders,
+                body: JSON.stringify({ sliders: { reggaeton: 0.8 } }),
+              });
+              break;
+
+            case "too-few-genres":
+              result = await rawFetch(`${API}/onboarding`, {
+                method: "POST",
+                headers: authHeaders,
+                body: JSON.stringify({ userId, genres: ["rock"], artists: [], app: "sonarpop" }),
+              });
+              break;
+
+            case "wrong-user":
+              result = await rawFetch(`${API}/sliders/000000000000000000000000`, {
+                headers: authHeaders,
+              });
+              break;
+
+            case "duplicate-blacklist": {
+              // First add, then try duplicate
+              await rawFetch(`${API}/blacklist/${userId}`, {
+                method: "POST",
+                headers: authHeaders,
+                body: JSON.stringify({ type: "genre", value: "rock" }),
+              });
+              result = await rawFetch(`${API}/blacklist/${userId}`, {
+                method: "POST",
+                headers: authHeaders,
+                body: JSON.stringify({ type: "genre", value: "rock" }),
+              });
+              break;
+            }
+          }
+
+          const statusColor = result.status >= 400 ? "#f85149" : "#3fb950";
+          const errorMsg =
+            result.body?.error || result.body?.message || JSON.stringify(result.body);
+          el.innerHTML = `
+            <div class="status-code" style="color:${statusColor}">${result.status}</div>
+            <div style="color:#c9d1d9">${esc(errorMsg)}</div>
+          `;
+          el.style.background = result.status >= 400 ? "#2d1215" : "#0d2818";
+          el.style.border = `1px solid ${statusColor}`;
+        } catch (e) {
+          el.innerHTML = `<div style="color:#f85149">Netwerk fout: ${esc(e.message)}</div>`;
+          el.style.background = "#2d1215";
+          el.style.border = "1px solid #f85149";
+        }
+      }
+    </script>
+  </body>
+</html>

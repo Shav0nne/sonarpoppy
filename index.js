@@ -1,53 +1,42 @@
 import express from "express";
 import mongoose from "mongoose";
-import usersRouter from "./routes/userRoute.js";
-import authRouter from "./routes/authRoute.js";
-import bodyParser from "body-parser";
+import apiRouter from "./routes/index.js";
 
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
 
-//CORS MIDDLEWARE
+// CORS — preflight + headers voor React frontend
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization, X-API-Key");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
 
-//accept header middleware
-app.use((req, res, next) => {
- if (req.method === "OPTIONS") return next();
-
- const accept = (req.headers.accept || '').toLowerCase();
- const contentType = (req.headers['content-type'] || '').toLowerCase();
-
- if (contentType.startsWith('multipart/form-data')) return next();
-
- if (accept.includes('application/json') || accept.includes('text/html') || accept.includes('image/') || accept.includes('*/*')) {
-   return next();
- }
- return res.status(406).json({ message: 'Only application/json is allowed in Accept header' });
-});
-app.use((req, res, next) => {
-  if (req.path.startsWith('/users') || req.path.startsWith('/auth')) {
-    console.debug('REQ HEADERS:', { path: req.path, accept: req.headers.accept, contentType: req.headers['content-type'] });
-  }
-  return next();
-});
-
-// Routes
-app.use("/users", usersRouter);
-app.use("/api", usersRouter);
-app.use("/auth", authRouter);
+// Routes — alles via /api/v1
+// Accept header check alleen op API routes (niet op statische bestanden)
+app.use(
+  "/api/v1",
+  (req, res, next) => {
+    const accept = req.headers.accept;
+    if (!accept || (!accept.includes("application/json") && !accept.includes("*/*"))) {
+      return res.status(406).json({
+        message: "Only application/json is allowed in Accept header",
+      });
+    }
+    next();
+  },
+  apiRouter,
+);
 
 // Database connectie
 if (!process.env.MONGODB_URI) {
-    console.error("MONGODB_URI is not defined in environment variables");
-    process.exit(1);
+  console.error("MONGODB_URI is not defined in environment variables");
+  process.exit(1);
 }
 
 try {

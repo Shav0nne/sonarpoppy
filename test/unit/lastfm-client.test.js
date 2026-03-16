@@ -407,3 +407,104 @@ describe("retry with exponential backoff", () => {
     assert.equal(calls.length, 1);
   });
 });
+
+describe("getTrackSimilar", () => {
+  it("calls track.getSimilar and returns mapped similar tracks", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          similartracks: {
+            track: [
+              { name: "Under Pressure", match: "0.85", artist: { name: "Queen" } },
+              { name: "We Will Rock You", match: "0.72", artist: { name: "Queen" } },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getTrackSimilar("Queen", "Bohemian Rhapsody");
+
+    assert.equal(result.length, 2);
+    assert.equal(result[0].title, "Under Pressure");
+    assert.equal(result[0].artist, "Queen");
+    assert.equal(result[0].match, 0.85);
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "track.getSimilar");
+    assert.equal(url.searchParams.get("artist"), "Queen");
+    assert.equal(url.searchParams.get("track"), "Bohemian Rhapsody");
+  });
+
+  it("returns empty array when no similar tracks", async () => {
+    const { fn } = mockFetch([{ json: { similartracks: { track: [] } } }]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getTrackSimilar("Unknown", "Song");
+
+    assert.deepEqual(result, []);
+  });
+
+  it("retries on rate limit (reuses client retry logic)", async () => {
+    const { fn, calls } = mockFetch([
+      { ok: false, status: 429, json: {} },
+      {
+        json: {
+          similartracks: {
+            track: [{ name: "T", match: "0.5", artist: { name: "A" } }],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 3,
+      baseDelay: 10,
+    });
+    const result = await client.getTrackSimilar("A", "T");
+
+    assert.equal(calls.length, 2);
+    assert.equal(result.length, 1);
+  });
+});
+
+describe("getArtistSimilar", () => {
+  it("calls artist.getSimilar and returns mapped similar artists", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          similarartists: {
+            artist: [
+              { name: "David Bowie", match: "0.92" },
+              { name: "Led Zeppelin", match: "0.78" },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getArtistSimilar("Queen");
+
+    assert.equal(result.length, 2);
+    assert.equal(result[0].artist, "David Bowie");
+    assert.equal(result[0].match, 0.92);
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "artist.getSimilar");
+    assert.equal(url.searchParams.get("artist"), "Queen");
+  });
+
+  it("returns empty array when no similar artists", async () => {
+    const { fn } = mockFetch([{ json: { similarartists: { artist: [] } } }]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getArtistSimilar("Unknown");
+
+    assert.deepEqual(result, []);
+  });
+});

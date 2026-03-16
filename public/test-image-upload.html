@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Image Upload Tester</title>
+  <style>
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 16px; }
+    form { margin-bottom: 20px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; }
+    label { display:block; margin:6px 0; }
+    img.preview { display:block; margin-top:8px; max-width:240px; max-height:180px; border:1px solid #ccc; }
+    pre { background:#f8f8f8; padding:8px; overflow:auto; max-height:240px; }
+    .user-grid { display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; }
+    .user-card { width:260px; border:1px solid #eee; padding:8px; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,0.03); }
+    .user-card h4 { margin:0 0 6px 0; font-size:14px; }
+    .user-card .meta { font-size:12px; color:#555; }
+    .user-card input[type=file] { margin-top:8px; }
+    .small { font-size:12px; color:#666; }
+    .btn { display:inline-block; margin-top:8px; padding:6px 8px; border-radius:4px; background:#06c; color:white; text-decoration:none; cursor:pointer; }
+    .btn.secondary { background:#777; }
+  </style>
+</head>
+<body>
+  <h1>Image upload tester</h1>
+
+  <section>
+    <h2>Create user (POST /users)</h2>
+    <form id="createForm">
+      <label>Username: <input name="username" required></label>
+      <label>Email: <input name="email" type="email" required></label>
+      <label>Password: <input name="password" type="password" required></label>
+      <label>Role: <input name="role" value="user"></label>
+      <label>Image: <input name="image" type="file" accept="image/*"></label>
+      <label><input type="checkbox" name="embed" value="1"> Request embedded base64 (embed=base64)</label>
+      <button type="submit">Create</button>
+    </form>
+    <div id="createResult"></div>
+  </section>
+
+  <section>
+    <h2>All users</h2>
+    <div style="margin-bottom:8px">
+      <button id="loadUsersBtn">Load users</button>
+      <span class="small">Click a card's Edit to edit inline or use the Update form below.</span>
+    </div>
+    <div id="usersList" class="user-grid">Loading...</div>
+  </section>
+
+  <section>
+    <h2>Update user (PUT /users/:id)</h2>
+    <div style="margin-bottom:8px">
+      <select id="userSelect" style="min-width:320px; margin-left:8px"><option value="">(select a user)</option></select>
+    </div>
+    <form id="updateForm">
+      <label>User ID: <input name="id" required placeholder="User _id or id"></label>
+      <label>Username: <input name="username"></label>
+      <label>Email: <input name="email" type="email"></label>
+      <label>Role: <input name="role"></label>
+      <label>Status: <input name="status"></label>
+      <label>Image: <input name="image" type="file" accept="image/*"></label>
+      <label><input type="checkbox" name="embed" value="1"> Request embedded base64 (embed=base64)</label>
+      <button type="submit">Update</button>
+    </form>
+    <div id="updateResult"></div>
+  </section>
+
+  <script>
+    function showResult(container, json, imageUrl) {
+      container.innerHTML = '';
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(json, null, 2);
+      container.appendChild(pre);
+      if (imageUrl) {
+        const img = document.createElement('img');
+        img.className = 'preview';
+        img.alt = 'preview';
+        img.src = imageUrl;
+        container.appendChild(img);
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.target = '_blank';
+        link.textContent = 'Open image in new tab';
+        link.style.display = 'inline-block';
+        link.style.marginTop = '6px';
+        container.appendChild(link);
+      }
+    }
+
+    // Render a grid of user cards with preview and inline edit
+    function renderUsersList(users) {
+      const container = document.getElementById('usersList');
+      container.innerHTML = '';
+      if (!Array.isArray(users) || users.length === 0) {
+        container.textContent = 'No users found';
+        return;
+      }
+      users.forEach(user => {
+        const id = user.id || user._id;
+        const card = document.createElement('div');
+        card.className = 'user-card';
+
+        const title = document.createElement('h4');
+        title.textContent = user.username || '(no username)';
+        card.appendChild(title);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = user.email || '';
+        card.appendChild(meta);
+
+        // decide image source: embedded -> imageUrl -> fallback
+        let imgSrc = '';
+        if (user.image && typeof user.image === 'string' && user.image.startsWith('data:')) imgSrc = user.image;
+        else if (user.imageUrl) imgSrc = user.imageUrl;
+        else if (id) imgSrc = '/users/' + id + '/image';
+
+        const img = document.createElement('img');
+        img.className = 'preview';
+        img.alt = 'avatar';
+        img.src = imgSrc || 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="100%" height="100%" fill="#f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#888" font-size="14">No image</text></svg>');
+        card.appendChild(img);
+
+        const controls = document.createElement('div');
+        controls.style.marginTop = '8px';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', () => openInlineEditor(card, user));
+        controls.appendChild(editBtn);
+
+        // quick open link
+        if (imgSrc) {
+          const openLink = document.createElement('a');
+          openLink.href = imgSrc;
+          openLink.target = '_blank';
+          openLink.textContent = ' View ';
+          openLink.style.marginLeft = '8px';
+          controls.appendChild(openLink);
+        }
+
+        card.appendChild(controls);
+        container.appendChild(card);
+      });
+    }
+
+    function openInlineEditor(card, user) {
+      // replace card content with a small edit form
+      card.innerHTML = '';
+      const id = user.id || user._id;
+      const form = document.createElement('form');
+      form.enctype = 'multipart/form-data';
+      form.innerHTML = `
+        <label>Username: <input name="username" value="${escapeHtml(user.username||'')}"></label>
+        <label>Email: <input name="email" value="${escapeHtml(user.email||'')}"></label>
+        <label>Role: <input name="role" value="${escapeHtml(user.role||'')}"></label>
+        <label>Status: <input name="status" value="${escapeHtml(user.status||'')}"></label>
+        <label>Replace image: <input type="file" name="image" accept="image/*"></label>
+        <div style="margin-top:8px">
+          <button type="submit" class="btn">Save</button>
+          <button type="button" class="btn secondary" id="cancelBtn">Cancel</button>
+        </div>
+      `;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        // ensure required fields exist? PUT requires username,email,role,status per server; if missing, we can set defaults from user
+        if (!fd.get('username')) fd.set('username', user.username || '');
+        if (!fd.get('email')) fd.set('email', user.email || '');
+        if (!fd.get('role')) fd.set('role', user.role || 'user');
+        if (!fd.get('status')) fd.set('status', user.status || 'active');
+        // send PUT
+        try {
+          const res = await fetch('/api/v1/users/' + encodeURIComponent(id) + '?embed=base64', { method: 'PUT', body: fd, headers: { Accept: 'application/json' } });
+          const text = await res.text();
+          let data; try { data = JSON.parse(text); } catch (_) { data = { raw: text }; }
+          if (!res.ok) {
+            alert('Update failed: ' + (data?.message || data?.error || text));
+            return;
+          }
+          // re-load users to refresh the grid
+          await loadUsersAndRender();
+        } catch (err) {
+          alert('Network error: ' + err.message);
+        }
+      });
+
+      const cancelBtn = form.querySelector('#cancelBtn');
+      cancelBtn.addEventListener('click', () => {
+        loadUsersAndRender();
+      });
+
+      card.appendChild(form);
+    }
+
+    async function loadUsersAndRender() {
+      const list = document.getElementById('usersList');
+      list.textContent = 'Loading...';
+      try {
+        const res = await fetch('api/v1/users', { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error('Failed to load users');
+        const data = await res.json();
+        const items = data.items || data;
+        renderUsersList(items);
+        populateUserSelect(items);
+      } catch (err) {
+        list.textContent = 'Error: ' + err.message;
+      }
+    }
+
+    function populateUserSelect(items) {
+      const sel = document.getElementById('userSelect');
+      sel.innerHTML = '<option value="">(select a user)</option>';
+      items.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.id || u._id;
+        opt.textContent = (u.username || '(no username)') + ' — ' + (u.email || '');
+        sel.appendChild(opt);
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str||'').replace(/[&<>"']/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]; });
+    }
+
+    document.getElementById('loadUsersBtn').addEventListener('click', loadUsersAndRender);
+
+    document.getElementById('createForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const fd = new FormData(form);
+      const embed = form.embed && form.embed.checked;
+      const url = '/api/v1/users' + (embed ? '?embed=base64' : '');
+      const resDiv = document.getElementById('createResult');
+      resDiv.textContent = 'Loading...';
+      try {
+        const res = await fetch(url, { method: 'POST', body: fd, headers: { Accept: 'application/json' } });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch (_) { data = { raw: text }; }
+        const imgSrc = data?.image || data?.imageUrl || null;
+        showResult(resDiv, data, imgSrc);
+        // refresh the users list
+        await loadUsersAndRender();
+      } catch (err) {
+        resDiv.textContent = 'Error: ' + err.message;
+      }
+    });
+
+    document.getElementById('userSelect').addEventListener('change', async function(e) {
+      const id = e.target.value;
+      document.querySelector('#updateForm input[name="id"]').value = id;
+      const resDiv = document.getElementById('updateResult');
+      if (!id) {
+        resDiv.innerHTML = 'No user selected.';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/v1/users/' + encodeURIComponent(id), { headers: { Accept: 'application/json' } });
+        if (!res.ok) {
+          resDiv.textContent = 'Failed to fetch user';
+          return;
+        }
+        const data = await res.json();
+        document.querySelector('#updateForm input[name="username"]').value = data.username || '';
+        document.querySelector('#updateForm input[name="email"]').value = data.email || '';
+        document.querySelector('#updateForm input[name="role"]').value = data.role || '';
+        document.querySelector('#updateForm input[name="status"]').value = data.status || '';
+        const imgSrc = data.image || data.imageUrl || null;
+        showResult(resDiv, data, imgSrc);
+      } catch (err) {
+        resDiv.textContent = 'Error: ' + err.message;
+      }
+    });
+
+    document.getElementById('updateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const id = form.id.value.trim();
+      if (!id) return alert('User ID required');
+      const fd = new FormData();
+      if (form.username.value) fd.append('username', form.username.value);
+      if (form.email.value) fd.append('email', form.email.value);
+      if (form.role.value) fd.append('role', form.role.value);
+      if (form.status.value) fd.append('status', form.status.value);
+      if (form.image.files && form.image.files[0]) fd.append('image', form.image.files[0]);
+      const embed = form.embed && form.embed.checked;
+      const url = '/api/v1/users/' + encodeURIComponent(id) + (embed ? '?embed=base64' : '');
+      const resDiv = document.getElementById('updateResult');
+      resDiv.textContent = 'Loading...';
+      try {
+        const res = await fetch(url, { method: 'PUT', body: fd, headers: { Accept: 'application/json' } });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch (_) { data = { raw: text }; }
+        const imgSrc = data?.image || data?.imageUrl || null;
+        showResult(resDiv, data, imgSrc);
+        await loadUsersAndRender();
+      } catch (err) {
+        resDiv.textContent = 'Error: ' + err.message;
+      }
+    });
+
+    // initial load
+    loadUsersAndRender();
+  </script>
+</body>
+</html>
