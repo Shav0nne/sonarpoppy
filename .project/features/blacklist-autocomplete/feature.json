@@ -1,0 +1,272 @@
+{
+  "name": "blacklist-autocomplete",
+  "created": "2026-03-16",
+  "status": "DONE",
+  "summary": "Autocomplete/zoek-endpoints voor blacklist: GET /api/v1/artists/search?q= (eigen Track DB distinct artists + Last.fm artist.search, dedup), GET /api/v1/tracks/search?q= (eigen Track DB op title+artist). Max 10 resultaten, min 2 chars. Case-insensitive duplicate check in POST /blacklist.",
+  "depends": ["blacklist"],
+  "choices": [
+    {
+      "question": "Wat moet de autocomplete precies doen?",
+      "answer": "DB + Last.fm fallback: Artist search eerst eigen Track DB (distinct artists), dan Last.fm artist.search als aanvulling. Track search alleen eigen DB op title+artist. Genres niet nodig (statische lijst van 20)."
+    },
+    {
+      "question": "Hoe moet de response eruitzien?",
+      "answer": "Platte lijst: array van objecten. Bij artists dedup op lowercase naam."
+    },
+    {
+      "question": "Limieten?",
+      "answer": "Max 10 resultaten, min 2 chars query (anders 400)."
+    },
+    {
+      "question": "Duplicate check scope?",
+      "answer": "Alleen nieuwe entries case-insensitive checken. Bestaande entries ongewijzigd."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "Artist search endpoint: GET /api/v1/artists/search?q=",
+      "category": "API",
+      "acceptanceCriteria": "Zoekt in Track DB (distinct artists, case-insensitive) + Last.fm artist.search. Dedup op lowercase naam. Max 10 resultaten. Min 2 chars query, anders 400. Response: [{ name }]",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "GET /search in routes/artists.js — DB distinct + Last.fm merge met dedup"
+    },
+    {
+      "id": "REQ-002",
+      "description": "Track search endpoint: GET /api/v1/tracks/search?q=",
+      "category": "API",
+      "acceptanceCriteria": "Zoekt in Track DB op title+artist (case-insensitive regex). Max 10 resultaten. Min 2 chars query, anders 400. Response: [{ title, artist }]",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "GET /search in routes/tracks.js — $or regex op title+artist, limit 10"
+    },
+    {
+      "id": "REQ-003",
+      "description": "Last.fm client: searchArtists(query) method",
+      "category": "Service",
+      "acceptanceCriteria": "Nieuwe method op lastfmClient die artist.search API aanroept. Mapped response naar [{ name }]. Bij fout graceful afhandelen (caller vangt op).",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "searchArtists(query) in lastfm/client.js + mapArtistSearch() in lastfm/mappers.js"
+    },
+    {
+      "id": "REQ-004",
+      "description": "Case-insensitive duplicate check in POST /blacklist",
+      "category": "Bugfix",
+      "acceptanceCriteria": "entry.value.toLowerCase() === value.toLowerCase() voor track en artist types. Genre check ongewijzigd (al genormaliseerd via resolveAlias).",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "Case-insensitive check in routes/blacklist.js — toLowerCase() voor track+artist, genre exact"
+    }
+  ],
+  "files": [
+    {
+      "path": "src/services/lastfm/client.js",
+      "type": "service",
+      "action": "modify",
+      "purpose": "searchArtists(query) method toevoegen",
+      "requirements": ["REQ-003"]
+    },
+    {
+      "path": "src/services/lastfm/mappers.js",
+      "type": "service",
+      "action": "modify",
+      "purpose": "mapArtistSearch() mapper toevoegen",
+      "requirements": ["REQ-003"]
+    },
+    {
+      "path": "routes/artists.js",
+      "type": "route",
+      "action": "modify",
+      "purpose": "GET /search?q= endpoint (DB distinct + Last.fm merge)",
+      "requirements": ["REQ-001"]
+    },
+    {
+      "path": "routes/tracks.js",
+      "type": "route",
+      "action": "modify",
+      "purpose": "GET /search?q= endpoint (DB $or regex)",
+      "requirements": ["REQ-002"]
+    },
+    {
+      "path": "routes/blacklist.js",
+      "type": "route",
+      "action": "modify",
+      "purpose": "Case-insensitive duplicate check",
+      "requirements": ["REQ-004"]
+    },
+    {
+      "path": "test/unit/lastfm-mappers.test.js",
+      "type": "test",
+      "action": "modify",
+      "purpose": "mapArtistSearch tests",
+      "requirements": ["REQ-003"]
+    },
+    {
+      "path": "test/unit/lastfm-client.test.js",
+      "type": "test",
+      "action": "modify",
+      "purpose": "searchArtists tests",
+      "requirements": ["REQ-003"]
+    },
+    {
+      "path": "test/unit/routes-artists.test.js",
+      "type": "test",
+      "action": "modify",
+      "purpose": "Artist search endpoint tests",
+      "requirements": ["REQ-001"]
+    },
+    {
+      "path": "test/unit/routes-tracks-search.test.js",
+      "type": "test",
+      "action": "create",
+      "purpose": "Track search endpoint tests",
+      "requirements": ["REQ-002"]
+    },
+    {
+      "path": "test/integration/blacklist.integration.test.js",
+      "type": "test",
+      "action": "modify",
+      "purpose": "Case-insensitive duplicate rejection test",
+      "requirements": ["REQ-004"]
+    }
+  ],
+  "architecture": {
+    "componentTree": "GET /artists/search → routes/artists.js → Track.distinct('artist', regex) + lastfmClient.searchArtists(q) → dedup lowercase → [{ name }]\nGET /tracks/search → routes/tracks.js → Track.find({ $or: [{ title: regex }, { artist: regex }] }).limit(10) → [{ title, artist }]\nPOST /blacklist → routes/blacklist.js → entry.value.toLowerCase() === value.toLowerCase()",
+    "interfaces": [
+      {
+        "method": "GET",
+        "path": "/api/v1/artists/search?q=",
+        "response": "{ results: [{ name: string }] }"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/tracks/search?q=",
+        "response": "{ results: [{ title: string, artist: string }] }"
+      }
+    ]
+  },
+  "apiContract": [
+    {
+      "method": "GET",
+      "path": "/api/v1/artists/search",
+      "query": { "q": "string (min 2 chars)" },
+      "response": { "results": "[{ name }]" },
+      "errors": { "400": "Query te kort (< 2 chars)" }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tracks/search",
+      "query": { "q": "string (min 2 chars)" },
+      "response": { "results": "[{ title, artist }]" },
+      "errors": { "400": "Query te kort (< 2 chars)" }
+    }
+  ],
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-003"],
+      "description": "Last.fm searchArtists method + mapArtistSearch mapper",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-001", "REQ-002", "REQ-004"],
+      "description": "Search endpoints op artists + tracks routes, case-insensitive blacklist duplicate check",
+      "dependsOn": [1]
+    }
+  ],
+  "testStrategy": [
+    {
+      "requirement": "REQ-001",
+      "testFile": "test/unit/routes-artists.test.js",
+      "description": "Query validatie (min 2 chars → 400), DB+Last.fm merge, dedup op lowercase, max 10 limit, graceful Last.fm fout"
+    },
+    {
+      "requirement": "REQ-002",
+      "testFile": "test/unit/routes-tracks-search.test.js",
+      "description": "Query validatie (min 2 chars → 400), regex match op title+artist, max 10 limit"
+    },
+    {
+      "requirement": "REQ-003",
+      "testFile": "test/unit/lastfm-client.test.js + test/unit/lastfm-mappers.test.js",
+      "description": "searchArtists API call, mapArtistSearch response mapping, lege resultaten"
+    },
+    {
+      "requirement": "REQ-004",
+      "testFile": "test/integration/blacklist.integration.test.js",
+      "description": "Case-insensitive duplicate rejection: 'Radiohead' vs 'radiohead' → 409"
+    }
+  ],
+  "build": {
+    "started": "2026-03-16",
+    "completed": "2026-03-16",
+    "techniques": {
+      "tdd": 2,
+      "implementationFirst": 2,
+      "implementationOnly": 0
+    },
+    "testsPass": 733,
+    "testsTotal": 734,
+    "explanation": "**Wat doet het?** Zoekendpoints voor artiesten (DB + Last.fm, dedup) en tracks (DB regex). Case-insensitive duplicate check in blacklist.\n\n**Hoe werkt het?** `[Frontend typt query] → [GET /artists/search?q=] → [Track DB distinct + Last.fm search] → [Dedup lowercase] → [max 10 resultaten]`. Blacklist POST: `toLowerCase()` vergelijking voor track/artist types.",
+    "decisions": [
+      "Genre duplicate check blijft exact (al genormaliseerd via resolveAlias), alleen track+artist worden case-insensitive",
+      "DB artists hebben voorrang bij dedup — Last.fm resultaten worden alleen toegevoegd als ze niet al in DB staan",
+      "GET /search routes staan vóór parametrische routes (/:name) om route conflict te voorkomen"
+    ]
+  },
+  "packages": [],
+  "tests": {
+    "checklist": [
+      {
+        "id": 1,
+        "title": "Artist search retourneert DB + Last.fm resultaten, gededupliceerd",
+        "requirementId": "REQ-001",
+        "steps": [
+          "GET /api/v1/artists/search?q=radio",
+          "Controleer response bevat DB artists + Last.fm aanvullingen",
+          "Controleer geen duplicaten op lowercase naam"
+        ],
+        "expected": "200 met { results: [{ name }] }, max 10 items, geen case-duplicaten",
+        "status": "PASS"
+      },
+      {
+        "id": 2,
+        "title": "Artist search valideert min 2 chars",
+        "requirementId": "REQ-001",
+        "steps": ["GET /api/v1/artists/search?q=a"],
+        "expected": "400 met error 'Query must be at least 2 characters'",
+        "status": "PASS"
+      },
+      {
+        "id": 3,
+        "title": "Track search retourneert matches op title en artist",
+        "requirementId": "REQ-002",
+        "steps": ["GET /api/v1/tracks/search?q=bohemian"],
+        "expected": "200 met { results: [{ title, artist }] }, max 10 items",
+        "status": "PASS"
+      },
+      {
+        "id": 4,
+        "title": "Blacklist weigert case-insensitive artist duplicaat",
+        "requirementId": "REQ-004",
+        "steps": [
+          "POST /api/v1/blacklist met { type: 'artist', value: 'Radiohead' }",
+          "POST /api/v1/blacklist met { type: 'artist', value: 'radiohead' }"
+        ],
+        "expected": "Eerste POST: 201. Tweede POST: 409 'Entry already exists in blacklist'",
+        "status": "PASS"
+      }
+    ],
+    "finalStatus": "PASSED",
+    "sessions": [{ "date": "2026-03-16", "pass": 4, "fail": 0, "skip": 0 }]
+  },
+  "research": [
+    {
+      "topic": "Last.fm artist.search response format",
+      "source": "Last.fm API docs",
+      "finding": "Response: { results: { artistmatches: { artist: [{ name, listeners, mbid, url, image }] } } }. Pagination via startPage + limit params."
+    }
+  ]
+}
