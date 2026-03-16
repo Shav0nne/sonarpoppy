@@ -492,7 +492,7 @@ Max 10 resultaten. | Fout 400: query ontbreekt of < 2 tekens.
 
 ---
 
-### GET /api/v1/blacklist
+---
 
 Alle geblokkeerde items.
 

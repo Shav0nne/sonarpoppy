@@ -1,0 +1,351 @@
+{
+  "name": "admin-algorithm-tuning",
+  "created": "2026-03-16",
+  "status": "DONE",
+  "summary": "Admin kan alle scoring parameters live aanpassen (hybrid weights, feedback multipliers, CF weights, profile evolution, play count config, dial preset waarden) via CRUD endpoints, en per-track score breakdowns opvragen via een explain endpoint. AlgorithmConfig als singleton MongoDB document, persistent over restarts.",
+  "depends": [],
+  "choices": {
+    "coreFunction": "Tuning + Score Explain: admin past parameters aan en kan per-track score breakdowns opvragen",
+    "dataState": "MongoDB singleton document (AlgorithmConfig) met alle tunable parameters, updatedAt + updatedBy",
+    "outputContract": "GET/PATCH /admin/config voor tuning, GET /admin/explain/:trackId voor score breakdown",
+    "dialScope": "Alles tunable: 5 standen blijven vast, waarden (threshold, sortSignal, unplayedOnly) aanpasbaar",
+    "dialDetail": "Alleen waarden wijzigen, geen CRUD op standen zelf",
+    "audit": "Simpel: updatedAt + updatedBy (geen changelog)"
+  },
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "AlgorithmConfig Mongoose model als singleton document met alle tunable parameters + updatedAt/updatedBy",
+      "category": "Data",
+      "acceptanceCriteria": "Model valideert weights (som=1.0 waar van toepassing), defaults matchen huidige hardcoded waarden, upsert bij eerste read",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "AlgorithmConfig singleton + configLoader lazy seed/partial merge/reset in src/services/admin/"
+    },
+    {
+      "id": "REQ-002",
+      "description": "GET /api/v1/admin/config retourneert de huidige configuratie",
+      "category": "API",
+      "acceptanceCriteria": "Admin-only (ifAdmin), retourneert alle parameter groepen, lazy-seed met defaults als document niet bestaat",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "GET /admin/config met lazy seed + ifAdmin guard"
+    },
+    {
+      "id": "REQ-003",
+      "description": "PATCH /api/v1/admin/config voor partial updates van scoring parameters",
+      "category": "API",
+      "acceptanceCriteria": "Partial merge (alleen meegegeven velden overschrijven), validatie op waardebereiken, updatedBy uit JWT, 403 voor non-admin",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "PATCH /admin/config partial merge + validatie + updatedBy"
+    },
+    {
+      "id": "REQ-004",
+      "description": "Scoring functies lezen config uit DB i.p.v. hardcoded constanten",
+      "category": "Integration",
+      "acceptanceCriteria": "hybridScore, getFeedbackMultiplier, computeCfScore, evolveProfileWeights gebruiken AlgorithmConfig waarden. Fallback naar defaults bij geen document.",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "recommend.js laadt AlgorithmConfig → hybridWeights/feedbackConfig/cfConfig doorgegeven aan scoring functies. Fallback naar DEFAULT_ALGORITHM_CONFIG."
+    },
+    {
+      "id": "REQ-005",
+      "description": "Dial preset waarden (threshold, sortSignal, unplayedOnly) aanpasbaar via config",
+      "category": "Integration",
+      "acceptanceCriteria": "5 standen blijven vast, waarden overschrijfbaar via dialPresets array in config. getDialPreset() merged DB overrides met frozen defaults.",
+      "status": "PASS",
+      "technique": "TDD",
+      "syncNote": "getDialPreset(position, configOverrides) merged DB overrides met frozen defaults. 5 standen vast, alleen waarden overschrijfbaar."
+    },
+    {
+      "id": "REQ-006",
+      "description": "GET /api/v1/admin/explain/:trackId score explain per track+user",
+      "category": "API",
+      "acceptanceCriteria": "Admin-only, query param userId, retourneert volledige breakdown: genreScore, cfScore, hybridWeights, rawScore, feedbackMultiplier, finalScore, bubbleFilter status, cfDetail",
+      "status": "PASS",
+      "technique": "Implementation First",
+      "syncNote": "explainTrackScore() repliceert scoring pipeline met volledige breakdown. Admin-only via ifAdmin."
+    }
+  ],
+  "files": [
+    {
+      "path": "src/models/AlgorithmConfig.js",
+      "type": "model",
+      "action": "create",
+      "purpose": "Mongoose singleton model met alle tunable scoring parameters",
+      "requirements": ["REQ-001"]
+    },
+    {
+      "path": "src/services/admin/configLoader.js",
+      "type": "service",
+      "action": "create",
+      "purpose": "Config CRUD: getAlgorithmConfig, updateAlgorithmConfig, resetAlgorithmConfig met lazy seeding en validatie",
+      "requirements": ["REQ-001", "REQ-004"]
+    },
+    {
+      "path": "src/services/admin/explainScore.js",
+      "type": "service",
+      "action": "create",
+      "purpose": "Per-track score explain: repliceert scoring pipeline met gedetailleerde breakdown",
+      "requirements": ["REQ-006"]
+    },
+    {
+      "path": "routes/admin.js",
+      "type": "route",
+      "action": "create",
+      "purpose": "Admin-only endpoints: GET/PATCH config, POST reset, GET explain/:trackId",
+      "requirements": ["REQ-002", "REQ-003", "REQ-006"]
+    },
+    {
+      "path": "routes/index.js",
+      "type": "route",
+      "action": "modify",
+      "purpose": "Mount admin router onder /admin na JWT middleware",
+      "requirements": ["REQ-002", "REQ-003", "REQ-006"]
+    },
+    {
+      "path": "src/services/recommendation/recommend.js",
+      "type": "service",
+      "action": "modify",
+      "purpose": "Config laden via configLoader, doorgeven aan hybridScore/feedbackMultiplier/cfScore",
+      "requirements": ["REQ-004"]
+    },
+    {
+      "path": "src/config/dial.js",
+      "type": "config",
+      "action": "modify",
+      "purpose": "getDialPreset() accept config overrides en merged met frozen defaults",
+      "requirements": ["REQ-005"]
+    }
+  ],
+  "architecture": {
+    "componentTree": "routes/admin.js → services/admin/configLoader.js → models/AlgorithmConfig.js\nroutes/admin.js → services/admin/explainScore.js → scoring pipeline\nrecommend.js → configLoader.js → AlgorithmConfig\ndial.js → configLoader.js → AlgorithmConfig (dial overrides)",
+    "interfaces": {
+      "AlgorithmConfig": {
+        "hybridWeights": "{ genre: Number, cf: Number }",
+        "feedbackMultipliers": "{ like, dislike, library, skip: Number }",
+        "cfWeights": "{ track: Number, artist: Number }",
+        "profileEvolution": "{ like, library, dislike, skip: Number }",
+        "playCount": "{ threshold: Number, bonus: Number, halfLifeDays: Number }",
+        "dialPresets": "[{ position: Number, threshold: Number|null, sortSignal: String, unplayedOnly: Boolean }]",
+        "updatedAt": "Date",
+        "updatedBy": "ObjectId"
+      },
+      "explainResponse": {
+        "track": "{ artist, title, _id }",
+        "genreScore": "Number",
+        "cfScore": "Number|null",
+        "hybridWeights": "{ genre, cf }",
+        "rawScore": "Number",
+        "feedbackMultiplier": "Number",
+        "feedbackAction": "String|null",
+        "finalScore": "Number",
+        "bubbleFilter": "{ dial, threshold, passes }",
+        "cfDetail": "{ trackOverlap, artistOverlap, enrichedAt }"
+      }
+    }
+  },
+  "apiContract": [
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/config",
+      "auth": "JWT + admin role",
+      "response": "AlgorithmConfig document (alle parameter groepen)"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/admin/config",
+      "auth": "JWT + admin role",
+      "body": "Partial AlgorithmConfig (alleen velden die wijzigen)",
+      "response": "Updated AlgorithmConfig document"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/config/reset",
+      "auth": "JWT + admin role",
+      "response": "AlgorithmConfig document met defaults"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/explain/:trackId",
+      "auth": "JWT + admin role",
+      "query": "userId (required)",
+      "response": "Score explain breakdown"
+    }
+  ],
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-001"],
+      "description": "AlgorithmConfig model + configLoader service (CRUD, defaults, validatie, lazy seeding)",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-002", "REQ-003"],
+      "description": "Admin routes: GET/PATCH config, POST reset. Mount in index.js.",
+      "dependsOn": [1]
+    },
+    {
+      "step": 3,
+      "requirements": ["REQ-004", "REQ-005"],
+      "description": "Scoring pipeline integratie: recommend.js laadt config, dial.js accept overrides, scoring functies gebruiken DB config",
+      "dependsOn": [1]
+    },
+    {
+      "step": 4,
+      "requirements": ["REQ-006"],
+      "description": "Explain endpoint: explainScore service + admin route",
+      "dependsOn": [1, 3]
+    }
+  ],
+  "testStrategy": [
+    {
+      "requirement": "REQ-001",
+      "testFile": "test/unit/algorithm-config-model.test.js",
+      "description": "Schema validatie, defaults, singleton upsert"
+    },
+    {
+      "requirement": "REQ-002,REQ-003",
+      "testFile": "test/unit/routes-admin.test.js",
+      "description": "Config CRUD, admin guard, partial merge, validatie"
+    },
+    {
+      "requirement": "REQ-004",
+      "testFile": "test/unit/config-loader.test.js",
+      "description": "getAlgorithmConfig, lazy seed, fallback naar defaults"
+    },
+    {
+      "requirement": "REQ-005",
+      "testFile": "test/unit/dial-config-override.test.js",
+      "description": "getDialPreset met DB overrides, merge logica"
+    },
+    {
+      "requirement": "REQ-006",
+      "testFile": "test/unit/explain-score.test.js",
+      "description": "Score explain output, alle signalen aanwezig"
+    },
+    {
+      "requirement": "REQ-001-006",
+      "testFile": "test/integration/admin-tuning.integration.test.js",
+      "description": "End-to-end: config wijzigen, recommendations veranderen, explain klopt"
+    }
+  ],
+  "build": {
+    "started": "2026-03-16",
+    "completed": "2026-03-16",
+    "techniques": { "tdd": 3, "implementationFirst": 3, "implementationOnly": 0 },
+    "testsPass": 37,
+    "testsTotal": 37,
+    "explanation": "Admin kan via PATCH /admin/config alle scoring parameters live aanpassen (hybridWeights, feedbackMultipliers, cfWeights, playCount, dialPresets). recommend.js leest bij elke request de AlgorithmConfig uit MongoDB en geeft waarden door aan hybridScore, getFeedbackMultiplier, computeCfScore en getDialPreset. GET /admin/explain/:trackId repliceert de scoring pipeline met volledige breakdown per track+user.",
+    "decisions": [
+      "updatedBy als String type (niet ObjectId) — matcht JWT payload.sub pattern",
+      "DEFAULT_ALGORITHM_CONFIG exported voor fallback zonder DB",
+      "mongoose.connection.readyState check in recommend.js voorkomt buffered query hang"
+    ]
+  },
+  "packages": [],
+  "tests": {
+    "checklist": [
+      {
+        "id": 1,
+        "title": "Admin config ophalen retourneert alle parameter groepen",
+        "requirementId": "REQ-001",
+        "steps": ["login als admin", "GET /api/v1/admin/config"],
+        "expected": "JSON met hybridWeights, feedbackMultipliers, cfWeights, profileEvolution, playCount, dialPresets",
+        "status": "PASS"
+      },
+      {
+        "id": 2,
+        "title": "Config partial update overschrijft alleen meegegeven velden",
+        "requirementId": "REQ-003",
+        "steps": [
+          "login als admin",
+          "PATCH /api/v1/admin/config met { hybridWeights: { genre: 0.7, cf: 0.3 } }",
+          "GET /api/v1/admin/config"
+        ],
+        "expected": "hybridWeights gewijzigd naar 0.7/0.3, andere velden intact",
+        "status": "PASS"
+      },
+      {
+        "id": 3,
+        "title": "Non-admin krijgt 403 op config endpoints",
+        "requirementId": "REQ-002",
+        "steps": ["login als gewone user", "GET /api/v1/admin/config"],
+        "expected": "403 Forbidden response",
+        "status": "PASS"
+      },
+      {
+        "id": 4,
+        "title": "Config reset herstelt alle defaults",
+        "requirementId": "REQ-003",
+        "steps": [
+          "login als admin",
+          "PATCH config met gewijzigde waarden",
+          "POST /api/v1/admin/config/reset",
+          "GET /api/v1/admin/config"
+        ],
+        "expected": "Alle waarden terug naar defaults (genre: 0.5, cf: 0.5, etc.)",
+        "status": "PASS"
+      },
+      {
+        "id": 5,
+        "title": "Gewijzigde config beïnvloedt recommendations",
+        "requirementId": "REQ-004",
+        "steps": [
+          "login als admin",
+          "PATCH config met hybridWeights { genre: 0.9, cf: 0.1 }",
+          "POST /api/v1/recommendations met profiel"
+        ],
+        "expected": "Scores verschoven richting genre-dominantie",
+        "status": "PASS"
+      },
+      {
+        "id": 6,
+        "title": "Dial preset overrides wijzigen bubbel-filter gedrag",
+        "requirementId": "REQ-005",
+        "steps": [
+          "login als admin",
+          "PATCH config met dialPresets [{ position: 1, threshold: 0.9, sortSignal: 'genreSim', unplayedOnly: false }]",
+          "POST recommendations met dial=1"
+        ],
+        "expected": "Striktere filtering (threshold 0.9 i.p.v. 0.6)",
+        "status": "PASS"
+      },
+      {
+        "id": 7,
+        "title": "Explain endpoint toont volledige score breakdown",
+        "requirementId": "REQ-006",
+        "steps": ["login als admin", "GET /api/v1/admin/explain/:trackId?userId=xxx"],
+        "expected": "JSON met genreScore, cfScore, hybridWeights, rawScore, feedbackMultiplier, finalScore, bubbleFilter, cfDetail",
+        "status": "PASS"
+      }
+    ],
+    "finalStatus": "PASSED",
+    "sessions": [
+      {
+        "date": "2026-03-16",
+        "pass": 7,
+        "fail": 0,
+        "skip": 0
+      }
+    ],
+    "fixSync": [
+      {
+        "item": 7,
+        "title": "explainScore.js Object.fromEntries crash op .lean() resultaat",
+        "problem": "GenreSliders.findOne().lean() retourneert sliders als plain object, Object.fromEntries() verwacht iterable (Map)",
+        "change": "src/services/admin/explainScore.js:44-50 — type-check die zowel Map als plain object afhandelt",
+        "watchOut": "Alle .lean() queries op Mongoose Maps retourneren plain objects, niet Map instances"
+      }
+    ]
+  },
+  "durableDecisions": [
+    "AlgorithmConfig is singleton document (findOneAndUpdate met upsert, geen _id filtering)",
+    "Scoring functies behouden hun config parameter pattern — configLoader levert waarden, functies ontvangen ze als argument",
+    "Dial presets: 5 standen vast (position 1-5), alleen waarden overschrijfbaar, geen CRUD op standen",
+    "Admin routes onder /api/v1/admin/ prefix, ifAdmin middleware per route",
+    "Geen caching in configLoader — DB read per request (config document is klein, MongoDB cached in memory)"
+  ]
+}

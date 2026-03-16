@@ -19,6 +19,24 @@ const spotifyClient =
         })
         : null;
 
+router.get("/search", async (req, res) => {
+  const q = req.query.q;
+  if (!q || q.length < 2) {
+    return res.status(400).json({ error: "Query must be at least 2 characters" });
+  }
+
+  const regex = new RegExp(q, "i");
+  const tracks = await Track.find({
+    $or: [{ title: regex }, { artist: regex }],
+  })
+    .limit(10)
+    .lean();
+
+  res.json({
+    results: tracks.map((t) => ({ title: t.title, artist: t.artist })),
+  });
+});
+
 router.get("/", async (req, res) => {
     const tracks = await Track.find().lean();
     res.json({
