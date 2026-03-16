@@ -1,17 +1,32 @@
 import express from 'express';
-import mongoose from 'mongoose';
-import Friend from '../models/friendModel.js';
-import User from '../models/userModel.js';
-import { protect } from '../middleware/authMiddleware.js';
+import Friend from '../src/models/Friend.js';
+import User from '../src/models/User.js';
+import { protect as friendProtect } from '../src/middleware/friendMiddleware.js';
 
 const router = express.Router();
 
-// GET /api/friends
-router.get('/', protect, async (req, res) => {
+// OPTIONS for collection
+router.options("/", (req, res) => {
+    res.setHeader("Allow", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+    res.sendStatus(204);
+});
+
+// OPTIONS for single resource
+router.options("/:id", (req, res) => {
+    res.setHeader("Allow", "GET, OPTIONS, PATCH, DELETE");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS, PATCH, DELETE");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+    res.sendStatus(204);
+});
+
+// GET /api/friends - Get all friends of the authenticated user
+router.get('/', friendProtect, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Find all friendships where the user is either the sender or receiver and the status is accepted
+        // Find all accepted friendships where the user is involved
         const friendships = await Friend.find({
             $or: [
                 { sender_user_id: userId, status: 'accepted' },
@@ -19,7 +34,7 @@ router.get('/', protect, async (req, res) => {
             ]
         }).populate('sender_user_id receiver_user_id', 'username email image');
 
-        //response for each friendship
+        // Format the response for each friendship
         const friends = friendships.map(friendship => {
             const isSender = friendship.sender_user_id._id.toString() === userId;
             const friend = isSender ? friendship.receiver_user_id : friendship.sender_user_id;
@@ -30,7 +45,8 @@ router.get('/', protect, async (req, res) => {
                 email: friend.email,
                 image: friend.image,
                 friendshipId: friendship._id,
-                since: friendship.accepted_at || friendship.updatedAt
+                since: friendship.accepted_at || friendship.updatedAt,
+                status: friendship.status
             };
         });
 
@@ -51,24 +67,24 @@ router.get('/', protect, async (req, res) => {
     }
 });
 
-// GET /api/friends/requests
-router.get('/requests', protect, async (req, res) => {
+// GET /api/friends/requests - Get all pending friend requests
+router.get('/requests', friendProtect , async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // incoming requests
+        // Find incoming pending requests (user is the receiver)
         const incomingRequests = await Friend.find({
             receiver_user_id: userId,
             status: 'pending'
         }).populate('sender_user_id', 'username email image');
 
-        // outgoing requests
+        // Find outgoing pending requests (user is the sender)
         const outgoingRequests = await Friend.find({
             sender_user_id: userId,
             status: 'pending'
         }).populate('receiver_user_id', 'username email image');
 
-        // format the response to include user details and links
+        // Format incoming requests
         const formattedIncoming = incomingRequests.map(req => ({
             id: req._id,
             sender: {
@@ -78,9 +94,15 @@ router.get('/requests', protect, async (req, res) => {
                 image: req.sender_user_id.image
             },
             status: req.status,
-            createdAt: req.createdAt
+            createdAt: req.createdAt,
+            _links: {
+                self: { href: `${process.env.BASE_URI}/api/friends/${req._id}` },
+                accept: { href: `${process.env.BASE_URI}/api/friends/${req._id}`, method: 'PATCH' },
+                reject: { href: `${process.env.BASE_URI}/api/friends/${req._id}`, method: 'PATCH' }
+            }
         }));
 
+        // Format outgoing requests
         const formattedOutgoing = outgoingRequests.map(req => ({
             id: req._id,
             receiver: {
@@ -90,7 +112,11 @@ router.get('/requests', protect, async (req, res) => {
                 image: req.receiver_user_id.image
             },
             status: req.status,
-            createdAt: req.createdAt
+            createdAt: req.createdAt,
+            _links: {
+                self: { href: `${process.env.BASE_URI}/api/friends/${req._id}` },
+                cancel: { href: `${process.env.BASE_URI}/api/friends/${req._id}`, method: 'DELETE' }
+            }
         }));
 
         res.json({
@@ -112,13 +138,13 @@ router.get('/requests', protect, async (req, res) => {
     }
 });
 
-// POST /api/friends/request
-router.post('/request', protect, async (req, res) => {
+// POST /api/friends/request - Send a friend request
+router.post('/request', friendProtect , async (req, res) => {
     try {
         const senderId = req.user.id;
         const { userId, email } = req.body;
 
-        // search user by id or email?
+        // Find the receiver by ID or email
         let receiver;
         if (userId) {
             receiver = await User.findById(userId);
@@ -133,7 +159,7 @@ router.post('/request', protect, async (req, res) => {
             });
         }
 
-        // check if sender is trying to send request to themselves
+        // Check if sender is trying to add themselves
         if (senderId === receiver._id.toString()) {
             return res.status(400).json({
                 success: false,
@@ -141,35 +167,46 @@ router.post('/request', protect, async (req, res) => {
             });
         }
 
-        // check if there is already a friendship or pending request between these users
-        const existingFriendship = await Friend.findExistingFriendship(senderId, receiver._id);
+        // Check if a friendship already exists
+        const existingFriendship = await Friend.findOne({
+            $or: [
+                { sender_user_id: senderId, receiver_user_id: receiver._id },
+                { sender_user_id: receiver._id, receiver_user_id: senderId }
+            ]
+        });
 
         if (existingFriendship) {
             if (existingFriendship.status === 'pending') {
                 return res.status(400).json({
                     success: false,
-                    error: 'Pending request already exists'
+                    error: 'A pending request already exists between these users'
                 });
             } else if (existingFriendship.status === 'accepted') {
                 return res.status(400).json({
                     success: false,
-                    error: 'Yay! You are now friends'
+                    error: 'You are already friends with this user'
                 });
-            } else if (existingFriendship.status === 'rejected') {
+            } else if (existingFriendship.status === 'rejected' || existingFriendship.status === 'blocked') {
+                // Update existing relationship to pending
                 existingFriendship.status = 'pending';
                 existingFriendship.sender_user_id = senderId;
                 existingFriendship.receiver_user_id = receiver._id;
+                existingFriendship.accepted_at = null;
                 await existingFriendship.save();
 
                 return res.status(201).json({
                     success: true,
-                    message: 'Friendship request re-sent',
-                    data: existingFriendship
+                    message: 'Friend request sent successfully',
+                    data: existingFriendship,
+                    _links: {
+                        self: { href: `${process.env.BASE_URI}/api/friends/${existingFriendship._id}` },
+                        collection: { href: `${process.env.BASE_URI}/api/friends` }
+                    }
                 });
             }
         }
 
-        //make new friend request
+        // Create new friend request
         const friendRequest = await Friend.create({
             sender_user_id: senderId,
             receiver_user_id: receiver._id,
@@ -178,15 +215,19 @@ router.post('/request', protect, async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Friendship request sent',
-            data: friendRequest
+            message: 'Friend request sent successfully',
+            data: friendRequest,
+            _links: {
+                self: { href: `${process.env.BASE_URI}/api/friends/${friendRequest._id}` },
+                collection: { href: `${process.env.BASE_URI}/api/friends` }
+            }
         });
     } catch (error) {
-        //check for duplicate key error (unique index violation)
+        // Handle duplicate key error
         if (error.code === 11000) {
             return res.status(400).json({
                 success: false,
-                error: 'There is already a pending request between these users'
+                error: 'A relationship already exists between these users'
             });
         }
         res.status(500).json({
@@ -196,44 +237,45 @@ router.post('/request', protect, async (req, res) => {
     }
 });
 
-// PATCH /api/friends/:requestId
-router.patch('/:requestId', protect, async (req, res) => {
+// PATCH /api/friends/:requestId - Accept or reject a friend request
+router.patch('/:requestId', friendProtect, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { requestId } = req.params;
         const { status } = req.body;
+        const friendship = req.friendship; // From friendMiddleware
 
+        // Validate status
         if (!['accepted', 'rejected'].includes(status)) {
             return res.status(400).json({
                 success: false,
-                error: 'Status moet "accepted" of "rejected" zijn'
+                error: 'Status must be "accepted" or "rejected"'
             });
         }
 
-        //Find the friend request and check if the user is the receiver and the status is pending
-        const friendRequest = await Friend.findOne({
-            _id: requestId,
-            receiver_user_id: userId,
-            status: 'pending'
-        });
-
-        if (!friendRequest) {
-            return res.status(404).json({
-                success: false, error: 'Request not found'
+        // Check if user is the receiver and status is pending
+        if (friendship.receiver_user_id.toString() !== userId || friendship.status !== 'pending') {
+            return res.status(403).json({
+                success: false,
+                error: 'You can only respond to your own pending requests'
             });
         }
 
-        // Update status
-        friendRequest.status = status;
+        // Update the friendship
+        friendship.status = status;
         if (status === 'accepted') {
-            friendRequest.accepted_at = new Date();
+            friendship.accepted_at = new Date();
         }
-        await friendRequest.save();
+        await friendship.save();
 
         res.json({
             success: true,
-            message: status === 'accepted' ? 'Friendship accepted' : 'Friendship rejected',
-            data: friendRequest
+            message: status === 'accepted' ? 'Friend request accepted' : 'Friend request rejected',
+            data: friendship,
+            _links: {
+                self: { href: `${process.env.BASE_URI}/api/friends/${friendship._id}` },
+                collection: { href: `${process.env.BASE_URI}/api/friends` },
+                friends: { href: `${process.env.BASE_URI}/api/friends` }
+            }
         });
     } catch (error) {
         res.status(500).json({
@@ -243,36 +285,36 @@ router.patch('/:requestId', protect, async (req, res) => {
     }
 });
 
-// DELETE in /api/friends/:friendId
-router.delete('/:friendId', protect, async (req, res) => {
+// DELETE /api/friends/:friendId - Remove a friend or cancel a request
+router.delete('/:friendId', friendProtect, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { friendId } = req.params;
+        const friendship = req.friendship; // From friendMiddleware
 
-        //Find the friendship and check if the user is involved
-        const friendship = await Friend.findOne({
-            _id: friendId,
-            $or: [
-                { sender_user_id: userId, status: 'accepted' },
-                { receiver_user_id: userId, status: 'accepted' }
-            ]
-        });
-
-        if (!friendship) {
-            return res.status(404).json({
-                success: false, error: 'Friendship not found'
+        // Check if user is involved in this friendship
+        if (friendship.sender_user_id.toString() !== userId &&
+            friendship.receiver_user_id.toString() !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'You are not authorized to delete this friendship'
             });
         }
 
+        // Delete the friendship
         await friendship.deleteOne();
 
         res.json({
             success: true,
-            message: 'friendship deleted'
+            message: 'Friendship removed successfully',
+            _links: {
+                collection: { href: `${process.env.BASE_URI}/api/friends` },
+                requests: { href: `${process.env.BASE_URI}/api/friends/requests` }
+            }
         });
     } catch (error) {
         res.status(500).json({
-            success: false, error: error.message
+            success: false,
+            error: error.message
         });
     }
 });

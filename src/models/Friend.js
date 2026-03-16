@@ -5,7 +5,7 @@ const friendSchema = new mongoose.Schema(
     {
         sender_user_id: {type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true},
         receiver_user_id: {type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true},
-        status: {type: String, enum: ["pending", "accepted", "rejected"], default: "pending"},
+        status: {type: String, enum: ["pending", "accepted", "rejected", "blocked"], default: "pending"},
     },
     {
         timestamps: true,
@@ -18,10 +18,10 @@ const friendSchema = new mongoose.Schema(
 
                 ret._links = {
                     self: {
-                        href: `${process.env.BASE_URI}/friends/${ret.id}`,
+                        href: `${process.env.BASE_URI}api/friends/${ret.id}`,
                     },
                     collection: {
-                        href: `${process.env.BASE_URI}/friends`,
+                        href: `${process.env.BASE_URI}api/friends`,
                     },
                 };
                 //remove internal fields before sending to client
@@ -36,6 +36,15 @@ friendSchema.index(
     { sender_user_id: 1, receiver_user_id: 1 },
     { unique: true }
 );
+
+friendSchema.statics.findExistingFriendship = async function(userId1, userId2 ) {
+    return await this.findOne({
+        $or: [
+            { sender_user_id: userId1, receiver_user_id: userId2 },
+            { sender_user_id: userId2, receiver_user_id: userId1 }
+        ]
+    });
+}
 
 const Friend = mongoose.model("Friend", friendSchema);
 
