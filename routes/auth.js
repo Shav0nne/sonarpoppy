@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../src/models/User.js";
 import {upload} from "../src/middleware/multerSetup.js";
 import {authenticateJWT} from "../src/middleware/authMiddleware.js";
+import {exchangeCode, getAuthorizationUrl, refreshAccessToken} from "../src/services/spotify/auth.js";
 
 const router = express.Router();
 
@@ -118,6 +119,116 @@ router.get("/me", authenticateJWT, async (req, res) => {
             hasCompletedOnboarding: user.hasCompletedOnboarding,
             imageUrl: user.image ? `${process.env.BASE_URI}/users/${user.id}/image` : null,
         });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({error: "Server error"});
+    }
+});
+
+// GET /auth/spotify/link
+// Returns the Spotify authorization URL or redirects if token is provided
+// We use a query param 'token' (JWT) to identify the user because this is often
+// triggered via a simple link navigation or window.open where headers are hard to set.
+router.get("/spotify/link", async (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.status(401).send("Missing token query parameter");
+
+    try {
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = payload.sub;
+
+        // Create a state token containing the userId. This prevents CSRF and persists user context.
+        // It's short-lived (5 mins).
+        const state = jwt.sign({userId, nonce: Math.random().toString(36)}, process.env.JWT_SECRET, {expiresIn: '5m'});
+
+        const url = getAuthorizationUrl(state);
+        res.redirect(url);
+    } catch (err) {
+        console.error("Spotify Link Error:", err);
+        return res.status(401).send("Invalid or expired token");
+    }
+});
+
+// GET /auth/spotify/callback
+// Handles the callback from Spotify
+router.get("/spotify/callback", async (req, res) => {
+    const {code, state, error} = req.query;
+
+    if (error) {
+        return res.redirect(`/spotify-player.html?error=${encodeURIComponent(error)}`);
+    }
+
+    if (!code || !state) {
+        return res.redirect(`/spotify-player.html?error=missing_params`);
+    }
+
+    try {
+        // Verify state to recover userId
+        const decodedState = jwt.verify(state, process.env.JWT_SECRET);
+        const userId = decodedState.userId;
+
+        // Exchange code for tokens
+        const data = await exchangeCode(code);
+
+        // data = { access_token, token_type, scope, expires_in, refresh_token }
+        const {access_token, refresh_token, expires_in} = data;
+
+        const expiresAt = new Date(Date.now() + expires_in * 1000);
+
+        // Update user
+        await User.findByIdAndUpdate(userId, {
+            spotifyAccessToken: access_token,
+            spotifyRefreshToken: refresh_token,
+            spotifyTokenExpiry: expiresAt,
+        });
+
+        // Redirect to player with success flag
+        res.redirect(`/spotify-player.html?connected=true`);
+    } catch (err) {
+        console.error("Spotify Callback Error:", err);
+        return res.redirect(`/spotify-player.html?error=auth_failed`);
+    }
+});
+
+// GET /auth/spotify/token
+// Returns the valid access token for the logged-in user
+router.get("/spotify/token", authenticateJWT, async (req, res) => {
+    try {
+        // Need to explicitly select the fields as they are marked select: false in schema
+        const user = await User.findById(req.user.id).select("+spotifyAccessToken +spotifyRefreshToken +spotifyTokenExpiry");
+
+        if (!user || !user.spotifyAccessToken) {
+            return res.status(404).json({message: "Spotify not connected"});
+        }
+
+        // Check if token is expired or expiring soon (within 5 minutes)
+        const now = new Date();
+        const expiryBuffer = 5 * 60 * 1000;
+
+        if (user.spotifyTokenExpiry && (new Date(user.spotifyTokenExpiry).getTime() - now.getTime() < expiryBuffer)) {
+            // Need refresh
+            if (!user.spotifyRefreshToken) {
+                return res.status(401).json({message: "Token expired and no refresh token available"});
+            }
+
+            try {
+                const data = await refreshAccessToken(user.spotifyRefreshToken);
+                // data might contain new access_token, expires_in, and sometimes a new refresh_token
+
+                user.spotifyAccessToken = data.access_token;
+                if (data.refresh_token) {
+                    user.spotifyRefreshToken = data.refresh_token;
+                }
+                user.spotifyTokenExpiry = new Date(Date.now() + data.expires_in * 1000);
+
+                await user.save();
+            } catch (refreshErr) {
+                console.error("Token refresh failed", refreshErr);
+                return res.status(401).json({message: "Failed to refresh token"});
+            }
+        }
+
+        res.json({accessToken: user.spotifyAccessToken});
     } catch (err) {
         console.error(err);
         res.status(500).json({error: "Server error"});

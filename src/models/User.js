@@ -3,18 +3,21 @@ import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema(
     {
-        username: { type: String, required: true, unique: true },
-        email: { type: String, required: true },
+        username: {type: String, required: true, unique: true},
+        email: {type: String, required: true},
         password: {
             type: String,
             required: true,
             select: false,
         },
-        role: { type: String, enum: ["user", "admin"], default: "user" },
-        spotifyId: { type: String },
-        status: { type: String, enum: ["active", "warned", "banned"], default: "active" },
-        image: { data: Buffer, contentType: String },
-        hasCompletedOnboarding: { type: Boolean, default: false },
+        role: {type: String, enum: ["user", "admin"], default: "user"},
+        spotifyId: {type: String},
+        spotifyAccessToken: {type: String, select: false},
+        spotifyRefreshToken: {type: String, select: false},
+        spotifyTokenExpiry: {type: Date, select: false},
+        status: {type: String, enum: ["active", "warned", "banned"], default: "active"},
+        image: {data: Buffer, contentType: String},
+        hasCompletedOnboarding: {type: Boolean, default: false},
     },
     {
         timestamps: true,
