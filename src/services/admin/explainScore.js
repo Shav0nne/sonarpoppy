@@ -41,7 +41,13 @@ export async function explainTrackScore(trackId, userId) {
   const { computeProfileVector } = await import("../profile/computeProfile.js");
   const GenreSliders = (await import("../../models/GenreSliders.js")).default;
   const sliders = await GenreSliders.findOne({ userId }).lean();
-  const weights = sliders?.sliders ? Object.fromEntries(sliders.sliders) : {};
+  const slidersData = sliders?.sliders;
+  const weights =
+    slidersData instanceof Map
+      ? Object.fromEntries(slidersData)
+      : slidersData && typeof slidersData === "object"
+        ? slidersData
+        : {};
   const { vector: profileVector } = computeProfileVector(weights);
 
   const genreScore = cosineSimilarity(profileVector, track.genreVector);

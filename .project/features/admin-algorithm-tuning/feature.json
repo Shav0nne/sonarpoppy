@@ -1,8 +1,7 @@
 {
   "name": "admin-algorithm-tuning",
   "created": "2026-03-16",
-  "status": "DOING",
-  "stage": "built",
+  "status": "DONE",
   "summary": "Admin kan alle scoring parameters live aanpassen (hybrid weights, feedback multipliers, CF weights, profile evolution, play count config, dial preset waarden) via CRUD endpoints, en per-track score breakdowns opvragen via een explain endpoint. AlgorithmConfig als singleton MongoDB document, persistent over restarts.",
   "depends": [],
   "choices": {
@@ -19,7 +18,7 @@
       "description": "AlgorithmConfig Mongoose model als singleton document met alle tunable parameters + updatedAt/updatedBy",
       "category": "Data",
       "acceptanceCriteria": "Model valideert weights (som=1.0 waar van toepassing), defaults matchen huidige hardcoded waarden, upsert bij eerste read",
-      "status": "built",
+      "status": "PASS",
       "technique": "TDD",
       "syncNote": "AlgorithmConfig singleton + configLoader lazy seed/partial merge/reset in src/services/admin/"
     },
@@ -28,7 +27,7 @@
       "description": "GET /api/v1/admin/config retourneert de huidige configuratie",
       "category": "API",
       "acceptanceCriteria": "Admin-only (ifAdmin), retourneert alle parameter groepen, lazy-seed met defaults als document niet bestaat",
-      "status": "built",
+      "status": "PASS",
       "technique": "Implementation First",
       "syncNote": "GET /admin/config met lazy seed + ifAdmin guard"
     },
@@ -37,7 +36,7 @@
       "description": "PATCH /api/v1/admin/config voor partial updates van scoring parameters",
       "category": "API",
       "acceptanceCriteria": "Partial merge (alleen meegegeven velden overschrijven), validatie op waardebereiken, updatedBy uit JWT, 403 voor non-admin",
-      "status": "built",
+      "status": "PASS",
       "technique": "Implementation First",
       "syncNote": "PATCH /admin/config partial merge + validatie + updatedBy"
     },
@@ -46,7 +45,7 @@
       "description": "Scoring functies lezen config uit DB i.p.v. hardcoded constanten",
       "category": "Integration",
       "acceptanceCriteria": "hybridScore, getFeedbackMultiplier, computeCfScore, evolveProfileWeights gebruiken AlgorithmConfig waarden. Fallback naar defaults bij geen document.",
-      "status": "built",
+      "status": "PASS",
       "technique": "TDD",
       "syncNote": "recommend.js laadt AlgorithmConfig → hybridWeights/feedbackConfig/cfConfig doorgegeven aan scoring functies. Fallback naar DEFAULT_ALGORITHM_CONFIG."
     },
@@ -55,7 +54,7 @@
       "description": "Dial preset waarden (threshold, sortSignal, unplayedOnly) aanpasbaar via config",
       "category": "Integration",
       "acceptanceCriteria": "5 standen blijven vast, waarden overschrijfbaar via dialPresets array in config. getDialPreset() merged DB overrides met frozen defaults.",
-      "status": "built",
+      "status": "PASS",
       "technique": "TDD",
       "syncNote": "getDialPreset(position, configOverrides) merged DB overrides met frozen defaults. 5 standen vast, alleen waarden overschrijfbaar."
     },
@@ -64,7 +63,7 @@
       "description": "GET /api/v1/admin/explain/:trackId score explain per track+user",
       "category": "API",
       "acceptanceCriteria": "Admin-only, query param userId, retourneert volledige breakdown: genreScore, cfScore, hybridWeights, rawScore, feedbackMultiplier, finalScore, bubbleFilter status, cfDetail",
-      "status": "built",
+      "status": "PASS",
       "technique": "Implementation First",
       "syncNote": "explainTrackScore() repliceert scoring pipeline met volledige breakdown. Admin-only via ifAdmin."
     }
@@ -255,7 +254,7 @@
         "requirementId": "REQ-001",
         "steps": ["login als admin", "GET /api/v1/admin/config"],
         "expected": "JSON met hybridWeights, feedbackMultipliers, cfWeights, profileEvolution, playCount, dialPresets",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 2,
@@ -267,7 +266,7 @@
           "GET /api/v1/admin/config"
         ],
         "expected": "hybridWeights gewijzigd naar 0.7/0.3, andere velden intact",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 3,
@@ -275,7 +274,7 @@
         "requirementId": "REQ-002",
         "steps": ["login als gewone user", "GET /api/v1/admin/config"],
         "expected": "403 Forbidden response",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 4,
@@ -288,7 +287,7 @@
           "GET /api/v1/admin/config"
         ],
         "expected": "Alle waarden terug naar defaults (genre: 0.5, cf: 0.5, etc.)",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 5,
@@ -300,7 +299,7 @@
           "POST /api/v1/recommendations met profiel"
         ],
         "expected": "Scores verschoven richting genre-dominantie",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 6,
@@ -312,7 +311,7 @@
           "POST recommendations met dial=1"
         ],
         "expected": "Striktere filtering (threshold 0.9 i.p.v. 0.6)",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 7,
@@ -320,7 +319,25 @@
         "requirementId": "REQ-006",
         "steps": ["login als admin", "GET /api/v1/admin/explain/:trackId?userId=xxx"],
         "expected": "JSON met genreScore, cfScore, hybridWeights, rawScore, feedbackMultiplier, finalScore, bubbleFilter, cfDetail",
-        "status": "pending"
+        "status": "PASS"
+      }
+    ],
+    "finalStatus": "PASSED",
+    "sessions": [
+      {
+        "date": "2026-03-16",
+        "pass": 7,
+        "fail": 0,
+        "skip": 0
+      }
+    ],
+    "fixSync": [
+      {
+        "item": 7,
+        "title": "explainScore.js Object.fromEntries crash op .lean() resultaat",
+        "problem": "GenreSliders.findOne().lean() retourneert sliders als plain object, Object.fromEntries() verwacht iterable (Map)",
+        "change": "src/services/admin/explainScore.js:44-50 — type-check die zowel Map als plain object afhandelt",
+        "watchOut": "Alle .lean() queries op Mongoose Maps retourneren plain objects, niet Map instances"
       }
     ]
   },
