@@ -6,29 +6,34 @@ Zie [getting-started.md](getting-started.md) voor account aanmaken, API key opha
 
 ## Overzicht
 
-| Method | Pad                                      | Wat doet het?                         |
-| ------ | ---------------------------------------- | ------------------------------------- |
-| GET    | `/api/v1/genres`                         | 20 genres ophalen                     |
-| GET    | `/api/v1/tracks`                         | Alle tracks ophalen                   |
-| POST   | `/api/v1/onboarding`                     | Cold start: genres + artiesten kiezen |
-| POST   | `/api/v1/profile/compute`                | Profielvector berekenen               |
-| POST   | `/api/v1/recommendations`                | Aanbevelingen ophalen                 |
-| GET    | `/api/v1/dial`                           | 5 dial standen bekijken               |
-| GET    | `/api/v1/sliders`               | Genre sliders ophalen (Onboarding required) |
-| PUT    | `/api/v1/sliders`               | Sliders aanpassen (Onboarding required)     |
-| POST   | `/api/v1/sliders/reset`         | Sliders resetten (Onboarding required)      |
-| POST   | `/api/v1/feedback`              | Like/dislike/skip (Onboarding required)     |
-| GET    | `/api/v1/feedback`              | Alle feedback van user (Onboarding required)|
-| GET    | `/api/v1/feedback/:trackId`      | Feedback voor 1 track (Onboarding required) |
-| DELETE | `/api/v1/feedback/:trackId`      | Feedback verwijderen (Onboarding required)  |
-| POST   | `/api/v1/feedback/:trackId/play` | Play count +1 (Onboarding required)         |
-| GET    | `/api/v1/blacklist`             | Geblokkeerde items (Onboarding required)    |
-| POST   | `/api/v1/blacklist`             | Track/artiest/genre blokkeren (Onboard req) |
-| DELETE | `/api/v1/blacklist/:entryId`    | Blokkering opheffen (Onboarding required)   |
-| POST   | `/api/v1/tracks/ingest`         | Enkele track importeren (beheer)            |
-| POST   | `/api/v1/tracks/ingest-batch`            | Batch track import (beheer)           |
-| POST   | `/api/v1/tracks/enrich-spotify`          | Spotify metadata toevoegen (beheer)   |
-| POST   | `/api/v1/tracks/enrich-cf`               | CF data toevoegen (beheer)            |
+| Method | Pad                                | Wat doet het?                                |
+| ------ | ---------------------------------- | -------------------------------------------- |
+| GET    | `/api/v1/genres`                   | 20 genres ophalen                            |
+| GET    | `/api/v1/tracks`                   | Alle tracks ophalen                          |
+| POST   | `/api/v1/onboarding`               | Cold start: genres + artiesten kiezen        |
+| POST   | `/api/v1/profile/compute`          | Profielvector berekenen                      |
+| POST   | `/api/v1/recommendations`          | Aanbevelingen ophalen                        |
+| GET    | `/api/v1/dial`                     | 5 dial standen bekijken                      |
+| GET    | `/api/v1/sliders`                  | Genre sliders ophalen (Onboarding required)  |
+| PUT    | `/api/v1/sliders`                  | Sliders aanpassen (Onboarding required)      |
+| POST   | `/api/v1/sliders/reset`            | Sliders resetten (Onboarding required)       |
+| GET    | `/api/v1/slider-presets`           | Alle presets ophalen (Onboarding required)   |
+| POST   | `/api/v1/slider-presets`           | Preset aanmaken (Onboarding required)        |
+| PATCH  | `/api/v1/slider-presets/:id`       | Preset updaten (Onboarding required)         |
+| DELETE | `/api/v1/slider-presets/:id`       | Preset verwijderen (Onboarding required)     |
+| POST   | `/api/v1/slider-presets/:id/apply` | Preset toepassen op sliders (Onboard req)    |
+| POST   | `/api/v1/feedback`                 | Like/dislike/skip (Onboarding required)      |
+| GET    | `/api/v1/feedback`                 | Alle feedback van user (Onboarding required) |
+| GET    | `/api/v1/feedback/:trackId`        | Feedback voor 1 track (Onboarding required)  |
+| DELETE | `/api/v1/feedback/:trackId`        | Feedback verwijderen (Onboarding required)   |
+| POST   | `/api/v1/feedback/:trackId/play`   | Play count +1 (Onboarding required)          |
+| GET    | `/api/v1/blacklist`                | Geblokkeerde items (Onboarding required)     |
+| POST   | `/api/v1/blacklist`                | Track/artiest/genre blokkeren (Onboard req)  |
+| DELETE | `/api/v1/blacklist/:entryId`       | Blokkering opheffen (Onboarding required)    |
+| POST   | `/api/v1/tracks/ingest`            | Enkele track importeren (beheer)             |
+| POST   | `/api/v1/tracks/ingest-batch`      | Batch track import (beheer)                  |
+| POST   | `/api/v1/tracks/enrich-spotify`    | Spotify metadata toevoegen (beheer)          |
+| POST   | `/api/v1/tracks/enrich-cf`         | CF data toevoegen (beheer)                   |
 
 Alle endpoints (behalve auth) vereisen twee headers:
 
@@ -182,15 +187,21 @@ Het hoofdendpoint. Retourneert gepersonaliseerde track-aanbevelingen gesorteerd 
 }
 ```
 
-| Veld                 | Type     | Verplicht | Beschrijving                                                                  |
-| -------------------- | -------- | --------- | ----------------------------------------------------------------------------- |
-| `profileVector`      | number[] | ja        | 20-dim vector uit `/profile/compute`                                          |
-| `limit`              | number   | nee       | Max resultaten (default: alle)                                                |
-| `offset`             | number   | nee       | Skip eerste N (voor paginatie)                                                |
-| `dial`               | number   | nee       | Stand 1-5. 1=voorspelbaar, 5=verrassend                                       |
-| `weights`            | object   | nee       | Custom `{"genre": 0.6, "cf": 0.4}` (wordt genegeerd als `dial` is meegegeven) |
-| `filters.minScore`   | number   | nee       | Minimum score (0.0-1.0)                                                       |
-| `filters.excludeIds` | string[] | nee       | Track IDs om over te slaan                                                    |
+| Veld                 | Type     | Verplicht | Beschrijving                                                                                                          |
+| -------------------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------- |
+| `profileVector`      | number[] | ja        | 20-dim vector uit `/profile/compute`                                                                                  |
+| `limit`              | number   | nee       | Max resultaten (default: alle)                                                                                        |
+| `offset`             | number   | nee       | Skip eerste N (voor paginatie)                                                                                        |
+| `dial`               | number   | nee       | Stand 1-5. 1=voorspelbaar, 5=verrassend                                                                               |
+| `weights`            | object   | nee       | Custom `{"genre": 0.6, "cf": 0.4}` (wordt genegeerd als `dial` is meegegeven)                                         |
+| `filters.minScore`   | number   | nee       | Minimum score (0.0-1.0)                                                                                               |
+| `filters.excludeIds` | string[] | nee       | Track IDs om over te slaan                                                                                            |
+| `filters.genre`      | string   | nee       | Filter op dominant genre, bijv. `"rock"`. Retourneert alleen tracks waarvan het hoogste genre in genreVector matcht   |
+| `filters.artist`     | string   | nee       | Filter op artiest (case-insensitive exact match)                                                                      |
+| `filters.sort`       | string   | nee       | Sort-override: `"genreSim"`, `"cf"`, `"random"`, of `"recent"`. Vervangt dial sortSignal, bubbel-filter blijft actief |
+| `filters.explicit`   | boolean  | nee       | `true` = alleen explicit, `false` = geen explicit, `null`/ontbrekend = geen filter                                    |
+| `filters.unplayed`   | boolean  | nee       | `true` = alleen tracks zonder feedback/plays                                                                          |
+| `filters.recentDays` | number   | nee       | Alleen tracks geïngest in de laatste N dagen                                                                          |
 
 > `userId` wordt automatisch uit het JWT token gehaald (voor feedback multiplier + blacklist filtering).
 
@@ -336,6 +347,123 @@ Reset alle sliders naar 1.0 en maakt locked leeg voor de ingelogde gebruiker. (O
 | ---- | ---------------------------------------- |
 | 404  | Gebruiker heeft nog geen slider document |
 | 401  | Geen geldig JWT token                    |
+
+---
+
+## Slider Presets
+
+5 preset slots per user voor slider snapshots (weights + locked genres). Bij de eerste GET worden 3 defaults aangemaakt (Balanced, Chill Vibes, High Energy). Alle presets zijn vrij aanpasbaar en verwijderbaar. Max 5 per user, unieke naam.
+
+> `userId` wordt automatisch uit het JWT token gehaald. Onboarding required voor alle preset endpoints.
+
+### GET /api/v1/slider-presets
+
+Retourneert alle presets voor de ingelogde gebruiker. Bij eerste aanroep worden 3 defaults aangemaakt.
+
+**Response:**
+
+```json
+[
+  {
+    "_id": "preset-id-1",
+    "userId": "user123",
+    "name": "Balanced",
+    "sliders": { "rock": 1.0, "pop": 1.0, "electronic": 1.0 },
+    "locked": [],
+    "isDefault": true
+  },
+  {
+    "_id": "preset-id-2",
+    "userId": "user123",
+    "name": "Chill Vibes",
+    "sliders": { "jazz": 1.5, "soul": 1.3, "electronic": 1.2 },
+    "locked": [],
+    "isDefault": true
+  }
+]
+```
+
+---
+
+### POST /api/v1/slider-presets
+
+Maak een nieuwe preset aan.
+
+**Request:**
+
+```json
+{
+  "name": "Mijn Rock Preset",
+  "sliders": { "rock": 2.0, "metal": 1.5, "pop": 0.3 },
+  "locked": ["rock"]
+}
+```
+
+| Veld      | Type     | Verplicht | Beschrijving                                  |
+| --------- | -------- | --------- | --------------------------------------------- |
+| `name`    | string   | ja        | Unieke naam voor de preset                    |
+| `sliders` | object   | nee       | Genre→gewicht mapping (default: `{}`)         |
+| `locked`  | string[] | nee       | Genres die niet mee-evolueren (default: `[]`) |
+
+**Response (201):** de aangemaakte preset.
+
+| Fout | Wanneer                         |
+| ---- | ------------------------------- |
+| 400  | Naam ontbreekt of max 5 bereikt |
+| 409  | Naam bestaat al voor deze user  |
+
+---
+
+### PATCH /api/v1/slider-presets/:presetId
+
+Update een bestaande preset. Alleen meegegeven velden worden overschreven.
+
+**Request:**
+
+```json
+{
+  "name": "Nieuwe naam",
+  "sliders": { "rock": 1.8 },
+  "locked": ["rock", "jazz"]
+}
+```
+
+**Response:** de geüpdatete preset.
+
+| Fout | Wanneer                        |
+| ---- | ------------------------------ |
+| 404  | Preset niet gevonden           |
+| 409  | Naam bestaat al voor deze user |
+
+---
+
+### DELETE /api/v1/slider-presets/:presetId
+
+Verwijdert een preset. **204** No Content bij succes.
+
+| Fout | Wanneer              |
+| ---- | -------------------- |
+| 404  | Preset niet gevonden |
+
+---
+
+### POST /api/v1/slider-presets/:presetId/apply
+
+Past een preset toe op de actieve genre sliders. Overschrijft de huidige sliders en locked genres volledig.
+
+**Response:** de geüpdatete sliders (zelfde shape als GET /sliders).
+
+```json
+{
+  "sliders": { "rock": 2.0, "metal": 1.5, "pop": 0.3 },
+  "locked": ["rock"],
+  "updatedAt": "2026-03-16T12:00:00.000Z"
+}
+```
+
+| Fout | Wanneer              |
+| ---- | -------------------- |
+| 404  | Preset niet gevonden |
 
 ---
 
@@ -595,6 +723,20 @@ const { tracks, total } = await api("/recommendations", {
     profileVector: vector,
     limit: 10,
     dial: 3,
+  },
+});
+
+// Met filters: "Rock for You" playlist
+const rockTracks = await api("/recommendations", {
+  method: "POST",
+  body: {
+    profileVector: vector,
+    limit: 20,
+    filters: {
+      genre: "rock",
+      explicit: false,
+      sort: "recent",
+    },
   },
 });
 

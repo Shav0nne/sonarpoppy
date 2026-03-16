@@ -174,8 +174,9 @@ Dit betekent dat je frontend bij onboarding, feedback, profile/compute, en recom
 3. GET  /api/v1/genres               → 20 genres tonen
 4. POST /api/v1/onboarding           → Genres + artiesten kiezen (cold start)
 5. POST /api/v1/profile/compute      → Profielvector berekenen
-6. POST /api/v1/recommendations      → Aanbevelingen ophalen
+6. POST /api/v1/recommendations      → Aanbevelingen ophalen (met optionele filters)
 7. POST /api/v1/feedback             → Like/dislike/skip registreren
+8. GET  /api/v1/slider-presets       → Slider presets ophalen/toepassen
 ```
 
 ---
@@ -256,6 +257,12 @@ const { tracks, total } = await api("/recommendations", {
     limit: 10,
     dial: 3,
     // userId komt uit JWT — niet meesturen
+    // optioneel: filters toevoegen
+    filters: {
+      genre: "rock", // alleen rock tracks
+      explicit: false, // geen explicit content
+      sort: "recent", // nieuwste eerst
+    },
   },
 });
 ```
