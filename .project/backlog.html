@@ -12,19 +12,40 @@
 {
   "project": "SonarPoppy",
   "generated": "2026-03-04",
-  "updated": "2026-03-12",
-  "lastSync": "2026-03-12",
+  "updated": "2026-03-16",
+  "lastSync": "2026-03-16",
   "source": "/dev-plan",
   "overview": "Shared muziek-aanbevelingsbackend: cosine similarity engine met dial-gebaseerde discovery, genre vectors, en dual-app architectuur (SonarPop + Poppy).",
   "features": [
     {
       "name": "parameterized-recommendations",
       "type": "API",
-      "status": "TODO",
+      "status": "DOING",
+      "stage": "built",
       "phase": "P1",
       "description": "Recommendation endpoint uitbreiden met extra filter/sort parameters voor frontend-componenten: genre-filter (tracks voor specifiek genre), artist-filter, sort-override (genreSim/cf/random/recent), explicit-toggle, en nieuw/onbeluisterd-filter. Eén coherente uitbreiding van het filters-object in POST /api/recommendations.",
       "dependency": "recommendation-engine",
-      "date": "2026-03-12"
+      "date": "2026-03-16"
+    },
+    {
+      "name": "slider-presets",
+      "type": "FEATURE",
+      "status": "DOING",
+      "stage": "building",
+      "phase": "P4",
+      "description": "5 preset slots per user voor GenreSliders snapshots (weights + locked). 3 pre-filled defaults bij eerste GET, 2 leeg. Alle aanpasbaar/verwijderbaar. CRUD + apply endpoint. Max 5, unieke naam.",
+      "dependency": "genre-sliders",
+      "date": "2026-03-16"
+    },
+    {
+      "name": "spotify-oauth",
+      "type": "INTEGRATION",
+      "status": "TODO",
+      "phase": "P3",
+      "description": "Spotify OAuth Authorization Code Flow. /me/top/artists + /me/top/tracks voor onboarding (3 time ranges), /me/player/recently-played voor luistergeschiedenis sync.",
+      "dependency": null,
+      "assignee": "Martijn",
+      "date": "2026-03-10"
     },
     {
       "name": "dial-bubble-aware",
@@ -47,16 +68,6 @@
       "updated": "2026-03-12"
     },
     {
-      "name": "spotify-oauth",
-      "type": "INTEGRATION",
-      "status": "TODO",
-      "phase": "P3",
-      "description": "Spotify OAuth Authorization Code Flow. /me/top/artists + /me/top/tracks voor onboarding (3 time ranges), /me/player/recently-played voor luistergeschiedenis sync.",
-      "dependency": null,
-      "assignee": "Martijn",
-      "date": "2026-03-10"
-    },
-    {
       "name": "developer-portal-api-keys",
       "type": "FEATURE",
       "status": "DONE",
@@ -65,16 +76,6 @@
       "dependency": null,
       "date": "2026-03-10",
       "updated": "2026-03-10"
-    },
-    {
-      "name": "slider-presets",
-      "type": "FEATURE",
-      "status": "DOING",
-      "stage": "defined",
-      "phase": "P4",
-      "description": "Opgeslagen slider configuraties (presets) per user. CRUD endpoints (max 10), apply preset overschrijft GenreSliders. Volledige snapshot: weights + locked.",
-      "dependency": "genre-sliders",
-      "date": "2026-03-10"
     },
     {
       "name": "blacklist",

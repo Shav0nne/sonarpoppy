@@ -1,0 +1,332 @@
+{
+  "architecture": {
+    "diagram": "graph TD\n    classDef done fill:#13261c,stroke:#3fb950,stroke-width:1.5px,color:#c9d1d9\n    classDef planned fill:#1b1530,stroke:#8b5cf6,stroke-dasharray:5 5,color:#8b949e\n    classDef external fill:#1c2128,stroke:#30363d,color:#8b949e\n\n    subgraph API[\"API Laag\"]\n        RT[API Routes<br/>routes/index.js]:::done\n        RG[Genres Route<br/>routes/genres.js]:::done\n        RTR[Tracks Route<br/>routes/tracks.js]:::done\n        RP[Profile Route<br/>routes/profile.js]:::done\n        RR[Recommendations Route<br/>routes/recommendations.js]:::done\n        RD[Dial Route<br/>routes/dial.js]:::done\n        RF[Feedback Route<br/>routes/feedback.js]:::done\n        RB[Blacklist Route<br/>routes/blacklist.js]:::planned\n        RS[Sliders Route<br/>routes/sliders.js]:::done\n        RSP[Slider Presets Route<br/>routes/slider-presets.js]:::planned\n        RAK[API Keys Route<br/>routes/api-keys.js]:::done\n        RON[Onboarding Route<br/>routes/onboarding.js]:::done\n        RAUTH[Auth Route<br/>routes/auth.js]:::done\n        RUSER[Users Route<br/>routes/users.js]:::done\n    end\n\n    subgraph Auth[\"Auth & API Key Laag\"]\n        AKMW[API Key Middleware<br/>middleware/apiKeyMiddleware.js]:::done\n        JWTMW[JWT Middleware<br/>middleware/authMiddleware.js]:::done\n        AKG[Key Generator<br/>apikeys/generateKey.js]:::done\n        MULT[Multer Setup<br/>middleware/multerSetup.js]:::done\n        ONBMW[Onboarding Guard<br/>middleware/onboardingMiddleware.js]:::done\n        ADMIN[Admin Guard<br/>middleware/onlyAdmin.js]:::done\n    end\n\n    subgraph Data[\"Data Laag\"]\n        GS[Genre Systeem<br/>genres.js · genreVector.js]:::done\n        TM[Track Model<br/>Track.js]:::done\n        FM[Feedback Model<br/>Feedback.js]:::done\n        BM[Blacklist Model<br/>Blacklist.js]:::planned\n        GSM[GenreSliders Model<br/>GenreSliders.js]:::done\n        SPM[SliderPreset Model<br/>SliderPreset.js]:::planned\n        AKM[ApiKey Model<br/>ApiKey.js]:::done\n        UM[User Model<br/>User.js]:::done\n        DB[(MongoDB)]:::external\n    end\n\n    subgraph Extern[\"Externe Bronnen\"]\n        LFM[Last.fm Client<br/>lastfm/client.js]:::done\n        LFMAPI{{Last.fm API}}:::external\n        SPDATA[Spotify Data Client<br/>spotify/client.js]:::done\n        SPAPI{{Spotify API}}:::external\n        SPOAUTH[Spotify OAuth]:::planned\n    end\n\n    subgraph Verwerking\n        TI[Track Ingestie<br/>ingestion/ingest.js]:::done\n        SIM[Similarity<br/>similarity.js]:::done\n        ECF[CF Enrichment<br/>cf/enrichCf.js]:::done\n        CFS[CF Score<br/>cf/cfScore.js]:::done\n    end\n\n    subgraph Scoring[\"Hybride Scoring Pipeline\"]\n        PS[Profiel Service<br/>profile/computeProfile.js]:::done\n        RE[Recommendation Engine<br/>recommendation/recommend.js]:::done\n        BF[Blacklist Filter<br/>blacklist/blacklistFilter.js]:::planned\n        HS[Hybrid Scoring<br/>scoring/hybridScore.js]:::done\n        DS[Dial System<br/>config/dial.js]:::done\n        FBM[Feedback Multiplier<br/>feedback/feedbackMultiplier.js]:::done\n        PE[Profiel Evolutie<br/>feedback/profileEvolution.js]:::done\n    end\n\n    subgraph Pijlers[\"3 Pijlers\"]\n        P1[Pijler 1: Genre Vectors<br/>20-dim cosine similarity]:::done\n        P2[Pijler 2: Last.fm CF<br/>track/artist.getSimilar]:::done\n                P4[Pijler 4: User Feedback<br/>like · dislike · library · skip]:::done\n    end\n\n    subgraph Input[\"Gebruiker Input\"]\n        ON[Onboarding Service<br/>onboarding/onboard.js]:::done\n        SL[Genre Sliders<br/>routes/sliders.js · GenreSliders.js]:::done\n        FB[User Feedback]:::done\n    end\n\n    RT --> RG & RTR & RP & RR & RD & RF & RB & RS & RSP & RAK & RON\n    RAUTH --> UM & JWTMW & MULT\n    RUSER --> UM & MULT & ADMIN\n    ONBMW --> UM\n    ONBMW --> RF & RS & RB\n    RSP --> SPM\n    RSP --> GSM\n    SPM --- DB\n    RON --> ON\n    ON --> LFM\n    ON --> GSM\n    ON --> PS\n    RAK --> JWTMW\n    RAK --> AKM & AKG\n    AKMW --> AKM\n    AKMW --> RG & RTR & RP & RR & RD & RF & RS\n    AKM --- DB\n    RB --> BM\n    RS --> GSM\n    RD --> DS\n    RG --> GS\n    RTR --> TM & TI & LFM\n    RP --> PS\n    RR --> HS\n    RF --> FM\n    GS --> TM & TI & PS\n    LFM --> TI\n    LFM -.-> LFMAPI\n    LFM --> ECF\n    ECF --> TM\n    CFS --> P2\n    SPDATA -.-> SPAPI\n        SPOAUTH -.-> SPAPI\n    SPOAUTH --> ON\n    TI --> DB\n    TM --- DB\n    FM --- DB\n    BM --- DB\n    GSM --- DB\n    BF --> BM\n    BF --> GS\n    BF --> RE\n    SIM --> P1 & PS\n    P1 --> HS\n    P2 --> HS\n        P4 --> HS\n    DS --> HS\n    FB --> P4\n    FM --> FBM\n    FBM --> P4\n    PE --> PS\n    FM --> PE\n    SL --> PS\n    PS --> P1\n    HS --> RE\n    TM --> RE",
+    "description": "## Data Flow\n\nLast.fm tags → genre aliassen → 20-dim genreVector per track → MongoDB.\nUser genre weights → genormaliseerde 20-dim profielvector (cold start = gelijk gewicht).\nProfielvector × track genreVectors via cosine similarity → score 0-1 → sorteer, filter, pagineer.\n\n## API Laag\n\n- **API Routes** — Router-per-resource structuur onder /api prefix met HATEOAS _links\n\n## Data Laag\n\n- **Genre Systeem** — 20 gestandaardiseerde genres, 150+ Last.fm tag aliassen, vector utilities (normalisatie, zero-vector guard)\n- **Track Model** — Mongoose schema met genreVector (20 floats 0-1), artist+title unique constraint\n- **Similarity** — Cosine similarity (score 0-1) op N-dimensionale vectoren, zero-vector guard\n\n## Externe Bronnen\n\n- **Last.fm Client** — Track/artist tags ophalen, rate limited (5 req/s token bucket), retry met exponential backoff\n- **Spotify Data Client** — Track ID matching en metadata enrichment via client credentials\n\n## Verwerking\n\n- **Track Ingestie** — Last.fm tags → genreVector berekening, artist tag fallback bij <3 gemapte genres\n\n## Scoring Pipeline\n\n- **Profiel Service** — Genre weights → genormaliseerde 20-dim profielvector + metadata. Cold start = equal weights.\n- **Recommendation Engine** — Laad tracks uit MongoDB, compute genre signal via cosine similarity, scoor via hybridScore (altijd 50/50), apply bubbel-filter + per-stand sort, filter (minScore, excludeIds, blacklist), pagineer. Response bevat breakdown per track (finalScore, signals, appliedWeights, feedbackMultiplier). Meta bevat dialPosition + activeSignals.\n- **Parameterized Recommendations (gebouwd)** — applyFilters() consolideert alle post-score filters: genre (dominant genre match via getDominantGenre), artist (case-insensitive exact match), explicit (tri-state boolean), unplayed (feedbackMap lookup), recentDays (cutoff date), minScore, excludeIds. sortByOverride() biedt frontend sort-override (genreSim/cf/random/recent) die dial sortSignal vervangt maar bubbel-filter intact laat. Additive AND-filtering. Maakt personalized playlists mogelijk (bijv. 'Rock for You').\n- **Blacklist Filter (gepland)** — Per-user blacklist: tracks/artiesten via MongoDB $nin pre-score, genres via post-score filter (dominant genre OF score >= 0.4 threshold). CRUD endpoints onder /api/blacklist/:userId.\n- **Hybride Scoring** — hybridScore(): pure gewogen combinatie (α·genre + β·cf) × δ·feedback. Re-normalisatie bij ontbrekende signalen. DEFAULT_WEIGHTS = Stand 3 (0.5/0.5). Genre actief, cf null tot lastfm-cf gebouwd.\n- **Dial System (bubble-aware)** — 5 frozen presets. Scoring altijd 50/50 (genre+CF), dial is post-score bubbel-filter. Per-stand: filter (minGenreSim drempels), sortSignal (genreSim 1-3, CF 4 met fallback, random 5), unplayedOnly (stand 4). applyBubbleFilter() + sortBySignal() in recommend.js.\n\n## Pijlers\n\n- **Genre Vectors** — 20-dim cosine similarity tegen profielvector (gebouwd)\n- **Last.fm CF (gebouwd)** — track.getSimilar + artist.getSimilar als CF-signaal. computeCfScore: item-based overlap (track 0.7 + artist 0.3), re-normalisatie bij 1 signaal. Cache op Track model (similarTracks, similarArtists, cfEnrichedAt). Bulk enrichment via POST /api/tracks/enrich-cf (artist dedup). null bij geen overlap (pure booster, nooit penalty). Geïntegreerd in scoreTracks via cfContext uit feedbackMap.\n- **User Feedback (gebouwd)** — Like/dislike/library/skip als score multiplier (×1.1/×0.5/×1.2/×0.9). Play count 10+ met time decay (halfwaardetijd 30 dagen). Profiel evolutie via gewogen gemiddelde. CRUD endpoints onder /api/feedback. Pipeline integratie via feedbackMap in recommend.js.\n\n## Auth & API Key Laag\n\n- **JWT Middleware (gebouwd)** — Bearer token validatie, user id + role op req.user\n- **API Key Middleware (gebouwd)** — X-API-Key header validatie: prefix lookup → bcrypt compare → active check → req.apiKey = { id, name }. API key is app-level credential (Last.fm model) — developer bakt key in frontend, alle users delen dezelfde key.\n- **injectUserId Middleware (gebouwd)** — Overschrijft req.body.userId met req.user.id uit JWT. Globale middleware na authenticateJWT. Voorkomt userId spoofing vanuit client.\n- **validateUserParam (gebouwd)** — router.param('userId') handler: retourneert 403 als :userId URL param niet matcht met JWT user. Per route file (sliders, feedback, blacklist).\n- **Middleware chain** — Route ordering in routes/index.js: auth/users/api-keys onbeschermd → validateApiKey → authenticateJWT → injectUserId → data routes.\n- **API Key Management (gebouwd)** — CRUD endpoints onder /api/v1/api-keys (JWT-protected). POST: genereer sk_live_ key, hash opslaan, max 5 actieve per user. GET: lijst zonder hashes. DELETE: soft-revoke (active=false).\n\n## Gebruiker Input (gepland)\n\n- **Onboarding (gebouwd)** — POST /api/v1/onboarding: genre-selectie + artiest-selectie. Gekozen genres geboost in GenreSliders (1.0, rest BASE_WEIGHT=0.1), artiest Last.fm tags boosten genres extra (max +0.3 via applyArtistBoost, genormaliseerd per #artists). App-specifieke validatie (SonarPop: min 3+3, Poppy: min 3 genres). Idempotent (overschrijft via findOneAndUpdate upsert). Retourneert initieel profiel via computeProfileVector\n- **Genre Sliders (gebouwd)** — Per-user genre weights met locking. CRUD endpoints onder /api/sliders/:userId (GET/PUT/POST reset). Locked genres overgeslagen bij profiel evolutie (evolveProfileWeights 4e parameter). Profile compute integratie via userId (voorrang boven directe weights). SonarPop-only.\n- **Slider Presets (gedefinieerd)** — 5 preset slots per user voor GenreSliders snapshots (weights + locked). 3 pre-filled defaults bij eerste GET (Balanced, Chill Vibes, High Energy). Alle presets vrij aanpasbaar en verwijderbaar. CRUD endpoints onder /api/v1/slider-presets (POST create, GET list, PATCH update, DELETE, POST apply). Apply overschrijft GenreSliders volledig (upsert). Max 5 per user, unieke naam. Config: src/config/defaultPresets.js.\n- **Spotify OAuth** — Authorization Code Flow voor top artists/tracks import\n\n## User & Auth Laag\n\n- **User Model (gebouwd)** — Mongoose schema: username (unique), email, password (bcrypt pre-save hook, select:false), role (user/admin), spotifyId, status (active/warned/banned), image (Buffer + contentType), hasCompletedOnboarding. toJSON transform met _links, imageUrl, en password/image stripping.\n- **Auth Routes (gebouwd)** — POST /auth/signup (multipart + image), POST /auth/login (bcrypt compare → JWT), GET /auth/me (JWT-protected). Geen API key vereist.\n- **Users Routes (gebouwd)** — CRUD + seed + image serving. DELETE admin-only via ifAdmin middleware.\n- **Multer Setup (gebouwd)** — Memory storage, 2MB limiet, image type filter (jpeg/png/gif/webp).\n- **Onboarding Guard (gebouwd)** — requireOnboarding middleware: checkt hasCompletedOnboarding flag. Fast path als al true op req.user. Toegepast op feedback, sliders, blacklist routes.\n- **Admin Guard (gebouwd)** — ifAdmin middleware: role check, 403 bij non-admin.\n- **Slider Evolution (gebouwd)** — evolveSliders(): converteert name-based GenreSliders → index-based weights, roept evolveProfileWeights aan, clampt op 0, retourneert geüpdatete sliders + delta's. Geïntegreerd in feedback POST route.",
+    "files": [
+      {
+        "component": "Genre Systeem",
+        "src": [
+          "src/config/genres.js",
+          "src/utils/genreVector.js"
+        ],
+        "test": [
+          "test/unit/genres.test.js",
+          "test/unit/genreVector.test.js"
+        ]
+      },
+      {
+        "component": "Track Model",
+        "src": [
+          "src/models/Track.js"
+        ],
+        "test": [
+          "test/unit/track.test.js",
+          "test/integration/track.integration.test.js"
+        ]
+      },
+      {
+        "component": "Last.fm Client",
+        "src": [
+          "src/services/lastfm/client.js",
+          "src/services/lastfm/errors.js",
+          "src/services/lastfm/mappers.js",
+          "src/services/lastfm/rateLimiter.js"
+        ],
+        "test": [
+          "test/unit/lastfm-client.test.js",
+          "test/unit/lastfm-errors.test.js",
+          "test/unit/lastfm-mappers.test.js",
+          "test/unit/lastfm-rate-limiter.test.js",
+          "test/integration/lastfm.integration.test.js"
+        ]
+      },
+      {
+        "component": "Similarity",
+        "src": [
+          "src/utils/similarity.js"
+        ],
+        "test": [
+          "test/unit/similarity.test.js"
+        ]
+      },
+      {
+        "component": "Track Ingestie",
+        "src": [
+          "src/services/ingestion/ingest.js"
+        ],
+        "test": [
+          "test/unit/ingest.test.js",
+          "test/integration/ingest.integration.test.js"
+        ]
+      },
+      {
+        "component": "Profiel Service",
+        "src": [
+          "src/services/profile/computeProfile.js"
+        ],
+        "test": [
+          "test/unit/compute-profile.test.js"
+        ]
+      },
+      {
+        "component": "Hybrid Scoring",
+        "src": [
+          "src/services/scoring/hybridScore.js"
+        ],
+        "test": [
+          "test/unit/hybrid-score.test.js"
+        ]
+      },
+      {
+        "component": "Recommendation Engine",
+        "src": [
+          "src/services/recommendation/recommend.js"
+        ],
+        "test": [
+          "test/unit/recommend.test.js",
+          "test/integration/recommend.integration.test.js"
+        ]
+      },
+      {
+        "component": "Spotify Data Client",
+        "src": [
+          "src/services/spotify/client.js",
+          "src/services/spotify/errors.js",
+          "src/services/spotify/mappers.js",
+          "src/services/spotify/enrichSpotify.js"
+        ],
+        "test": [
+          "test/unit/spotify-client.test.js",
+          "test/unit/spotify-errors.test.js",
+          "test/unit/spotify-mappers.test.js",
+          "test/unit/enrich-spotify.test.js",
+          "test/integration/spotify.integration.test.js"
+        ]
+      },
+      {
+        "component": "API Routes",
+        "src": [
+          "routes/index.js",
+          "routes/genres.js",
+          "routes/tracks.js",
+          "routes/profile.js",
+          "routes/dial.js",
+          "routes/recommendations.js"
+        ],
+        "test": [
+          "test/unit/routes-genres.test.js",
+          "test/unit/routes-tracks.test.js",
+          "test/unit/routes-profile.test.js",
+          "test/unit/routes-dial.test.js",
+          "test/unit/routes-recommendations.test.js"
+        ]
+      },
+      {
+        "component": "Dial System",
+        "src": [
+          "src/config/dial.js"
+        ],
+        "test": [
+          "test/unit/dial.test.js"
+        ]
+      },
+      {
+        "component": "Blacklist System",
+        "src": [
+          "src/models/Blacklist.js",
+          "src/services/blacklist/blacklistFilter.js",
+          "routes/blacklist.js"
+        ],
+        "test": [
+          "test/unit/blacklist-model.test.js",
+          "test/unit/blacklist-filter.test.js",
+          "test/integration/blacklist.integration.test.js"
+        ]
+      },
+      {
+        "component": "CF System",
+        "src": [
+          "src/services/cf/enrichCf.js",
+          "src/services/cf/cfScore.js"
+        ],
+        "test": [
+          "test/unit/enrich-cf.test.js",
+          "test/unit/cf-score.test.js",
+          "test/integration/cf-recommend.integration.test.js"
+        ],
+        "status": "done"
+      },
+      {
+        "component": "Genre Sliders",
+        "src": [
+          "src/models/GenreSliders.js",
+          "routes/sliders.js"
+        ],
+        "test": [
+          "test/unit/genre-sliders-model.test.js",
+          "test/unit/routes-sliders.test.js",
+          "test/integration/sliders.integration.test.js"
+        ]
+      },
+      {
+        "component": "API Key System",
+        "src": [
+          "src/models/ApiKey.js",
+          "src/services/apikeys/generateKey.js",
+          "src/middleware/apiKeyMiddleware.js",
+          "routes/api-keys.js"
+        ],
+        "test": [
+          "test/unit/api-key-model.test.js",
+          "test/unit/generate-key.test.js",
+          "test/unit/api-key-middleware.test.js",
+          "test/unit/routes-api-keys.test.js",
+          "test/integration/api-keys.integration.test.js"
+        ]
+      },
+      {
+        "component": "Feedback System",
+        "src": [
+          "src/models/Feedback.js",
+          "src/services/feedback/feedbackMultiplier.js",
+          "src/services/feedback/profileEvolution.js",
+          "routes/feedback.js"
+        ],
+        "test": [
+          "test/unit/feedback-model.test.js",
+          "test/unit/feedback-multiplier.test.js",
+          "test/unit/profile-evolution.test.js",
+          "test/integration/feedback.integration.test.js"
+        ]
+      },
+      {
+        "component": "Onboarding",
+        "src": [
+          "src/services/onboarding/onboard.js",
+          "routes/onboarding.js"
+        ],
+        "test": [
+          "test/unit/onboard.test.js",
+          "test/integration/onboarding.integration.test.js"
+        ]
+      },
+      {
+        "component": "Slider Presets",
+        "src": [
+          "src/config/defaultPresets.js",
+          "src/models/SliderPreset.js",
+          "routes/slider-presets.js"
+        ],
+        "test": [
+          "test/unit/slider-preset-model.test.js",
+          "test/unit/routes-slider-presets.test.js",
+          "test/integration/slider-presets.integration.test.js"
+        ],
+        "status": "planned"
+      },
+      {
+        "component": "Auth System",
+        "src": [
+          "routes/auth.js"
+        ],
+        "test": [
+          "test/integration/auth-flow.integration.test.js",
+          "test/integration/auth-me.integration.test.js"
+        ]
+      },
+      {
+        "component": "User Management",
+        "src": [
+          "src/models/User.js",
+          "routes/users.js"
+        ],
+        "test": []
+      },
+      {
+        "component": "Middleware",
+        "src": [
+          "src/middleware/apiKeyMiddleware.js",
+          "src/middleware/authMiddleware.js",
+          "src/middleware/multerSetup.js",
+          "src/middleware/onboardingMiddleware.js",
+          "src/middleware/onlyAdmin.js"
+        ],
+        "test": [
+          "test/unit/api-key-middleware.test.js",
+          "test/unit/onboarding-middleware.test.js",
+          "test/integration/onboarding-guard.integration.test.js"
+        ]
+      },
+      {
+        "component": "Slider Evolution",
+        "src": [
+          "src/services/feedback/sliderEvolution.js"
+        ],
+        "test": [
+          "test/unit/slider-evolution.test.js",
+          "test/integration/slider-evolution-verification.test.js"
+        ]
+      }
+    ]
+  },
+  "context": {
+    "structure": "sonarpoppy/\n├── src/\n│   ├── config/\n│   │   ├── genres.js       # GENRES[20], GENRE_ALIASES, resolveAlias, conversies\n│   │   └── dial.js         # DIAL_PRESETS[5], getDialPreset() — bubbel-filter config (filter+sortSignal+unplayedOnly)\n│   ├── models/\n│   │   ├── Track.js        # Track schema + validatie + indexen\n│   │   ├── Feedback.js     # Feedback schema: userId, trackId, action, playCount, lastPlayedAt\n│   │   ├── GenreSliders.js # GenreSliders schema: userId, sliders (Map), locked ([String])\n│   │   ├── SliderPreset.js # SliderPreset schema: userId, name (compound unique), sliders, locked, isDefault. Max 5 per user\n│   │   └── ApiKey.js       # ApiKey schema: userId, name, prefix, keyHash, active\n│   ├── services/\n│   │   ├── ingestion/\n│   │   │   └── ingest.js    # ingestTrack, ingestBatch — pipeline met tag fallback\n│   │   ├── lastfm/\n│   │   │   ├── client.js    # createLastfmClient factory + API methods\n│   │   │   ├── errors.js    # LastfmApiError, LastfmRateLimitError, LastfmNotFoundError\n│   │   │   ├── mappers.js   # Response mapping (Last.fm → Track model)\n│   │   │   └── rateLimiter.js # Token bucket rate limiter\n│   │   ├── cf/\n│   │   │   ├── enrichCf.js   # enrichCfData: batch CF enrichment, artist dedup\n│   │   │   └── cfScore.js    # computeCfScore: track overlap (0.7) + artist overlap (0.3) → 0-1 | null\n│   │   ├── spotify/\n│   │   │   ├── client.js    # createSpotifyClient factory + auth + search\n│   │   │   ├── errors.js    # SpotifyApiError, SpotifyRateLimitError, SpotifyNotFoundError\n│   │   │   ├── mappers.js   # Response mapping (Spotify → Track model)\n│   │   │   └── enrichSpotify.js # Batch track enrichment\n│   │   ├── profile/\n│   │   │   └── computeProfile.js # computeProfileVector: weights → 20-dim vector + metadata\n│   │   ├── scoring/\n│   │   │   └── hybridScore.js  # hybridScore() + DEFAULT_WEIGHTS — pure gewogen scoring met re-normalisatie\n│   │   ├── feedback/\n│   │   │   ├── feedbackMultiplier.js  # getFeedbackMultiplier: action + play count → multiplier met time decay\n│   │   │   └── profileEvolution.js    # evolveProfileWeights: feedback → gewogen gemiddelde genre weight verschuiving\n│   │   ├── onboarding/\n│   │   │   └── onboard.js      # validateOnboarding, calculateGenreWeights, applyArtistBoost, processOnboarding\n│   │   ├── apikeys/\n│   │   │   └── generateKey.js  # generateApiKey, hashApiKey, compareApiKey\n│   │   └── recommendation/\n│   │       └── recommend.js    # scoreTracks + getRecommendations (hybridScore integratie)\n│   └── utils/\n│       ├── genreVector.js  # createVector, normalizeVector\n│       └── similarity.js   # cosineSimilarity (score 0-1, zero-vector guard, input validatie)\n├── test/\n│   ├── unit/\n│   │   ├── genres.test.js\n│   │   ├── genreVector.test.js\n│   │   ├── similarity.test.js\n│   │   ├── track.test.js\n│   │   ├── lastfm-client.test.js\n│   │   ├── lastfm-errors.test.js\n│   │   ├── lastfm-mappers.test.js\n│   │   ├── lastfm-rate-limiter.test.js\n│   │   ├── ingest.test.js\n│   │   ├── compute-profile.test.js\n│   │   ├── recommend.test.js\n│   │   ├── hybrid-score.test.js\n│   │   ├── feedback-model.test.js\n│   │   ├── feedback-multiplier.test.js\n│   │   ├── profile-evolution.test.js\n│   │   ├── onboard.test.js\n│   │   ├── slider-preset-model.test.js\n│   │   └── routes-slider-presets.test.js\n│   └── integration/\n│       ├── track.integration.test.js\n│       ├── ingest.integration.test.js\n│       ├── lastfm.integration.test.js\n│       ├── recommend.integration.test.js\n│       ├── feedback.integration.test.js\n│       ├── onboarding.integration.test.js\n│       └── slider-presets.integration.test.js\n├── routes/\n│   ├── index.js            # Combineert sub-routers onder /api prefix\n│   ├── genres.js           # GET /api/genres\n│   ├── tracks.js           # GET /api/tracks, POST ingest, POST ingest-batch\n│   ├── profile.js          # POST /api/profile/compute\n│   ├── dial.js             # GET /api/dial — dial presets ophalen\n│   ├── feedback.js         # CRUD + play count endpoints\n│   ├── sliders.js          # GET/PUT/POST reset genre sliders per user\n│   ├── onboarding.js       # POST /api/onboarding (genres + artiesten → profiel)\n│   ├── slider-presets.js   # CRUD + apply slider presets per user\n│   ├── api-keys.js         # CRUD API keys (JWT-protected)\n│   └── recommendations.js  # POST /api/recommendations (+ dial param)\n├── docs/\n│   └── api.md              # API documentatie voor frontend-studenten\n├── .project/\n│   ├── project.json        # Dashboard\n│   └── backlog.html        # Product backlog\n├── CLAUDE.md\n├── .prettierrc\n└── .env.example",
+    "routing": [
+      "POST /api/v1/auth/signup → routes/auth.js → User.create + bcrypt hash + optional image upload",
+      "POST /api/v1/auth/login → routes/auth.js → bcrypt compare + JWT sign",
+      "GET /api/v1/auth/me → routes/auth.js → User.findById (JWT-protected)",
+      "GET /api/v1/users → routes/users.js → User.find()",
+      "POST /api/v1/users → routes/users.js → User.create + optional image upload",
+      "POST /api/v1/users/seed → routes/users.js → faker seed (deleteMany + insertMany)",
+      "PUT /api/v1/users/:id → routes/users.js → User.findByIdAndUpdate + optional image",
+      "GET /api/v1/users/:id → routes/users.js → User.findById",
+      "GET /api/v1/users/:id/image → routes/users.js → serve raw image binary",
+      "DELETE /api/v1/users/:id → routes/users.js → User.findByIdAndDelete (admin only)",
+      "GET /api/v1/genres → routes/genres.js → GENRES config",
+      "GET /api/v1/tracks → routes/tracks.js → Track.find().lean()",
+      "POST /api/v1/tracks/ingest → routes/tracks.js → ingestTrack (Last.fm singleton)",
+      "POST /api/v1/tracks/ingest-batch → routes/tracks.js → ingestBatch (Last.fm singleton)",
+      "POST /api/v1/tracks/enrich-spotify → routes/tracks.js → enrichTracks (Spotify singleton)",
+      "POST /api/v1/tracks/enrich-cf → routes/tracks.js → enrichCfData (Last.fm singleton, artist dedup)",
+      "POST /api/v1/profile/compute → routes/profile.js → computeProfileVector",
+      "POST /api/v1/recommendations → routes/recommendations.js → getRecommendations (+ dial→bubbel-filter+sort)",
+      "GET /api/v1/dial → routes/dial.js → DIAL_PRESETS config",
+      "POST /api/v1/onboarding → routes/onboarding.js → processOnboarding (genres + artiesten → GenreSliders + profiel)",
+      "POST /api/v1/feedback → routes/feedback.js → upsert feedback + slider evolutie (JWT userId, requireOnboarding)",
+      "GET /api/v1/feedback → routes/feedback.js → user feedback ophalen (JWT userId)",
+      "GET /api/v1/feedback/:trackId → routes/feedback.js → specifiek feedback (JWT userId)",
+      "DELETE /api/v1/feedback/:trackId → routes/feedback.js → feedback verwijderen (JWT userId)",
+      "POST /api/v1/feedback/:trackId/play → routes/feedback.js → play count++ (JWT userId)",
+      "GET /api/v1/sliders → routes/sliders.js → GenreSliders.findOne (JWT userId, requireOnboarding)",
+      "PUT /api/v1/sliders → routes/sliders.js → GenreSliders upsert (JWT userId, requireOnboarding)",
+      "POST /api/v1/sliders/reset → routes/sliders.js → reset naar equal weights (JWT userId, requireOnboarding)",
+      "GET /api/v1/blacklist → routes/blacklist.js → Blacklist.findOne (JWT userId, requireOnboarding)",
+      "POST /api/v1/blacklist → routes/blacklist.js → add entry + genre alias resolve (JWT userId, requireOnboarding)",
+      "DELETE /api/v1/blacklist/:entryId → routes/blacklist.js → remove entry (JWT userId, requireOnboarding)",
+      "POST /api/v1/api-keys → routes/api-keys.js → generateKey + ApiKey.create (JWT-protected)",
+      "GET /api/v1/api-keys → routes/api-keys.js → ApiKey.find({ userId }) (JWT-protected)",
+      "DELETE /api/v1/api-keys/:id → routes/api-keys.js → ApiKey.active=false (JWT-protected)",
+      "POST /api/v1/slider-presets → routes/slider-presets.js → SliderPreset.create (JWT userId, requireOnboarding, max 5)",
+      "GET /api/v1/slider-presets → routes/slider-presets.js → SliderPreset.find (lazy seed 3 defaults)",
+      "PATCH /api/v1/slider-presets/:presetId → routes/slider-presets.js → SliderPreset.findOneAndUpdate",
+      "DELETE /api/v1/slider-presets/:presetId → routes/slider-presets.js → SliderPreset.findOneAndDelete",
+      "POST /api/v1/slider-presets/:presetId/apply → routes/slider-presets.js → GenreSliders.findOneAndUpdate (upsert)"
+    ],
+    "patterns": [
+      "ES modules (type: module in package.json)",
+      "Node --env-file voor .env loading (geen dotenv)",
+      "Express 5 (async route handlers native)",
+      "CORS middleware handmatig (geen cors package) — preflight 204, Authorization + X-API-Key in Allow-Headers",
+      "Accept header validatie middleware (application/json + */* toegestaan)",
+      "Dual auth: API key (app-level, X-API-Key) + JWT (user-level, Bearer token)",
+      "userId altijd uit JWT token — injectUserId overschrijft req.body.userId",
+      "validateUserParam via router.param() per route file voor :userId URL param validatie",
+      "Named exports + Object.freeze() voor config constanten",
+      "Named exports voor utilities (tree-shakeable)",
+      "node:test (ingebouwd) voor unit tests",
+      "mongodb-memory-server voor integration tests (geen externe MongoDB nodig)",
+      "Default export voor Mongoose models, named exports voor utilities"
+    ],
+    "updated": "2026-03-16"
+  }
+}
