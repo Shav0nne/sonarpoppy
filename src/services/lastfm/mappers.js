@@ -44,6 +44,28 @@ export function mapSimilarTracks(response) {
     }));
 }
 
+export function mapArtistInfo(response) {
+  const artist = response.artist;
+
+  const images = (artist.image ?? [])
+    .filter((img) => img["#text"])
+    .map((img) => ({ url: img["#text"], size: img.size }));
+
+  return {
+    name: artist.name,
+    images,
+    mbid: artist.mbid || null,
+    url: artist.url,
+  };
+}
+
+export function mapArtistSearch(response) {
+  const artists = response.results?.artistmatches?.artist;
+  if (!artists?.length) return [];
+
+  return artists.filter((a) => a.name).map((a) => ({ name: a.name }));
+}
+
 export function mapSimilarArtists(response) {
   const artists = response.similarartists?.artist;
   if (!artists?.length) return [];

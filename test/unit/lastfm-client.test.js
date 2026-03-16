@@ -508,3 +508,94 @@ describe("getArtistSimilar", () => {
     assert.deepEqual(result, []);
   });
 });
+
+describe("searchArtists", () => {
+  it("calls artist.search and returns mapped artist names", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          results: {
+            artistmatches: {
+              artist: [
+                { name: "Radiohead", listeners: "5000000" },
+                { name: "Radio Dept.", listeners: "300000" },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.searchArtists("radio");
+
+    assert.equal(result.length, 2);
+    assert.deepEqual(result[0], { name: "Radiohead" });
+    assert.deepEqual(result[1], { name: "Radio Dept." });
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "artist.search");
+    assert.equal(url.searchParams.get("artist"), "radio");
+    assert.equal(url.searchParams.get("limit"), "10");
+  });
+
+  it("returns empty array when no matches", async () => {
+    const { fn } = mockFetch([{ json: { results: { artistmatches: { artist: [] } } } }]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.searchArtists("zzzznonexistent");
+
+    assert.deepEqual(result, []);
+  });
+});
+
+describe("getArtistInfo", () => {
+  it("calls artist.getInfo and returns mapped artist info with images", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          artist: {
+            name: "Radiohead",
+            mbid: "abc-123",
+            url: "https://last.fm/radiohead",
+            image: [
+              { "#text": "https://img.fm/small.jpg", size: "small" },
+              { "#text": "https://img.fm/large.jpg", size: "large" },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getArtistInfo("Radiohead");
+
+    assert.equal(result.name, "Radiohead");
+    assert.equal(result.images.length, 2);
+    assert.equal(result.images[0].url, "https://img.fm/small.jpg");
+    assert.equal(result.images[0].size, "small");
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "artist.getInfo");
+    assert.equal(url.searchParams.get("artist"), "Radiohead");
+  });
+
+  it("throws LastfmNotFoundError for unknown artist", async () => {
+    const { fn } = mockFetch([{ json: { error: 6, message: "Artist not found" } }]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 0,
+    });
+
+    await assert.rejects(
+      () => client.getArtistInfo("NonExistentArtist12345"),
+      (err) => {
+        assert.ok(err instanceof LastfmNotFoundError);
+        return true;
+      },
+    );
+  });
+});

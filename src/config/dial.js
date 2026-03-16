@@ -41,11 +41,27 @@ const DIAL_PRESETS = Object.freeze([
   }),
 ]);
 
-function getDialPreset(position) {
+function getDialPreset(position, configOverrides = null) {
   if (typeof position !== "number" || !Number.isInteger(position) || position < 1 || position > 5) {
     throw new RangeError(`Invalid dial position: ${position}. Must be integer 1-5.`);
   }
-  return DIAL_PRESETS[position - 1];
+  const frozen = DIAL_PRESETS[position - 1];
+
+  if (!configOverrides?.length) return frozen;
+
+  const override = configOverrides.find((o) => o.position === position);
+  if (!override) return frozen;
+
+  // Merge: override values win, keep frozen structure (name, description, filter.type)
+  const threshold = override.threshold !== undefined ? override.threshold : frozen.filter.threshold;
+  const filterType = threshold != null ? "minGenreSim" : "none";
+
+  return {
+    ...frozen,
+    filter: { type: filterType, threshold },
+    sortSignal: override.sortSignal ?? frozen.sortSignal,
+    unplayedOnly: override.unplayedOnly ?? frozen.unplayedOnly,
+  };
 }
 
 export { DIAL_PRESETS, getDialPreset };
