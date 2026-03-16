@@ -59,6 +59,13 @@ export function mapArtistInfo(response) {
   };
 }
 
+export function mapArtistSearch(response) {
+  const artists = response.results?.artistmatches?.artist;
+  if (!artists?.length) return [];
+
+  return artists.filter((a) => a.name).map((a) => ({ name: a.name }));
+}
+
 export function mapSimilarArtists(response) {
   const artists = response.similarartists?.artist;
   if (!artists?.length) return [];

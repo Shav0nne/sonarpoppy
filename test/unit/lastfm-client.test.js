@@ -509,6 +509,46 @@ describe("getArtistSimilar", () => {
   });
 });
 
+describe("searchArtists", () => {
+  it("calls artist.search and returns mapped artist names", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          results: {
+            artistmatches: {
+              artist: [
+                { name: "Radiohead", listeners: "5000000" },
+                { name: "Radio Dept.", listeners: "300000" },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.searchArtists("radio");
+
+    assert.equal(result.length, 2);
+    assert.deepEqual(result[0], { name: "Radiohead" });
+    assert.deepEqual(result[1], { name: "Radio Dept." });
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "artist.search");
+    assert.equal(url.searchParams.get("artist"), "radio");
+    assert.equal(url.searchParams.get("limit"), "10");
+  });
+
+  it("returns empty array when no matches", async () => {
+    const { fn } = mockFetch([{ json: { results: { artistmatches: { artist: [] } } } }]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.searchArtists("zzzznonexistent");
+
+    assert.deepEqual(result, []);
+  });
+});
+
 describe("getArtistInfo", () => {
   it("calls artist.getInfo and returns mapped artist info with images", async () => {
     const { fn, calls } = mockFetch([

@@ -5,6 +5,7 @@ import {
   mapSimilarTracks,
   mapSimilarArtists,
   mapArtistInfo,
+  mapArtistSearch,
 } from "./mappers.js";
 import { LastfmApiError, LastfmRateLimitError, LastfmNotFoundError } from "./errors.js";
 
@@ -124,6 +125,15 @@ export function createLastfmClient({
     return mapSimilarArtists(data);
   }
 
+  async function searchArtists(query) {
+    const data = await request({
+      method: "artist.search",
+      artist: query,
+      limit: "10",
+    });
+    return mapArtistSearch(data);
+  }
+
   async function getArtistInfo(artist) {
     const data = await request({
       method: "artist.getInfo",
@@ -139,5 +149,6 @@ export function createLastfmClient({
     getTrackSimilar,
     getArtistSimilar,
     getArtistInfo,
+    searchArtists,
   };
 }
