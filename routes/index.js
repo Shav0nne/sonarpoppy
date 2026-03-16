@@ -21,6 +21,7 @@ const router = Router();
 router.use("/auth", authRouter);
 router.use("/users", usersRouter);
 router.use("/api-keys", apiKeysRouter);
+router.use("/friends", friendRouter);
 
 // Beschermde routes: API key (app-level) + JWT (user-level) + userId injectie
 router.use(validateApiKey);
@@ -36,6 +37,5 @@ router.use("/onboarding", onboardingRouter);
 router.use("/feedback", feedbackRouter);
 router.use("/sliders", slidersRouter);
 router.use("/blacklist", blacklistRouter);
-router.use("/friends", friendRouter);
 
 export default router;

@@ -1,7 +1,6 @@
 import express from 'express';
 import Friend from '../src/models/Friend.js';
 import User from '../src/models/User.js';
-import { protect as friendProtect } from '../src/middleware/friendMiddleware.js';
 
 const router = express.Router();
 
@@ -9,7 +8,7 @@ const router = express.Router();
 router.options("/", (req, res) => {
     res.setHeader("Allow", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
     res.sendStatus(204);
 });
 
@@ -17,14 +16,22 @@ router.options("/", (req, res) => {
 router.options("/:id", (req, res) => {
     res.setHeader("Allow", "GET, OPTIONS, PATCH, DELETE");
     res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS, PATCH, DELETE");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
     res.sendStatus(204);
 });
 
-// GET /api/friends - Get all friends of the authenticated user
-router.get('/', friendProtect, async (req, res) => {
+// GET /api/friends
+router.get('/', async (req, res) => {
     try {
-        const userId = req.user.id;
+        // Get userId from query parameter
+        const userId = req.query.userId;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'userId query parameter is required'
+            });
+        }
 
         // Find all accepted friendships where the user is involved
         const friendships = await Friend.find({
@@ -55,8 +62,8 @@ router.get('/', friendProtect, async (req, res) => {
             count: friends.length,
             data: friends,
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends` },
-                requests: { href: `${process.env.BASE_URI}/api/friends/requests` }
+                self: { href: `${process.env.BASE_URI}/api/friends?userId=${userId}` },
+                requests: { href: `${process.env.BASE_URI}/api/friends/requests?userId=${userId}` }
             }
         });
     } catch (error) {
@@ -68,9 +75,17 @@ router.get('/', friendProtect, async (req, res) => {
 });
 
 // GET /api/friends/requests - Get all pending friend requests
-router.get('/requests', friendProtect , async (req, res) => {
+router.get('/requests', async (req, res) => {
     try {
-        const userId = req.user.id;
+        // Get userId from query parameter
+        const userId = req.query.userId;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'userId query parameter is required'
+            });
+        }
 
         // Find incoming pending requests (user is the receiver)
         const incomingRequests = await Friend.find({
@@ -126,8 +141,8 @@ router.get('/requests', friendProtect , async (req, res) => {
                 outgoing: formattedOutgoing
             },
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends/requests` },
-                friends: { href: `${process.env.BASE_URI}/api/friends` }
+                self: { href: `${process.env.BASE_URI}/api/friends/requests?userId=${userId}` },
+                friends: { href: `${process.env.BASE_URI}/api/friends?userId=${userId}` }
             }
         });
     } catch (error) {
@@ -139,10 +154,24 @@ router.get('/requests', friendProtect , async (req, res) => {
 });
 
 // POST /api/friends/request - Send a friend request
-router.post('/request', friendProtect , async (req, res) => {
+router.post('/request', async (req, res) => {
     try {
-        const senderId = req.user.id;
-        const { userId, email } = req.body;
+        // Get senderId from request body
+        const { senderId, userId, email } = req.body;
+
+        if (!senderId) {
+            return res.status(400).json({
+                success: false,
+                error: 'senderId is required in request body'
+            });
+        }
+
+        if (!userId && !email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Either userId or email is required'
+            });
+        }
 
         // Find the receiver by ID or email
         let receiver;
@@ -238,11 +267,17 @@ router.post('/request', friendProtect , async (req, res) => {
 });
 
 // PATCH /api/friends/:requestId - Accept or reject a friend request
-router.patch('/:requestId', friendProtect, async (req, res) => {
+router.patch('/:requestId', async (req, res) => {
     try {
-        const userId = req.user.id;
-        const { status } = req.body;
-        const friendship = req.friendship; // From friendMiddleware
+        const { requestId } = req.params;
+        const { userId, status } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'userId is required in request body'
+            });
+        }
 
         // Validate status
         if (!['accepted', 'rejected'].includes(status)) {
@@ -252,11 +287,29 @@ router.patch('/:requestId', friendProtect, async (req, res) => {
             });
         }
 
-        // Check if user is the receiver and status is pending
-        if (friendship.receiver_user_id.toString() !== userId || friendship.status !== 'pending') {
+        // Find the friend request
+        const friendship = await Friend.findById(requestId);
+
+        if (!friendship) {
+            return res.status(404).json({
+                success: false,
+                error: 'Friend request not found'
+            });
+        }
+
+        // Check if user is the receiver
+        if (friendship.receiver_user_id.toString() !== userId) {
             return res.status(403).json({
                 success: false,
                 error: 'You can only respond to your own pending requests'
+            });
+        }
+
+        // Check if status is pending
+        if (friendship.status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                error: 'This request has already been processed'
             });
         }
 
@@ -273,8 +326,7 @@ router.patch('/:requestId', friendProtect, async (req, res) => {
             data: friendship,
             _links: {
                 self: { href: `${process.env.BASE_URI}/api/friends/${friendship._id}` },
-                collection: { href: `${process.env.BASE_URI}/api/friends` },
-                friends: { href: `${process.env.BASE_URI}/api/friends` }
+                collection: { href: `${process.env.BASE_URI}/api/friends` }
             }
         });
     } catch (error) {
@@ -286,10 +338,27 @@ router.patch('/:requestId', friendProtect, async (req, res) => {
 });
 
 // DELETE /api/friends/:friendId - Remove a friend or cancel a request
-router.delete('/:friendId', friendProtect, async (req, res) => {
+router.delete('/:friendId', async (req, res) => {
     try {
-        const userId = req.user.id;
-        const friendship = req.friendship; // From friendMiddleware
+        const { friendId } = req.params;
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'userId is required in request body'
+            });
+        }
+
+        // Find the friendship
+        const friendship = await Friend.findById(friendId);
+
+        if (!friendship) {
+            return res.status(404).json({
+                success: false,
+                error: 'Friendship not found'
+            });
+        }
 
         // Check if user is involved in this friendship
         if (friendship.sender_user_id.toString() !== userId &&
