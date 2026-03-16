@@ -1,0 +1,253 @@
+{
+  "name": "artist-images",
+  "created": "2026-03-16",
+  "status": "DOING",
+  "stage": "built",
+  "summary": "Lazy-cached artist image endpoint: GET /api/v1/artists/:name/image haalt artist images op van Last.fm artist.getInfo, cachet in ArtistImage MongoDB model, en retourneert images array (small/medium/large/extralarge). Staleness check met configureerbare TTL (default 30 dagen).",
+  "depends": [],
+  "choices": {
+    "coreFunction": "Endpoint per artist — GET /api/v1/artists/:name/image",
+    "dataSource": "Last.fm artist.getInfo",
+    "caching": "MongoDB model (ArtistImage) met lazy fetch",
+    "output": "Alle sizes (small/medium/large/extralarge) — frontend kiest"
+  },
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "description": "ArtistImage Mongoose model met artist (unique, case-insensitive), images array (url + size), fetchedAt timestamp",
+      "category": "data",
+      "acceptance": "Model valideert correct, unique index op artist, images array met url+size objecten",
+      "status": "built",
+      "technique": "TDD",
+      "syncNote": "ArtistImage model in src/models/ArtistImage.js — artist (unique, lowercase), images [{url, size}], fetchedAt (default Date.now)"
+    },
+    {
+      "id": "REQ-002",
+      "description": "getArtistInfo method toevoegen aan Last.fm client die artist.getInfo aanroept en images mapt",
+      "category": "data",
+      "acceptance": "Client retourneert gemapte artist info met images array, handles not-found gracefully",
+      "status": "built",
+      "technique": "TDD",
+      "syncNote": "mapArtistInfo() in mappers.js + getArtistInfo() in client.js — mapt Last.fm artist.getInfo response"
+    },
+    {
+      "id": "REQ-003",
+      "description": "GET /api/v1/artists/:name/image endpoint retourneert artist images",
+      "category": "output",
+      "acceptance": "200 met { artist, images, fetchedAt }, 404 als artist niet gevonden op Last.fm",
+      "status": "built",
+      "technique": "Implementation First",
+      "syncNote": "Route in routes/artists.js, gemount onder /artists in index.js"
+    },
+    {
+      "id": "REQ-004",
+      "description": "Lazy caching: eerste request fetcht van Last.fm en slaat op in MongoDB, volgende requests uit DB",
+      "category": "core",
+      "acceptance": "Tweede request voor dezelfde artist raakt Last.fm API niet, response is identiek",
+      "status": "built",
+      "technique": "TDD",
+      "syncNote": "getArtistImage() in artistImageService.js — DB lookup → miss? fetch → upsert. DI via options.db"
+    },
+    {
+      "id": "REQ-005",
+      "description": "Staleness check: re-fetch als fetchedAt ouder is dan configureerbare TTL (default 30 dagen)",
+      "category": "core",
+      "acceptance": "Na TTL verlopen wordt image opnieuw opgehaald van Last.fm en DB geüpdatet",
+      "status": "built",
+      "technique": "TDD",
+      "syncNote": "isStale() in artistImageService.js — vergelijkt fetchedAt met TTL (default 30d), ttlDays configureerbaar"
+    }
+  ],
+  "files": [
+    {
+      "path": "src/models/ArtistImage.js",
+      "type": "model",
+      "action": "create",
+      "purpose": "Mongoose model: artist (unique, lowercase), images [{url, size}], fetchedAt",
+      "requirements": ["REQ-001"]
+    },
+    {
+      "path": "src/services/lastfm/client.js",
+      "type": "service",
+      "action": "modify",
+      "purpose": "getArtistInfo() method toevoegen aan client factory",
+      "requirements": ["REQ-002"]
+    },
+    {
+      "path": "src/services/lastfm/mappers.js",
+      "type": "util",
+      "action": "modify",
+      "purpose": "mapArtistInfo() functie toevoegen voor artist.getInfo response mapping",
+      "requirements": ["REQ-002"]
+    },
+    {
+      "path": "src/services/artists/artistImageService.js",
+      "type": "service",
+      "action": "create",
+      "purpose": "getArtistImage(): DB lookup → staleness check → Last.fm fetch → upsert",
+      "requirements": ["REQ-004", "REQ-005"]
+    },
+    {
+      "path": "routes/artists.js",
+      "type": "route",
+      "action": "create",
+      "purpose": "GET /:name/image endpoint",
+      "requirements": ["REQ-003"]
+    },
+    {
+      "path": "routes/index.js",
+      "type": "route",
+      "action": "modify",
+      "purpose": "Artists router mounten onder /artists",
+      "requirements": ["REQ-003"]
+    }
+  ],
+  "architecture": {
+    "componentTree": "Route (artists.js) → artistImageService.getArtistImage() → ArtistImage model (DB lookup) / Last.fm client (getArtistInfo) → upsert ArtistImage",
+    "interfaces": {
+      "getArtistImage": {
+        "input": "artistName: string, lastfmClient: LastfmClient, options?: { ttlDays: number }",
+        "output": "{ artist: string, images: [{url, size}], fetchedAt: Date } | null"
+      },
+      "getArtistInfo": {
+        "input": "artist: string",
+        "output": "{ name: string, images: [{url, size}], mbid: string|null, url: string }"
+      }
+    }
+  },
+  "apiContract": [
+    {
+      "method": "GET",
+      "path": "/api/v1/artists/:name/image",
+      "description": "Artist images ophalen (lazy cached van Last.fm)",
+      "params": { "name": "Artist naam (URL-encoded)" },
+      "response200": {
+        "artist": "Radiohead",
+        "images": [
+          { "url": "https://...", "size": "small" },
+          { "url": "https://...", "size": "medium" },
+          { "url": "https://...", "size": "large" },
+          { "url": "https://...", "size": "extralarge" }
+        ],
+        "fetchedAt": "2026-03-16T12:00:00.000Z"
+      },
+      "response404": { "error": "Artist not found" }
+    }
+  ],
+  "buildSequence": [
+    {
+      "step": 1,
+      "requirements": ["REQ-001", "REQ-002"],
+      "description": "ArtistImage model + Last.fm getArtistInfo/mapArtistInfo",
+      "dependsOn": []
+    },
+    {
+      "step": 2,
+      "requirements": ["REQ-004", "REQ-005"],
+      "description": "Artist image service met lazy caching + staleness check",
+      "dependsOn": [1]
+    },
+    {
+      "step": 3,
+      "requirements": ["REQ-003"],
+      "description": "Artists route + mounting in index.js",
+      "dependsOn": [2]
+    }
+  ],
+  "testStrategy": [
+    {
+      "requirement": "REQ-001",
+      "testFile": "test/unit/artist-image-model.test.js",
+      "description": "Schema validatie, unique constraint, images array structuur"
+    },
+    {
+      "requirement": "REQ-002",
+      "testFile": "test/unit/lastfm-client.test.js",
+      "description": "getArtistInfo retourneert gemapte images, handles not-found"
+    },
+    {
+      "requirement": "REQ-003",
+      "testFile": "test/unit/routes-artists.test.js",
+      "description": "Endpoint responses: 200 met images, 404 bij onbekende artist"
+    },
+    {
+      "requirement": "REQ-004",
+      "testFile": "test/unit/artist-image-service.test.js",
+      "description": "Cache hit retourneert DB data, cache miss fetcht van Last.fm + slaat op"
+    },
+    {
+      "requirement": "REQ-005",
+      "testFile": "test/unit/artist-image-service.test.js",
+      "description": "Stale entry (fetchedAt > TTL) triggert re-fetch van Last.fm"
+    }
+  ],
+  "build": {
+    "started": "2026-03-16",
+    "completed": "2026-03-16",
+    "techniques": {
+      "tdd": 4,
+      "implementationFirst": 1
+    },
+    "testsPass": 20,
+    "testsTotal": 20,
+    "decisions": [
+      "DI via options.db parameter voor testbaarheid zonder MongoDB",
+      "Case-insensitive lookup via Mongoose lowercase option op artist veld",
+      "isStale() helper voor TTL check, default 30 dagen, configureerbaar"
+    ],
+    "explanation": "Frontend vraagt artist images op via GET /api/v1/artists/:name/image. De service checkt eerst de MongoDB cache. Bij een miss (of stale data >30 dagen) haalt het images op van Last.fm artist.getInfo, slaat ze op via upsert, en retourneert ze. Volgende requests komen direct uit de database."
+  },
+  "tests": {
+    "checklist": [
+      {
+        "id": 1,
+        "title": "Artist image ophalen — cache miss",
+        "requirementId": "REQ-004",
+        "steps": [
+          "Stuur GET /api/v1/artists/Radiohead/image",
+          "Verifieer 200 response met images array"
+        ],
+        "expected": "Response bevat artist naam, images array met url+size per formaat, en fetchedAt timestamp",
+        "status": "pending"
+      },
+      {
+        "id": 2,
+        "title": "Artist image ophalen — cache hit",
+        "requirementId": "REQ-004",
+        "steps": [
+          "Stuur GET /api/v1/artists/Radiohead/image (eerste keer)",
+          "Stuur GET /api/v1/artists/Radiohead/image (tweede keer)"
+        ],
+        "expected": "Tweede request retourneert dezelfde data, Last.fm API niet opnieuw aangeroepen",
+        "status": "pending"
+      },
+      {
+        "id": 3,
+        "title": "Onbekende artist retourneert 404",
+        "requirementId": "REQ-003",
+        "steps": ["Stuur GET /api/v1/artists/NonExistentArtist12345/image"],
+        "expected": "404 response met { error: 'Artist not found' }",
+        "status": "pending"
+      },
+      {
+        "id": 4,
+        "title": "Case-insensitive artist lookup",
+        "requirementId": "REQ-001",
+        "steps": [
+          "Stuur GET /api/v1/artists/RADIOHEAD/image",
+          "Stuur GET /api/v1/artists/radiohead/image"
+        ],
+        "expected": "Beide requests retourneren dezelfde data, slechts 1 DB record aangemaakt",
+        "status": "pending"
+      },
+      {
+        "id": 5,
+        "title": "URL-encoded artist namen werken",
+        "requirementId": "REQ-003",
+        "steps": ["Stuur GET /api/v1/artists/The%20Rolling%20Stones/image"],
+        "expected": "200 response met correcte artist data",
+        "status": "pending"
+      }
+    ]
+  }
+}

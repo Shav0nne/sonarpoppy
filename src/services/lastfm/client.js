@@ -1,5 +1,11 @@
 import { createTokenBucket } from "./rateLimiter.js";
-import { mapTrackInfo, mapTopTags, mapSimilarTracks, mapSimilarArtists } from "./mappers.js";
+import {
+  mapTrackInfo,
+  mapTopTags,
+  mapSimilarTracks,
+  mapSimilarArtists,
+  mapArtistInfo,
+} from "./mappers.js";
 import { LastfmApiError, LastfmRateLimitError, LastfmNotFoundError } from "./errors.js";
 
 const BASE_URL = "https://ws.audioscrobbler.com/2.0/";
@@ -118,5 +124,20 @@ export function createLastfmClient({
     return mapSimilarArtists(data);
   }
 
-  return { getTrackInfo, getTrackTopTags, getArtistTopTags, getTrackSimilar, getArtistSimilar };
+  async function getArtistInfo(artist) {
+    const data = await request({
+      method: "artist.getInfo",
+      artist,
+    });
+    return mapArtistInfo(data);
+  }
+
+  return {
+    getTrackInfo,
+    getTrackTopTags,
+    getArtistTopTags,
+    getTrackSimilar,
+    getArtistSimilar,
+    getArtistInfo,
+  };
 }
