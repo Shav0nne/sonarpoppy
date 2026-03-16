@@ -1,8 +1,7 @@
 {
   "name": "slider-presets",
   "created": "2026-03-16",
-  "status": "DOING",
-  "stage": "defined",
+  "status": "DONE",
   "summary": "5 preset slots per user voor het opslaan en laden van GenreSliders snapshots (weights + locked). 3 komen pre-filled bij eerste GET (Balanced, Chill Vibes, High Energy), 2 leeg. Alle presets zijn vrij aanpasbaar en verwijderbaar. Apply overschrijft GenreSliders volledig.",
   "depends": ["genre-sliders"],
   "choices": {
@@ -19,7 +18,7 @@
       "description": "User kan een preset aanmaken met naam + slider snapshot (weights + locked)",
       "category": "core",
       "acceptance": "POST retourneert 201 met preset object. 400 bij >5 presets, 409 bij dubbele naam",
-      "status": "built",
+      "status": "PASS",
       "technique": "Implementation First",
       "syncNote": "POST /slider-presets: naam validatie, max 5 check via countDocuments, 409 bij duplicate key error."
     },
@@ -28,7 +27,7 @@
       "description": "User kan al zijn presets ophalen; bij eerste GET worden 3 default presets aangemaakt",
       "category": "core",
       "acceptance": "GET retourneert array van presets. Eerste aanroep voor nieuwe user seeded 3 defaults en retourneert die",
-      "status": "built",
+      "status": "PASS",
       "technique": "Implementation First",
       "syncNote": "GET /slider-presets: lazy seed via seedDefaults() met insertMany van DEFAULT_PRESETS config."
     },
@@ -37,7 +36,7 @@
       "description": "User kan een preset updaten (naam, weights, locked — alles aanpasbaar)",
       "category": "core",
       "acceptance": "PATCH retourneert 200 met geUpdatet object. 409 bij naam-conflict",
-      "status": "built",
+      "status": "PASS",
       "technique": "Implementation First",
       "syncNote": "PATCH /slider-presets/:presetId: findOneAndUpdate met userId scope, 409 bij duplicate key."
     },
@@ -46,7 +45,7 @@
       "description": "User kan een preset verwijderen (ook defaults)",
       "category": "core",
       "acceptance": "DELETE retourneert 204",
-      "status": "built",
+      "status": "PASS",
       "technique": "Implementation First",
       "syncNote": "DELETE /slider-presets/:presetId: findOneAndDelete met userId scope, 404 bij niet gevonden."
     },
@@ -55,7 +54,7 @@
       "description": "User kan een preset toepassen op actieve GenreSliders (volledige overschrijving)",
       "category": "output",
       "acceptance": "POST apply overschrijft GenreSliders volledig (weights + locked via upsert), retourneert nieuwe slider-staat",
-      "status": "built",
+      "status": "PASS",
       "technique": "Implementation First",
       "syncNote": "POST /slider-presets/:presetId/apply: GenreSliders.findOneAndUpdate met upsert, volledige $set van sliders + locked."
     },
@@ -64,7 +63,7 @@
       "description": "Maximum 5 presets per user, unieke naam per user",
       "category": "constraint",
       "acceptance": "Enforced bij create. Compound unique index op userId + name. POST retourneert 400 bij >5, 409 bij dubbele naam",
-      "status": "built",
+      "status": "PASS",
       "technique": "TDD",
       "syncNote": "SliderPreset model met compound unique index userId+name, Map-based sliders, isDefault flag. defaultPresets.js met 3 frozen configs."
     }
@@ -232,6 +231,10 @@
   },
   "packages": [],
   "tests": {
+    "finalStatus": "PASSED",
+    "sessions": [
+      { "date": "2026-03-16", "pass": 6, "fail": 0, "skip": 0 }
+    ],
     "checklist": [
       {
         "id": 1,
@@ -239,7 +242,7 @@
         "requirementId": "REQ-001",
         "steps": ["POST /api/v1/slider-presets met naam + sliders", "GET /api/v1/slider-presets"],
         "expected": "Nieuwe preset verschijnt in de lijst met correcte naam en slider waarden",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 2,
@@ -247,7 +250,7 @@
         "requirementId": "REQ-002",
         "steps": ["GET /api/v1/slider-presets als nieuwe user"],
         "expected": "3 presets: Balanced, Chill Vibes, High Energy — elk met isDefault: true",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 3,
@@ -255,7 +258,7 @@
         "requirementId": "REQ-003",
         "steps": ["PATCH /api/v1/slider-presets/:presetId met nieuwe naam + sliders"],
         "expected": "Preset reflecteert de nieuwe waarden in GET response",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 4,
@@ -263,7 +266,7 @@
         "requirementId": "REQ-004",
         "steps": ["DELETE /api/v1/slider-presets/:presetId"],
         "expected": "204 response, preset verdwijnt uit GET lijst",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 5,
@@ -271,7 +274,7 @@
         "requirementId": "REQ-005",
         "steps": ["POST /api/v1/slider-presets/:presetId/apply", "GET /api/v1/sliders"],
         "expected": "GenreSliders volledig overschreven met preset waarden (weights + locked)",
-        "status": "pending"
+        "status": "PASS"
       },
       {
         "id": 6,
@@ -279,7 +282,7 @@
         "requirementId": "REQ-006",
         "steps": ["Maak 5 presets aan", "POST /api/v1/slider-presets met 6e preset"],
         "expected": "400 response met foutmelding over maximum bereikt",
-        "status": "pending"
+        "status": "PASS"
       }
     ]
   }

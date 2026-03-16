@@ -300,8 +300,7 @@
     },
     {
       "name": "parameterized-recommendations",
-      "status": "DOING",
-      "stage": "built",
+      "status": "DONE",
       "summary": "Recommendation endpoint uitbreiden met filter/sort parameters (genre, artist, sort-override, explicit, unplayed, recentDays) zodat frontends personalized playlists kunnen samenstellen.",
       "depends": [
         "recommendation-engine"
@@ -310,8 +309,7 @@
     },
     {
       "name": "slider-presets",
-      "status": "DOING",
-      "stage": "built",
+      "status": "DONE",
       "summary": "5 preset slots per user voor GenreSliders snapshots (weights + locked). 3 pre-filled defaults bij eerste GET (lazy init), 2 leeg. Alle presets vrij aanpasbaar en verwijderbaar. CRUD endpoints + apply (overschrijft GenreSliders volledig). Max 5 per user, unieke naam.",
       "depends": [
         "genre-sliders"

@@ -20,18 +20,17 @@
     {
       "name": "parameterized-recommendations",
       "type": "API",
-      "status": "DOING",
-      "stage": "testing",
+      "status": "DONE",
       "phase": "P1",
       "description": "Recommendation endpoint uitbreiden met extra filter/sort parameters voor frontend-componenten: genre-filter (tracks voor specifiek genre), artist-filter, sort-override (genreSim/cf/random/recent), explicit-toggle, en nieuw/onbeluisterd-filter. Eén coherente uitbreiding van het filters-object in POST /api/recommendations.",
       "dependency": "recommendation-engine",
-      "date": "2026-03-16"
+      "date": "2026-03-16",
+      "updated": "2026-03-16"
     },
     {
       "name": "slider-presets",
       "type": "FEATURE",
-      "status": "DOING",
-      "stage": "built",
+      "status": "DONE",
       "phase": "P4",
       "description": "5 preset slots per user voor GenreSliders snapshots (weights + locked). 3 pre-filled defaults bij eerste GET, 2 leeg. Alle aanpasbaar/verwijderbaar. CRUD + apply endpoint. Max 5, unieke naam.",
       "dependency": "genre-sliders",
@@ -42,7 +41,7 @@
       "name": "spotify-oauth",
       "type": "INTEGRATION",
       "status": "TODO",
-      "phase": "P3",
+      "phase": "P4",
       "description": "Spotify OAuth Authorization Code Flow. /me/top/artists + /me/top/tracks voor onboarding (3 time ranges), /me/player/recently-played voor luistergeschiedenis sync.",
       "dependency": null,
       "assignee": "Martijn",

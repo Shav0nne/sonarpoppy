@@ -328,5 +328,25 @@
       "Default export voor Mongoose models, named exports voor utilities"
     ],
     "updated": "2026-03-16"
-  }
+  },
+  "learnings": [
+    {
+      "date": "2026-03-16",
+      "feature": "parameterized-recommendations",
+      "type": "pattern",
+      "summary": "overrides._now parameter voor time-dependent filters maakt recentDays testbaar zonder Date mocking — herbruikbaar voor alle datumgevoelige logica"
+    },
+    {
+      "date": "2026-03-16",
+      "feature": "parameterized-recommendations",
+      "type": "pattern",
+      "summary": "Alle post-score filters geconsolideerd in één applyFilters() stap met AND-chaining — voorkomt verstrooide filterlogica bij toekomstige filters"
+    },
+    {
+      "date": "2026-03-16",
+      "feature": "slider-presets",
+      "type": "pattern",
+      "summary": "Lazy seeding via insertMany bij eerste GET (count===0 check) — simpeler dan migrations, herbruikbaar voor default-data patronen"
+    }
+  ]
 }
