@@ -5,7 +5,8 @@ const friendSchema = new mongoose.Schema(
     {
         sender_user_id: {type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true},
         receiver_user_id: {type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true},
-        status: {type: String, enum: ["pending", "friends", "rejected", "blocked"], default: "pending"},
+        status: {type: String, enum: ["pending", "accepted", "rejected", "blocked"], default: "pending"},
+        accepted_at: {type: Date, default: null},
     },
     {
         timestamps: true,
