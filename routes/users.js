@@ -3,6 +3,7 @@ import { faker } from "@faker-js/faker";
 import User from "../src/models/User.js";
 import { upload } from "../src/middleware/multerSetup.js";
 import { ifAdmin } from "../src/middleware/onlyAdmin.js"
+import {authenticateJWT} from "../src/middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -21,8 +22,7 @@ router.options("/:id", (req, res) => {
   res.sendStatus(204);
 });
 
-//get all users
-router.get("/", async (req, res) => {
+router.get("/admin",authenticateJWT, ifAdmin, async (req, res) => {
   const user = await User.find();
   const userCollection = {
     items: user,
@@ -36,6 +36,22 @@ router.get("/", async (req, res) => {
     },
   };
   res.json(userCollection);
+});
+
+router.get("/user", async (req, res) => {
+    const user = await User.find({},'-role -email');
+    const userCollection = {
+        items: user ,
+        _links: {
+            self: {
+                href: process.env.BASE_URI,
+            },
+            collection: {
+                href: process.env.BASE_URI,
+            },
+        },
+    };
+    res.json(userCollection);
 });
 
 //post create new user
@@ -90,7 +106,7 @@ router.post("/", upload.single('image'), async (req, res) => {
 });
 
 //seed database
-router.post("/seed", async (req, res) => {
+router.post("/seed", authenticateJWT, ifAdmin, async (req, res) => {
   try {
     await User.deleteMany({});
     const amount = req.body?.amount ?? 10;
@@ -192,7 +208,7 @@ router.all("/", (req, res, next) => {
   next();
 });
 
-router.delete("/:id", ifAdmin, async (req, res) => {
+router.delete("/:id", authenticateJWT, ifAdmin, async (req, res) => {
   const userId = req.params.id;
   try {
     const deleted = await User.findByIdAndDelete(userId);
@@ -202,7 +218,4 @@ router.delete("/:id", ifAdmin, async (req, res) => {
     res.status(404).send();
   }
 });
-
-// Forbidden methods for detail
-
 export default router;

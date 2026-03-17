@@ -6,6 +6,25 @@ import { getFeedbackMultiplier } from "../feedback/feedbackMultiplier.js";
 import { getDialPreset } from "../../config/dial.js";
 import { computeCfScore } from "../cf/cfScore.js";
 import { getBlacklistFilters, isGenreBlocked } from "../blacklist/blacklistFilter.js";
+import { GENRES } from "../../config/genres.js";
+import mongoose from "mongoose";
+import { getAlgorithmConfig, DEFAULT_ALGORITHM_CONFIG } from "../admin/configLoader.js";
+
+/**
+ * Get dominant genre name for a track's genreVector.
+ * Returns the genre name with the highest value.
+ */
+function getDominantGenre(genreVector) {
+  let maxIdx = 0;
+  let maxVal = genreVector[0];
+  for (let i = 1; i < genreVector.length; i++) {
+    if (genreVector[i] > maxVal) {
+      maxVal = genreVector[i];
+      maxIdx = i;
+    }
+  }
+  return GENRES[maxIdx];
+}
 
 function hasValidGenreVector(track) {
   return Array.isArray(track.genreVector) && track.genreVector.length > 0;
@@ -117,6 +136,104 @@ function sortBySignal(scored, preset) {
   return scored;
 }
 
+/**
+ * Sort tracks by frontend sort-override parameter.
+ * Replaces dial sortSignal but bubble filter stays active.
+ */
+function sortByOverride(scored, sortKey) {
+  if (sortKey === "genreSim") {
+    return [...scored].sort((a, b) => b.signals.genre - a.signals.genre);
+  }
+
+  if (sortKey === "cf") {
+    return [...scored].sort((a, b) => {
+      const aCf = a.signals.cf;
+      const bCf = b.signals.cf;
+      if (aCf != null && bCf != null) return bCf - aCf;
+      if (aCf != null) return -1;
+      if (bCf != null) return 1;
+      return b.finalScore - a.finalScore;
+    });
+  }
+
+  if (sortKey === "random") {
+    const shuffled = [...scored];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  if (sortKey === "recent") {
+    return [...scored].sort((a, b) => {
+      const aDate = a.track.createdAt ? new Date(a.track.createdAt) : new Date(0);
+      const bDate = b.track.createdAt ? new Date(b.track.createdAt) : new Date(0);
+      return bDate - aDate;
+    });
+  }
+
+  return scored;
+}
+
+/**
+ * Apply all post-score filters in one consolidated step.
+ */
+function applyFilters(scored, filters = {}, feedbackMap = null, now = null) {
+  let result = scored;
+
+  // Genre filter — match dominant genre
+  if (filters.genre != null) {
+    const target = filters.genre.toLowerCase();
+    result = result.filter((s) => getDominantGenre(s.track.genreVector) === target);
+  }
+
+  // Artist filter — case-insensitive exact match
+  if (filters.artist != null) {
+    const target = filters.artist.toLowerCase();
+    result = result.filter((s) => s.track.artist.toLowerCase() === target);
+  }
+
+  // Explicit filter — tri-state: true=only explicit, false=no explicit, null=no filter
+  if (filters.explicit === true) {
+    result = result.filter((s) => s.track.explicit === true);
+  } else if (filters.explicit === false) {
+    result = result.filter((s) => s.track.explicit !== true);
+  }
+
+  // Unplayed filter — only tracks without feedback/plays
+  if (filters.unplayed === true && feedbackMap) {
+    result = result.filter((s) => {
+      const fb = feedbackMap.get(String(s.track._id));
+      if (!fb) return true;
+      return fb.playCount === 0;
+    });
+  }
+
+  // Recent filter — tracks created within N days
+  if (filters.recentDays != null) {
+    const ref = now || new Date();
+    const cutoff = new Date(ref.getTime() - filters.recentDays * 24 * 60 * 60 * 1000);
+    result = result.filter((s) => {
+      if (!s.track.createdAt) return false;
+      return new Date(s.track.createdAt) >= cutoff;
+    });
+  }
+
+  // minScore filter
+  if (filters.minScore != null) {
+    result = result.filter((s) => s.finalScore >= filters.minScore);
+  }
+
+  // excludeIds filter
+  if (filters.excludeIds?.length) {
+    const excluded = new Set(filters.excludeIds.map(String));
+    result = result.filter((s) => !excluded.has(String(s.track._id)));
+  }
+
+  return result;
+}
+
 export async function getRecommendations({
   profileVector,
   limit,
@@ -127,20 +244,33 @@ export async function getRecommendations({
   overrides = {},
   _tracks,
   _feedbackMap,
+  _algorithmConfig,
 }) {
-  // Resolve dial preset; default = Stand 3
+  // Load algorithm config from DB, injected override, or defaults
+  let configObj;
+  if (_algorithmConfig) {
+    configObj = _algorithmConfig.toObject ? _algorithmConfig.toObject() : _algorithmConfig;
+  } else if (mongoose.connection.readyState === 1) {
+    const doc = await getAlgorithmConfig();
+    configObj = doc.toObject ? doc.toObject() : doc;
+  } else {
+    configObj = DEFAULT_ALGORITHM_CONFIG;
+  }
+
+  // Resolve dial preset with config overrides; default = Stand 3
   let preset;
   let dialPosition;
+  const dialOverrides = configObj.dialPresets?.length ? configObj.dialPresets : null;
   if (dial != null) {
-    preset = getDialPreset(dial);
+    preset = getDialPreset(dial, dialOverrides);
     dialPosition = preset.position;
   } else {
-    preset = getDialPreset(3);
+    preset = getDialPreset(3, dialOverrides);
     dialPosition = 3;
   }
 
-  // Scoring altijd met 50/50 gewichten — dial is een post-score filter
-  const w = DEFAULT_WEIGHTS;
+  // Use hybrid weights from config
+  const w = configObj.hybridWeights ?? DEFAULT_WEIGHTS;
 
   // Build feedback map per track voor deze user
   let feedbackMap = _feedbackMap ?? null;
@@ -180,6 +310,21 @@ export async function getRecommendations({
     }
   }
 
+  // Build config-enriched overrides for scoring functions
+  const scoringOverrides = {
+    ...overrides,
+    feedbackConfig: overrides.feedbackConfig ?? {
+      ...configObj.feedbackMultipliers,
+      playThreshold: configObj.playCount?.threshold,
+      playBonus: configObj.playCount?.bonus,
+      halfLifeDays: configObj.playCount?.halfLifeDays,
+    },
+    cfConfig: overrides.cfConfig ?? {
+      trackWeight: configObj.cfWeights?.track,
+      artistWeight: configObj.cfWeights?.artist,
+    },
+  };
+
   let scored = scoreTracks(
     profileVector,
     candidates,
@@ -187,22 +332,20 @@ export async function getRecommendations({
     feedbackMap,
     cfContext,
     blockedGenres,
-    overrides,
+    scoringOverrides,
   );
 
   // Apply bubble filter (post-score)
   scored = applyBubbleFilter(scored, preset, feedbackMap);
 
-  // Sort by dial signal
-  scored = sortBySignal(scored, preset);
+  // Sort: override or dial signal
+  if (filters.sort != null) {
+    scored = sortByOverride(scored, filters.sort);
+  } else {
+    scored = sortBySignal(scored, preset);
+  }
 
-  if (filters.minScore != null) {
-    scored = scored.filter((s) => s.finalScore >= filters.minScore);
-  }
-  if (filters.excludeIds?.length) {
-    const excluded = new Set(filters.excludeIds.map(String));
-    scored = scored.filter((s) => !excluded.has(String(s.track._id)));
-  }
+  scored = applyFilters(scored, filters, feedbackMap, overrides._now);
 
   const total = scored.length;
   const paged = limit != null ? scored.slice(offset, offset + limit) : scored.slice(offset);

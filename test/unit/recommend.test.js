@@ -505,6 +505,393 @@ describe("getRecommendations — onbeluisterd filter (REQ-004)", () => {
   });
 });
 
+// REQ-001 (parameterized-recommendations): Genre-filter
+describe("getRecommendations — genre filter", () => {
+  // Profile = rock (index 0), tracks met verschillende dominant genres
+  const profileVector = v(0);
+  const genreTracks = [
+    { _id: "g1", title: "Rock Hit", artist: "A", genreVector: v(0) }, // dominant = rock
+    { _id: "g2", title: "Pop Song", artist: "B", genreVector: v(1) }, // dominant = pop
+    { _id: "g3", title: "Jazz Tune", artist: "C", genreVector: v(5) }, // dominant = jazz
+    {
+      _id: "g4",
+      title: "Rock-ish",
+      artist: "D",
+      genreVector: [0.6, 0.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    }, // dominant = rock (index 0 highest)
+    { _id: "g5", title: "Metal Track", artist: "E", genreVector: v(7) }, // dominant = metal
+  ];
+
+  it("filters.genre = 'rock' retourneert alleen tracks waar rock dominant is", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { genre: "rock" },
+      _tracks: genreTracks,
+    });
+    assert.equal(result.tracks.length, 2);
+    const titles = result.tracks.map((t) => t.track.title);
+    assert.ok(titles.includes("Rock Hit"));
+    assert.ok(titles.includes("Rock-ish"));
+  });
+
+  it("filters.genre = 'jazz' retourneert alleen jazz-dominant tracks", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { genre: "jazz" },
+      _tracks: genreTracks,
+    });
+    assert.equal(result.tracks.length, 1);
+    assert.equal(result.tracks[0].track.title, "Jazz Tune");
+  });
+
+  it("filters.genre = null heeft geen effect", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { genre: null },
+      _tracks: genreTracks,
+    });
+    assert.equal(result.tracks.length, 5);
+  });
+
+  it("filters.genre is case-insensitive", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { genre: "Rock" },
+      _tracks: genreTracks,
+    });
+    assert.equal(result.tracks.length, 2);
+  });
+});
+
+// REQ-002 (parameterized-recommendations): Artist-filter
+describe("getRecommendations — artist filter", () => {
+  const profileVector = v(0);
+  const artistTracks = [
+    { _id: "a1", title: "Song 1", artist: "Radiohead", genreVector: v(0) },
+    { _id: "a2", title: "Song 2", artist: "Radiohead", genreVector: v(1) },
+    { _id: "a3", title: "Song 3", artist: "Coldplay", genreVector: v(0) },
+    { _id: "a4", title: "Song 4", artist: "Muse", genreVector: v(3) },
+  ];
+
+  it("filters.artist = 'Radiohead' retourneert alleen Radiohead tracks", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { artist: "Radiohead" },
+      _tracks: artistTracks,
+    });
+    assert.equal(result.tracks.length, 2);
+    assert.ok(result.tracks.every((t) => t.track.artist === "Radiohead"));
+  });
+
+  it("artist filter is case-insensitive", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { artist: "radiohead" },
+      _tracks: artistTracks,
+    });
+    assert.equal(result.tracks.length, 2);
+  });
+
+  it("filters.artist = null heeft geen effect", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { artist: null },
+      _tracks: artistTracks,
+    });
+    assert.equal(result.tracks.length, 4);
+  });
+});
+
+// REQ-003 (parameterized-recommendations): Additive filtering
+describe("getRecommendations — additive filtering", () => {
+  const profileVector = v(0);
+  const comboTracks = [
+    { _id: "c1", title: "RH Rock", artist: "Radiohead", genreVector: v(0) },
+    { _id: "c2", title: "RH Pop", artist: "Radiohead", genreVector: v(1) },
+    { _id: "c3", title: "CP Rock", artist: "Coldplay", genreVector: v(0) },
+    { _id: "c4", title: "CP Pop", artist: "Coldplay", genreVector: v(1) },
+  ];
+
+  it("genre + artist filtert additief (AND)", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { genre: "rock", artist: "Radiohead" },
+      _tracks: comboTracks,
+    });
+    assert.equal(result.tracks.length, 1);
+    assert.equal(result.tracks[0].track.title, "RH Rock");
+  });
+
+  it("genre + artist + minScore past alle drie filters toe", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { genre: "rock", artist: "Radiohead", minScore: 0.5 },
+      _tracks: comboTracks,
+    });
+    // RH Rock has genreSim=1.0 (rock profile vs rock track), so finalScore >= 0.5
+    assert.equal(result.tracks.length, 1);
+    assert.equal(result.tracks[0].track.title, "RH Rock");
+  });
+
+  it("genre + excludeIds combineert correct", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { genre: "rock", excludeIds: ["c1"] },
+      _tracks: comboTracks,
+    });
+    // Only CP Rock remains (c3), c1 is excluded
+    assert.equal(result.tracks.length, 1);
+    assert.equal(result.tracks[0].track.title, "CP Rock");
+  });
+});
+
+// REQ-004 (parameterized-recommendations): Sort-override
+describe("getRecommendations — sort-override", () => {
+  const profileVector = v(0);
+  const sortTracks = [
+    {
+      _id: "s1",
+      title: "Old Rock",
+      artist: "A",
+      genreVector: v(0),
+      createdAt: new Date("2026-01-01"),
+    },
+    {
+      _id: "s2",
+      title: "New Pop",
+      artist: "B",
+      genreVector: v(1),
+      createdAt: new Date("2026-03-15"),
+    },
+    {
+      _id: "s3",
+      title: "Mid Jazz",
+      artist: "C",
+      genreVector: v(5),
+      createdAt: new Date("2026-02-01"),
+    },
+  ];
+
+  it("filters.sort = 'genreSim' sorteert op genre similarity desc", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { sort: "genreSim" },
+      _tracks: sortTracks,
+    });
+    // Rock track (genreSim=1.0) moet eerste zijn
+    assert.equal(result.tracks[0].track.title, "Old Rock");
+  });
+
+  it("filters.sort = 'recent' sorteert op createdAt desc", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { sort: "recent" },
+      _tracks: sortTracks,
+    });
+    assert.equal(result.tracks[0].track.title, "New Pop");
+    assert.equal(result.tracks[1].track.title, "Mid Jazz");
+    assert.equal(result.tracks[2].track.title, "Old Rock");
+  });
+
+  it("filters.sort = 'random' geeft random volgorde", async () => {
+    const manyTracks = Array.from({ length: 20 }, (_, i) => ({
+      _id: `r${i}`,
+      title: `Track${i}`,
+      artist: `A${i}`,
+      genreVector: v(i % 20),
+    }));
+    const result = await getRecommendations({
+      profileVector,
+      filters: { sort: "random" },
+      _tracks: manyTracks,
+    });
+    const sorted = await getRecommendations({
+      profileVector,
+      _tracks: manyTracks,
+    });
+    const randomIds = result.tracks.map((t) => t.track._id);
+    const sortedIds = sorted.tracks.map((t) => t.track._id);
+    const hasDeviation = randomIds.some((id, i) => id !== sortedIds[i]);
+    assert.ok(hasDeviation, "sort-override random moet afwijken van default");
+  });
+
+  it("sort-override vervangt dial sortSignal maar bubbel-filter blijft actief", async () => {
+    // Stand 1 heeft minGenreSim 0.6 filter — die moet nog werken
+    const result = await getRecommendations({
+      profileVector,
+      dial: 1,
+      filters: { sort: "recent" },
+      _tracks: sortTracks,
+    });
+    // Bubbel-filter (minGenreSim 0.6) filtert Pop en Jazz eruit, alleen Rock blijft
+    assert.equal(result.tracks.length, 1);
+    assert.equal(result.tracks[0].track.title, "Old Rock");
+  });
+
+  it("filters.sort = null gebruikt default dial sortering", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { sort: null },
+      _tracks: sortTracks,
+    });
+    // Default = genreSim desc (Stand 3)
+    assert.equal(result.tracks[0].track.title, "Old Rock");
+  });
+});
+
+// REQ-005 (parameterized-recommendations): Explicit-toggle
+describe("getRecommendations — explicit filter", () => {
+  const profileVector = v(0);
+  const explicitTracks = [
+    { _id: "e1", title: "Clean Rock", artist: "A", genreVector: v(0), explicit: false },
+    { _id: "e2", title: "Dirty Rock", artist: "B", genreVector: v(0), explicit: true },
+    { _id: "e3", title: "Unknown", artist: "C", genreVector: v(0) }, // no explicit field
+  ];
+
+  it("filters.explicit = false excludeert explicit tracks", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { explicit: false },
+      _tracks: explicitTracks,
+    });
+    assert.ok(result.tracks.every((t) => t.track.explicit !== true));
+    assert.equal(result.tracks.length, 2); // Clean Rock + Unknown
+  });
+
+  it("filters.explicit = true retourneert alleen explicit tracks", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { explicit: true },
+      _tracks: explicitTracks,
+    });
+    assert.equal(result.tracks.length, 1);
+    assert.equal(result.tracks[0].track.title, "Dirty Rock");
+  });
+
+  it("filters.explicit = null/undefined heeft geen effect", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { explicit: null },
+      _tracks: explicitTracks,
+    });
+    assert.equal(result.tracks.length, 3);
+  });
+});
+
+// REQ-006 (parameterized-recommendations): Unplayed-filter
+describe("getRecommendations — unplayed filter", () => {
+  const profileVector = v(0);
+  const unplayedTracks = [
+    { _id: "u1", title: "Played Track", artist: "A", genreVector: v(0) },
+    { _id: "u2", title: "Unplayed Track", artist: "B", genreVector: v(0) },
+    { _id: "u3", title: "Zero Plays", artist: "C", genreVector: v(0) },
+  ];
+
+  it("filters.unplayed = true retourneert alleen tracks zonder feedback", async () => {
+    const feedbackMap = new Map([["u1", { trackId: "u1", action: "like", playCount: 5 }]]);
+    const result = await getRecommendations({
+      profileVector,
+      filters: { unplayed: true },
+      _tracks: unplayedTracks,
+      _feedbackMap: feedbackMap,
+    });
+    assert.equal(result.tracks.length, 2);
+    const titles = result.tracks.map((t) => t.track.title);
+    assert.ok(titles.includes("Unplayed Track"));
+    assert.ok(titles.includes("Zero Plays"));
+  });
+
+  it("filters.unplayed = true houdt tracks met playCount=0", async () => {
+    const feedbackMap = new Map([
+      ["u1", { trackId: "u1", action: "skip", playCount: 3 }],
+      ["u3", { trackId: "u3", action: "skip", playCount: 0 }],
+    ]);
+    const result = await getRecommendations({
+      profileVector,
+      filters: { unplayed: true },
+      _tracks: unplayedTracks,
+      _feedbackMap: feedbackMap,
+    });
+    assert.equal(result.tracks.length, 2);
+    const titles = result.tracks.map((t) => t.track.title);
+    assert.ok(titles.includes("Unplayed Track"));
+    assert.ok(titles.includes("Zero Plays"));
+  });
+
+  it("filters.unplayed = false/null heeft geen effect", async () => {
+    const feedbackMap = new Map([["u1", { trackId: "u1", action: "like", playCount: 5 }]]);
+    const result = await getRecommendations({
+      profileVector,
+      filters: { unplayed: false },
+      _tracks: unplayedTracks,
+      _feedbackMap: feedbackMap,
+    });
+    assert.equal(result.tracks.length, 3);
+  });
+});
+
+// REQ-007 (parameterized-recommendations): Recent-filter
+describe("getRecommendations — recentDays filter", () => {
+  const profileVector = v(0);
+  const now = new Date("2026-03-16");
+  const recentTracks = [
+    {
+      _id: "r1",
+      title: "Today",
+      artist: "A",
+      genreVector: v(0),
+      createdAt: new Date("2026-03-16"),
+    },
+    {
+      _id: "r2",
+      title: "Last Week",
+      artist: "B",
+      genreVector: v(0),
+      createdAt: new Date("2026-03-10"),
+    },
+    {
+      _id: "r3",
+      title: "Last Month",
+      artist: "C",
+      genreVector: v(0),
+      createdAt: new Date("2026-02-14"),
+    },
+    { _id: "r4", title: "Old", artist: "D", genreVector: v(0), createdAt: new Date("2026-01-01") },
+  ];
+
+  it("filters.recentDays = 7 retourneert tracks van laatste 7 dagen", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { recentDays: 7 },
+      _tracks: recentTracks,
+      overrides: { _now: now },
+    });
+    assert.equal(result.tracks.length, 2);
+    const titles = result.tracks.map((t) => t.track.title);
+    assert.ok(titles.includes("Today"));
+    assert.ok(titles.includes("Last Week"));
+  });
+
+  it("filters.recentDays = 30 retourneert meer tracks", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { recentDays: 30 },
+      _tracks: recentTracks,
+      overrides: { _now: now },
+    });
+    assert.equal(result.tracks.length, 3); // Today, Last Week, Last Month
+  });
+
+  it("filters.recentDays = null heeft geen effect", async () => {
+    const result = await getRecommendations({
+      profileVector,
+      filters: { recentDays: null },
+      _tracks: recentTracks,
+    });
+    assert.equal(result.tracks.length, 4);
+  });
+});
+
 // Dial parameter + dialPosition in meta
 describe("getRecommendations — dial parameter", () => {
   const profileVector = v(0);

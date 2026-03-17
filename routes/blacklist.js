@@ -54,9 +54,13 @@ router.post("/", async (req, res, next) => {
       blacklist = new Blacklist({ userId, entries: [] });
     }
 
-    // Check for duplicates
+    // Check for duplicates (case-insensitive for track and artist, exact for genre)
     const isDuplicate = blacklist.entries.some(
-      (entry) => entry.type === type && entry.value === value,
+      (entry) =>
+        entry.type === type &&
+        (type === "genre"
+          ? entry.value === value
+          : entry.value.toLowerCase() === value.toLowerCase()),
     );
     if (isDuplicate) {
       return res.status(409).json({ error: "Entry already exists in blacklist" });
