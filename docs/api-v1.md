@@ -4,44 +4,40 @@ Zie [getting-started.md](getting-started.md) voor account aanmaken, API key opha
 
 ---
 
-## Overzicht
+## Hoe dit document werkt
 
-| Method | Pad                                      | Wat doet het?                         |
-| ------ | ---------------------------------------- | ------------------------------------- |
-| GET    | `/api/v1/genres`                         | 20 genres ophalen                     |
-| GET    | `/api/v1/tracks`                         | Alle tracks ophalen                   |
-| POST   | `/api/v1/onboarding`                     | Cold start: genres + artiesten kiezen |
-| POST   | `/api/v1/profile/compute`                | Profielvector berekenen               |
-| POST   | `/api/v1/recommendations`                | Aanbevelingen ophalen                 |
-| GET    | `/api/v1/dial`                           | 5 dial standen bekijken               |
-| GET    | `/api/v1/sliders`               | Genre sliders ophalen (Onboarding required) |
-| PUT    | `/api/v1/sliders`               | Sliders aanpassen (Onboarding required)     |
-| POST   | `/api/v1/sliders/reset`         | Sliders resetten (Onboarding required)      |
-| POST   | `/api/v1/feedback`              | Like/dislike/skip (Onboarding required)     |
-| GET    | `/api/v1/feedback`              | Alle feedback van user (Onboarding required)|
-| GET    | `/api/v1/feedback/:trackId`      | Feedback voor 1 track (Onboarding required) |
-| DELETE | `/api/v1/feedback/:trackId`      | Feedback verwijderen (Onboarding required)  |
-| POST   | `/api/v1/feedback/:trackId/play` | Play count +1 (Onboarding required)         |
-| GET    | `/api/v1/blacklist`             | Geblokkeerde items (Onboarding required)    |
-| POST   | `/api/v1/blacklist`             | Track/artiest/genre blokkeren (Onboard req) |
-| DELETE | `/api/v1/blacklist/:entryId`    | Blokkering opheffen (Onboarding required)   |
-| POST   | `/api/v1/tracks/ingest`         | Enkele track importeren (beheer)            |
-| POST   | `/api/v1/tracks/ingest-batch`            | Batch track import (beheer)           |
-| POST   | `/api/v1/tracks/enrich-spotify`          | Spotify metadata toevoegen (beheer)   |
-| POST   | `/api/v1/tracks/enrich-cf`               | CF data toevoegen (beheer)            |
+De endpoints zijn gegroepeerd per functionaliteit. Begin bovenaan — de secties volgen de volgorde waarin je ze in je app nodig hebt.
 
-Alle endpoints (behalve auth) vereisen twee headers:
+**Headers** — alle endpoints (behalve auth) vereisen:
 
-- **`Authorization: Bearer <token>`** — JWT token van de ingelogde gebruiker (per user, uit login response)
-- **`X-API-Key: sk_live_...`** — API key van de app (per app, door developer eenmalig aangemaakt)
+- **`Authorization: Bearer <token>`** — JWT token (per user, uit login response)
+- **`X-API-Key: sk_live_...`** — API key (per app, eenmalig aangemaakt)
 
-De API key identificeert de **app**, niet de gebruiker. Eén key wordt gedeeld door alle eindgebruikers van dezelfde frontend. De server haalt `userId` automatisch uit het JWT token — je hoeft dit niet mee te sturen. Zie [getting-started.md](getting-started.md).
+De server haalt `userId` automatisch uit het JWT token — je hoeft dit nooit mee te sturen.
 
-> **Let op: Onboarding is verplicht.** Endpoints voor personalisatie (zoals aanbevelingen, sliders, feedback en blacklist) vereisen dat de gebruiker de onboarding heeft voltooid. Als dit niet zo is, retourneren deze routes een **403 Forbidden** met de melding `Onboarding is nog niet voltooid`. Je kunt controleren of een gebruiker onboarding heeft voltooid door het `hasCompletedOnboarding` veld in de `/auth/me` response (of na login) te bekijken.
+> **Onboarding verplicht.** Endpoints gemarkeerd met **(OB)** vereisen dat de gebruiker onboarding heeft voltooid. Zo niet → `403` met melding `Onboarding is nog niet voltooid`. Check `hasCompletedOnboarding` in de `/auth/me` response.
 
 ---
 
-## Genres & Tracks
+## Overzicht per sectie
+
+| Sectie                                   | Endpoints                                | Wanneer nodig?                         |
+| ---------------------------------------- | ---------------------------------------- | -------------------------------------- |
+| [Data ophalen](#data-ophalen)            | genres, tracks                           | Altijd — basisdata voor je UI          |
+| [Onboarding](#onboarding)                | onboarding                               | Eerste keer — cold start profiel       |
+| [Recommendations](#recommendations)      | profile/compute, recommendations, dial   | Kernfunctionaliteit — tracks tonen     |
+| [Sliders & Presets](#sliders--presets)   | sliders, slider-presets                  | Optioneel — genre voorkeuren finetunen |
+| [Feedback](#feedback)                    | feedback, play                           | Optioneel — likes/dislikes registreren |
+| [Blacklist & Zoeken](#blacklist--zoeken) | blacklist, artists/search, tracks/search | Optioneel — content blokkeren          |
+| [Artist Images](#artist-images)          | artists/:name/image                      | Optioneel — artist foto's tonen        |
+| [Admin](#admin-algorithm-tuning)         | admin/config, admin/explain              | Alleen voor admins                     |
+| [Beheer](#beheer-endpoints)              | ingest, enrich                           | Niet voor frontenders                  |
+
+---
+
+## Data ophalen
+
+Basisdata die je app nodig heeft om te functioneren.
 
 ### GET /api/v1/genres
 
@@ -84,11 +80,11 @@ Alle tracks uit de database. Let op: dit kan een grote response zijn.
 
 ---
 
-## Profiel & Recommendations
+## Onboarding
+
+Nieuwe gebruikers moeten eerst genres (en optioneel artiesten) kiezen. Pas daarna werken recommendations, sliders, feedback en blacklist.
 
 ### POST /api/v1/onboarding
-
-Cold start voor nieuwe gebruikers. Laat de gebruiker genres kiezen en optioneel artiesten. Het systeem maakt dan een profiel + sliders aan.
 
 **Request:**
 
@@ -106,11 +102,9 @@ Cold start voor nieuwe gebruikers. Laat de gebruiker genres kiezen en optioneel 
 | `artists` | string[] | nee       | Favoriete artiesten — hun Last.fm tags boosten genres extra |
 | `app`     | string   | nee       | `"sonarpop"` of `"poppy"` — bepaalt validatieregels         |
 
-> `userId` wordt automatisch uit het JWT token gehaald. Niet meesturen.
-
 **Response (201):**
 
-De database wordt bijgewerkt en de flag `hasCompletedOnboarding` op het User object wordt op `true` gezet.
+De flag `hasCompletedOnboarding` wordt op `true` gezet.
 
 ```json
 {
@@ -133,6 +127,10 @@ De database wordt bijgewerkt en de flag `hasCompletedOnboarding` op het User obj
 
 ---
 
+## Recommendations
+
+De kern van de app: profiel berekenen en gepersonaliseerde tracks ophalen.
+
 ### POST /api/v1/profile/compute
 
 Berekent een profielvector. Dit is de input voor `/recommendations`.
@@ -147,7 +145,7 @@ Berekent een profielvector. Dit is de input voor `/recommendations`.
 | --------- | ------ | --------- | ------------------------------------------------------------------------------------------------------------- |
 | `weights` | object | nee       | Handmatige genre weights, bijv. `{"rock": 0.8, "jazz": 0.3}`. Fallback als geen sliders gevonden voor de user |
 
-> `userId` wordt automatisch uit het JWT token gehaald. Zonder sliders en zonder `weights` → cold start vector (alle genres gelijk).
+> Zonder sliders en zonder `weights` → cold start vector (alle genres gelijk).
 
 **Response:**
 
@@ -182,17 +180,28 @@ Het hoofdendpoint. Retourneert gepersonaliseerde track-aanbevelingen gesorteerd 
 }
 ```
 
-| Veld                 | Type     | Verplicht | Beschrijving                                                                  |
-| -------------------- | -------- | --------- | ----------------------------------------------------------------------------- |
-| `profileVector`      | number[] | ja        | 20-dim vector uit `/profile/compute`                                          |
-| `limit`              | number   | nee       | Max resultaten (default: alle)                                                |
-| `offset`             | number   | nee       | Skip eerste N (voor paginatie)                                                |
-| `dial`               | number   | nee       | Stand 1-5. 1=voorspelbaar, 5=verrassend                                       |
-| `weights`            | object   | nee       | Custom `{"genre": 0.6, "cf": 0.4}` (wordt genegeerd als `dial` is meegegeven) |
-| `filters.minScore`   | number   | nee       | Minimum score (0.0-1.0)                                                       |
-| `filters.excludeIds` | string[] | nee       | Track IDs om over te slaan                                                    |
+**Basis parameters:**
 
-> `userId` wordt automatisch uit het JWT token gehaald (voor feedback multiplier + blacklist filtering).
+| Veld            | Type     | Verplicht | Beschrijving                                                         |
+| --------------- | -------- | --------- | -------------------------------------------------------------------- |
+| `profileVector` | number[] | ja        | 20-dim vector uit `/profile/compute`                                 |
+| `limit`         | number   | nee       | Max resultaten (default: alle)                                       |
+| `offset`        | number   | nee       | Skip eerste N (voor paginatie)                                       |
+| `dial`          | number   | nee       | Stand 1-5. 1=voorspelbaar, 5=verrassend                              |
+| `weights`       | object   | nee       | Custom `{"genre": 0.6, "cf": 0.4}` (genegeerd als `dial` meegegeven) |
+
+**Optionele filters** (in `filters` object):
+
+| Veld         | Type     | Beschrijving                                                                |
+| ------------ | -------- | --------------------------------------------------------------------------- |
+| `genre`      | string   | Filter op dominant genre, bijv. `"rock"`                                    |
+| `artist`     | string   | Filter op artiest (case-insensitive exact match)                            |
+| `sort`       | string   | Sort-override: `"genreSim"`, `"cf"`, `"random"`, of `"recent"`              |
+| `explicit`   | boolean  | `true` = alleen explicit, `false` = geen explicit, weggelaten = geen filter |
+| `unplayed`   | boolean  | `true` = alleen tracks zonder feedback/plays                                |
+| `recentDays` | number   | Alleen tracks geïngest in de laatste N dagen                                |
+| `minScore`   | number   | Minimum score (0.0-1.0)                                                     |
+| `excludeIds` | string[] | Track IDs om over te slaan                                                  |
 
 > **Prioriteit:** `dial` > `weights` > default (stand 3)
 
@@ -240,8 +249,6 @@ Het hoofdendpoint. Retourneert gepersonaliseerde track-aanbevelingen gesorteerd 
 
 Toont de 5 dial standen. Gebruik dit om een slider/keuze UI te bouwen.
 
-**Response:**
-
 ```json
 {
   "presets": [
@@ -250,41 +257,36 @@ Toont de 5 dial standen. Gebruik dit om een slider/keuze UI te bouwen.
       "name": "Strikt",
       "description": "Blijft dicht bij je smaak. Alleen tracks met hoge genre-match.",
       "filter": { "type": "minGenreSim", "threshold": 0.6 },
-      "sortSignal": "genreSim",
-      "unplayedOnly": false
+      "sortSignal": "genreSim"
     },
     {
       "position": 3,
       "name": "Gebalanceerd",
       "filter": { "type": "none", "threshold": null },
-      "sortSignal": "genreSim",
-      "unplayedOnly": false
+      "sortSignal": "genreSim"
     },
     {
       "position": 5,
       "name": "Anti-bubbel",
       "filter": { "type": "none", "threshold": null },
-      "sortSignal": "random",
-      "unplayedOnly": false
+      "sortSignal": "random"
     }
   ],
   "default": 3
 }
 ```
 
-De dial is een bubbel-filter: scoring is altijd 50/50 (genre/CF), de dial bepaalt welke tracks erdoor komen en hoe ze gesorteerd worden. Zie [docs/dial-system.md](dial-system.md) voor de volledige uitleg.
+De dial is een bubbel-filter: scoring is altijd 50/50 (genre/CF), de dial bepaalt welke tracks erdoor komen en hoe ze gesorteerd worden. Zie [dial-system.md](dial-system.md) voor de volledige uitleg.
 
 ---
 
-## Sliders
+## Sliders & Presets
 
-> `userId` wordt automatisch uit het JWT token gehaald bij alle slider endpoints.
+Genre sliders bepalen hoe zwaar elk genre meetelt in recommendations. Presets zijn opgeslagen snapshots van slider-instellingen. **(OB)**
 
 ### GET /api/v1/sliders
 
-Retourneert de genre slider waarden voor de ingelogde gebruiker. (Onboarding required)
-
-**Response:**
+Retourneert de genre slider waarden.
 
 ```json
 {
@@ -300,13 +302,13 @@ Retourneert de genre slider waarden voor de ingelogde gebruiker. (Onboarding req
 | `locked`    | Genres die niet automatisch mee-evolueren met feedback            |
 | `updatedAt` | Laatste wijziging (null als cold start defaults)                  |
 
-Als de gebruiker nog geen sliders heeft → cold start: alle genres op 1.0, locked leeg.
+Geen sliders? → cold start: alle genres op 1.0, locked leeg.
 
 ---
 
 ### PUT /api/v1/sliders
 
-Update slider waarden en/of locked genres voor de ingelogde gebruiker. (Onboarding required) Je hoeft niet alle genres mee te sturen — alleen de gewijzigde.
+Update slider waarden en/of locked genres. Je hoeft niet alle genres mee te sturen — alleen de gewijzigde.
 
 **Request:**
 
@@ -322,28 +324,90 @@ Update slider waarden en/of locked genres voor de ingelogde gebruiker. (Onboardi
 | Fout | Wanneer                                            |
 | ---- | -------------------------------------------------- |
 | 400  | Onbekend genre in `sliders` keys of `locked` array |
-| 401  | Geen geldig JWT token                              |
 
 ---
 
 ### POST /api/v1/sliders/reset
 
-Reset alle sliders naar 1.0 en maakt locked leeg voor de ingelogde gebruiker. (Onboarding required)
+Reset alle sliders naar 1.0 en maakt locked leeg.
 
 **Response:** zelfde shape als GET, alle sliders op 1.0.
 
 | Fout | Wanneer                                  |
 | ---- | ---------------------------------------- |
 | 404  | Gebruiker heeft nog geen slider document |
-| 401  | Geen geldig JWT token                    |
+
+---
+
+### Slider Presets
+
+5 preset slots per user. Bij eerste GET worden 3 defaults aangemaakt (Balanced, Chill Vibes, High Energy). Max 5 per user, unieke naam.
+
+| Method | Pad                                      | Wat doet het?               |
+| ------ | ---------------------------------------- | --------------------------- |
+| GET    | `/api/v1/slider-presets`                 | Alle presets ophalen        |
+| POST   | `/api/v1/slider-presets`                 | Nieuwe preset aanmaken      |
+| PATCH  | `/api/v1/slider-presets/:presetId`       | Preset updaten              |
+| DELETE | `/api/v1/slider-presets/:presetId`       | Preset verwijderen (204)    |
+| POST   | `/api/v1/slider-presets/:presetId/apply` | Preset toepassen op sliders |
+
+**GET response:**
+
+```json
+[
+  {
+    "_id": "preset-id-1",
+    "name": "Balanced",
+    "sliders": { "rock": 1.0, "pop": 1.0, "electronic": 1.0 },
+    "locked": [],
+    "isDefault": true
+  }
+]
+```
+
+**POST request** (nieuwe preset):
+
+```json
+{
+  "name": "Mijn Rock Preset",
+  "sliders": { "rock": 2.0, "metal": 1.5, "pop": 0.3 },
+  "locked": ["rock"]
+}
+```
+
+| Veld      | Type     | Verplicht | Beschrijving                                  |
+| --------- | -------- | --------- | --------------------------------------------- |
+| `name`    | string   | ja        | Unieke naam voor de preset                    |
+| `sliders` | object   | nee       | Genre→gewicht mapping (default: `{}`)         |
+| `locked`  | string[] | nee       | Genres die niet mee-evolueren (default: `[]`) |
+
+**PATCH request:** zelfde velden, alleen meegegeven velden worden overschreven.
+
+**Apply response:** de geüpdatete sliders (zelfde shape als GET /sliders).
+
+| Fout | Wanneer                         |
+| ---- | ------------------------------- |
+| 400  | Naam ontbreekt of max 5 bereikt |
+| 404  | Preset niet gevonden            |
+| 409  | Naam bestaat al voor deze user  |
 
 ---
 
 ## Feedback
 
+Registreer likes, dislikes, skips en play counts. Dit beinvloedt de `feedbackMultiplier` in recommendations: like = hogere score, dislike = lagere. **(OB)**
+
+| Method | Pad                              | Wat doet het?                      |
+| ------ | -------------------------------- | ---------------------------------- |
+| POST   | `/api/v1/feedback`               | Like/dislike/skip registreren      |
+| GET    | `/api/v1/feedback`               | Alle feedback van user             |
+| GET    | `/api/v1/feedback/:trackId`      | Feedback voor 1 track (404 = geen) |
+| DELETE | `/api/v1/feedback/:trackId`      | Feedback verwijderen (204)         |
+| POST   | `/api/v1/feedback/:trackId/play` | Play count +1                      |
+
 ### POST /api/v1/feedback
 
-Registreert een like, dislike, library-add of skip. Upsert: maakt nieuw aan of update bestaand.
+Upsert: maakt nieuw aan of update bestaand.
 
 **Request:**
 
@@ -359,8 +423,6 @@ Registreert een like, dislike, library-add of skip. Upsert: maakt nieuw aan of u
 | `trackId` | string | ja        | Track `_id`                                     |
 | `action`  | string | nee       | `"like"`, `"dislike"`, `"library"`, of `"skip"` |
 
-> `userId` wordt automatisch uit het JWT token gehaald.
-
 **Response (201):**
 
 ```json
@@ -374,77 +436,73 @@ Registreert een like, dislike, library-add of skip. Upsert: maakt nieuw aan of u
 }
 ```
 
-> Feedback beinvloedt de `feedbackMultiplier` in recommendations. Like = hogere score, dislike = lagere score.
-
----
-
 ### GET /api/v1/feedback
-
-Alle feedback van de ingelogde gebruiker. (Onboarding required) Response is een array.
 
 ```json
 [
-  {
-    "_id": "...",
-    "userId": "user123",
-    "trackId": "...",
-    "action": "like",
-    "playCount": 5,
-    "lastPlayedAt": "..."
-  },
-  {
-    "_id": "...",
-    "userId": "user123",
-    "trackId": "...",
-    "action": "dislike",
-    "playCount": 0,
-    "lastPlayedAt": null
-  }
+  { "_id": "...", "trackId": "...", "action": "like", "playCount": 5, "lastPlayedAt": "..." },
+  { "_id": "...", "trackId": "...", "action": "dislike", "playCount": 0, "lastPlayedAt": null }
 ]
 ```
 
----
-
-### GET /api/v1/feedback/:trackId
-
-Feedback voor een specifiek user-track paar. (Onboarding required) **404** als niet gevonden.
-
----
-
-### DELETE /api/v1/feedback/:trackId
-
-Verwijdert feedback. (Onboarding required) **204** No Content bij succes, **404** als niet gevonden.
-
----
-
 ### POST /api/v1/feedback/:trackId/play
 
-Verhoogt de play count met 1 en update `lastPlayedAt`. (Onboarding required) Maakt feedback aan als die nog niet bestaat.
+Verhoogt de play count met 1 en update `lastPlayedAt`. Maakt feedback aan als die nog niet bestaat.
 
 ---
 
-## Blacklist
+## Blacklist & Zoeken
 
-> `userId` wordt automatisch uit het JWT token gehaald bij alle blacklist endpoints. (Onboarding required)
+Blokkeer tracks, artiesten of genres. De zoek-endpoints helpen bij het vinden van de juiste naam voor autocomplete. **(OB)**
 
-### GET /api/v1/blacklist
+### GET /api/v1/artists/search?q=
 
-Retourneert alle geblokkeerde items voor de ingelogde gebruiker. (Onboarding required)
+Zoek artiesten. Doorzoekt de eigen Track DB + Last.fm als aanvulling. Gededupliceerd op lowercase naam.
 
-**Response:**
+| Veld | Type   | Verplicht | Beschrijving                |
+| ---- | ------ | --------- | --------------------------- |
+| `q`  | string | ja        | Zoekterm (min 2 characters) |
+
+```json
+{ "results": [{ "name": "Radiohead" }, { "name": "Radio Moscow" }, { "name": "Thom Yorke" }] }
+```
+
+Max 10 resultaten. | Fout 400: query ontbreekt of < 2 tekens.
+
+---
+
+### GET /api/v1/tracks/search?q=
+
+Zoek tracks op title of artist (case-insensitive).
+
+| Veld | Type   | Verplicht | Beschrijving                |
+| ---- | ------ | --------- | --------------------------- |
+| `q`  | string | ja        | Zoekterm (min 2 characters) |
 
 ```json
 {
-  "userId": "<jwt-user-id>",
+  "results": [
+    { "title": "Bohemian Rhapsody", "artist": "Queen" },
+    { "title": "Creep", "artist": "Radiohead" }
+  ]
+}
+```
+
+Max 10 resultaten. | Fout 400: query ontbreekt of < 2 tekens.
+
+---
+
+---
+
+Alle geblokkeerde items.
+
+```json
+{
   "entries": [
     { "_id": "entry-id-1", "type": "artist", "value": "Nickelback" },
     { "_id": "entry-id-2", "type": "genre", "value": "metal" },
     { "_id": "entry-id-3", "type": "track", "value": "507f1f77bcf86cd799439011" }
-  ],
-  "_links": {
-    "self": "/api/v1/blacklist",
-    "add": "/api/v1/blacklist"
-  }
+  ]
 }
 ```
 
@@ -454,15 +512,12 @@ Geen blacklist? → `entries: []` (geen 404).
 
 ### POST /api/v1/blacklist
 
-Blokkeer een track, artiest of genre voor de ingelogde gebruiker. (Onboarding required)
+Blokkeer een track, artiest of genre.
 
 **Request:**
 
 ```json
-{
-  "type": "artist",
-  "value": "Nickelback"
-}
+{ "type": "artist", "value": "Nickelback" }
 ```
 
 | Veld    | Type   | Verplicht | Opties                                 |
@@ -477,27 +532,124 @@ Blokkeer een track, artiest of genre voor de ingelogde gebruiker. (Onboarding re
 | Fout | Wanneer                                                |
 | ---- | ------------------------------------------------------ |
 | 400  | Type of value ontbreekt, ongeldig type, ongeldig genre |
-| 401  | Geen geldig JWT token                                  |
-| 409  | Entry bestaat al                                       |
+| 409  | Entry bestaat al (case-insensitive voor track/artist)  |
 
 ---
 
 ### DELETE /api/v1/blacklist/:entryId
 
-Verwijder een specifieke blokkering. Gebruik het `_id` veld uit de entries array. (Onboarding required)
+Verwijder een blokkering. Gebruik het `_id` veld uit de entries array.
 
-**Response:** volledige blacklist na verwijdering (zelfde shape als GET).
+**Response:** volledige blacklist na verwijdering.
 
 | Fout | Wanneer                                           |
 | ---- | ------------------------------------------------- |
-| 401  | Geen geldig JWT token                             |
 | 404  | Blacklist niet gevonden, of entryId niet gevonden |
 
 ---
 
-## Backend/Beheer Endpoints
+## Artist Images
 
-> Deze endpoints zijn voor het vullen en verrijken van de database. Als frontend-developer heb je deze normaal niet nodig.
+### GET /api/v1/artists/:name/image
+
+Haalt artist images op. Lazy cached: bij eerste request wordt Last.fm aangeroepen, daarna gecachet (TTL 30 dagen). URL-encoded namen worden correct afgehandeld.
+
+```json
+{
+  "artist": "radiohead",
+  "images": [
+    { "url": "https://lastfm.freetls.fastly.net/i/u/34s/...", "size": "small" },
+    { "url": "https://lastfm.freetls.fastly.net/i/u/64s/...", "size": "medium" },
+    { "url": "https://lastfm.freetls.fastly.net/i/u/174s/...", "size": "large" },
+    { "url": "https://lastfm.freetls.fastly.net/i/u/300x300/...", "size": "extralarge" }
+  ],
+  "fetchedAt": "2026-03-16T12:00:00.000Z"
+}
+```
+
+| Fout | Wanneer                         |
+| ---- | ------------------------------- |
+| 404  | Artist niet gevonden op Last.fm |
+
+---
+
+## Admin (Algorithm Tuning)
+
+> Alle admin endpoints vereisen `role: "admin"`. Niet-admins krijgen `403 Forbidden`. Als frontender heb je deze normaal niet nodig.
+
+| Method | Pad                              | Wat doet het?             |
+| ------ | -------------------------------- | ------------------------- |
+| GET    | `/api/v1/admin/config`           | Scoring config ophalen    |
+| PATCH  | `/api/v1/admin/config`           | Scoring config aanpassen  |
+| POST   | `/api/v1/admin/config/reset`     | Reset naar defaults       |
+| GET    | `/api/v1/admin/explain/:trackId` | Score breakdown per track |
+
+### GET /api/v1/admin/config
+
+```json
+{
+  "hybridWeights": { "genre": 0.5, "cf": 0.5 },
+  "feedbackMultipliers": { "like": 1.1, "dislike": 0.5, "library": 1.2, "skip": 0.9 },
+  "cfWeights": { "trackWeight": 0.7, "artistWeight": 0.3 },
+  "profileEvolution": { "learningRate": 0.1, "maxShift": 0.3 },
+  "playCount": { "threshold": 10, "halfLifeDays": 30 },
+  "dialPresets": {},
+  "updatedAt": "2026-03-16T12:00:00.000Z",
+  "updatedBy": "admin-user-id"
+}
+```
+
+### PATCH /api/v1/admin/config
+
+Partial update. Alleen meegegeven velden worden overschreven.
+
+```json
+{
+  "hybridWeights": { "genre": 0.6, "cf": 0.4 },
+  "feedbackMultipliers": { "like": 1.2 }
+}
+```
+
+Toegestane velden: `hybridWeights`, `feedbackMultipliers`, `cfWeights`, `profileEvolution`, `playCount`, `dialPresets`.
+
+| Fout | Wanneer                       |
+| ---- | ----------------------------- |
+| 400  | Geen valide velden meegegeven |
+
+### POST /api/v1/admin/config/reset
+
+Reset alle parameters naar defaults. **Response:** de gereset config.
+
+### GET /api/v1/admin/explain/:trackId?userId=
+
+Per-track score breakdown: toont hoe de score berekend wordt.
+
+| Query param | Type   | Verplicht | Beschrijving                       |
+| ----------- | ------ | --------- | ---------------------------------- |
+| `userId`    | string | ja        | User ID waarvoor de score berekend |
+
+```json
+{
+  "track": { "_id": "...", "title": "Creep", "artist": "Radiohead" },
+  "genreScore": 0.82,
+  "cfScore": 0.65,
+  "rawScore": 0.735,
+  "feedbackMultiplier": 1.1,
+  "finalScore": 0.8085,
+  "bubbleFilter": { "position": 3, "passesFilter": true }
+}
+```
+
+| Fout | Wanneer                          |
+| ---- | -------------------------------- |
+| 400  | userId query parameter ontbreekt |
+| 404  | Track niet gevonden              |
+
+---
+
+## Beheer Endpoints
+
+> Voor het vullen en verrijken van de database. Als frontender heb je deze niet nodig.
 
 ### POST /api/v1/tracks/ingest
 
@@ -523,7 +675,7 @@ Importeert meerdere tracks.
 
 ### POST /api/v1/tracks/enrich-spotify
 
-Verrijkt tracks met Spotify metadata (spotifyId, uri, duration, albumImages). **503** als Spotify credentials niet geconfigureerd.
+Verrijkt tracks met Spotify metadata. **503** als Spotify credentials niet geconfigureerd.
 
 ```json
 { "batchSize": 50 }
@@ -531,7 +683,7 @@ Verrijkt tracks met Spotify metadata (spotifyId, uri, duration, albumImages). **
 
 ### POST /api/v1/tracks/enrich-cf
 
-Verrijkt tracks met Last.fm collaborative filtering data (similarTracks, similarArtists).
+Verrijkt tracks met Last.fm collaborative filtering data.
 
 ```json
 { "batchSize": 50 }
@@ -565,93 +717,54 @@ async function api(path, options = {}) {
 }
 ```
 
-### Onboarding
+### Onboarding + recommendations
 
 ```js
-// userId wordt automatisch uit JWT gehaald — niet meesturen
-const { profile, sliders } = await api("/onboarding", {
+// 1. Onboarding (eenmalig)
+await api("/onboarding", {
   method: "POST",
-  body: {
-    genres: ["rock", "electronic", "jazz"],
-    artists: ["Radiohead"],
-    app: "sonarpop",
-  },
-});
-```
-
-### Recommendations ophalen
-
-```js
-// Profiel berekenen (userId uit JWT, sliders uit DB)
-const { vector } = await api("/profile/compute", {
-  method: "POST",
-  body: {},
+  body: { genres: ["rock", "electronic", "jazz"], artists: ["Radiohead"], app: "sonarpop" },
 });
 
-// Aanbevelingen ophalen (userId uit JWT voor feedback/blacklist filtering)
-const { tracks, total } = await api("/recommendations", {
+// 2. Profiel berekenen
+const { vector } = await api("/profile/compute", { method: "POST", body: {} });
+
+// 3. Aanbevelingen ophalen
+const { tracks } = await api("/recommendations", {
+  method: "POST",
+  body: { profileVector: vector, limit: 10, dial: 3 },
+});
+
+// 4. Met filters: "Rock for You" playlist
+const rockTracks = await api("/recommendations", {
   method: "POST",
   body: {
     profileVector: vector,
-    limit: 10,
-    dial: 3,
+    limit: 20,
+    filters: { genre: "rock", explicit: false, sort: "recent" },
   },
 });
 
-// Toon tracks
 tracks.forEach(({ track, finalScore }) => {
   console.log(`${track.artist} - ${track.title} (${(finalScore * 100).toFixed(0)}%)`);
 });
 ```
 
-### Like/dislike
+### Feedback + blacklist
 
 ```js
+// Like een track
 await api("/feedback", {
-  method: "POST",
-  body: { trackId: tracks[0].track._id, action: "like" },
+    method: "POST",
+    body: { trackId: tracks[0].track._id, action: "like" },
 });
-```
 
-### Artiest blokkeren
+// Artiest zoeken (autocomplete)
+const { results } = await api("/artists/search?q=radio");
 
-```js
-// userId wordt automatisch uit het JWT token gehaald
+// Artiest blokkeren
 await api("/blacklist", {
-  method: "POST",
-  body: { type: "artist", value: "Nickelback" },
+    method: "POST",
+    body: { type: "artist", value: "Nickelback" },
 });
 ```
-
-### Feedback voor track ophalen
-
-```js
-// userId wordt automatisch uit het JWT token gehaald
-const feedback = await api(`/feedback/${trackId}`);
-```
-
----
-
-## Endpoint toevoegen
-
-Volg dit template wanneer je een nieuw endpoint documenteert:
-
-```markdown
-### METHOD /api/v1/pad
-
-Korte beschrijving van wat het endpoint doet.
-
-**Request body:** (of **Query parameters:** voor GET)
-
-| Veld   | Type | Verplicht | Beschrijving |
-| ------ | ---- | --------- | ------------ |
-| `veld` | type | ja/nee    | Wat het doet |
-
-**Response:**
-
-| Veld   | Type | Beschrijving  |
-| ------ | ---- | ------------- |
-| `veld` | type | Wat het bevat |
-```
-
-Voeg het nieuwe endpoint toe in de juiste sectie.

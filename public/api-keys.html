@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Admin API Keys Management</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .api-key-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .api-key-item:last-child {
+            border-bottom: none;
+        }
+        .badge-active {
+            background-color: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        .badge-revoked {
+            background-color: #dc3545;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        pre {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="mb-4 text-center">API Keys Dashboard</h1>
+
+    <!-- Login Section -->
+    <div class="card p-4" id="login-section">
+        <h3 class="mb-3">Admin Login</h3>
+        <div class="mb-3">
+            <label class="form-label" for="username">Username</label>
+            <input class="form-control" id="username" placeholder="Enter username" type="text">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="password">Password</label>
+            <input class="form-control" id="password" placeholder="Enter password" type="password">
+        </div>
+        <button class="btn btn-primary w-100" onclick="login()">Login</button>
+        <div class="text-danger mt-2" id="login-error" style="display: none;"></div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard-section" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                Logged in as: <span class="fw-bold" id="user-display"></span>
+                <span class="badge bg-secondary ms-2" id="role-badge"></span>
+            </div>
+            <button class="btn btn-outline-danger btn-sm" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- Create Key Card -->
+        <div class="card p-4">
+            <h4>Create New API Key</h4>
+            <div class="input-group mb-3">
+                <input class="form-control" id="new-key-name" placeholder="Key Name (e.g., 'My App')" type="text">
+                <button class="btn btn-success" onclick="createApiKey()">Generate Key</button>
+            </div>
+            <div class="alert alert-success" id="new-key-display" style="display: none;">
+                <strong>Success!</strong> specific API Key created.<br>
+                Please copy it now. You won't be able to see it again!<br>
+                <div class="input-group mt-2">
+                    <input class="form-control" id="generated-key-value" readonly type="text">
+                    <button class="btn btn-outline-secondary" onclick="copyToClipboard()">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- List Keys Card -->
+        <div class="card p-4">
+            <h4>Existing API Keys</h4>
+            <div id="keys-list">
+                <div class="text-center text-muted">Loading keys...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = '/api/v1';
+
+    // Check if already logged in
+    document.addEventListener('DOMContentLoaded', () => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            validateAndShowDashboard(token);
+        }
+    });
+
+    async function login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('login-error');
+
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+
+        if (!username || !password) {
+            errorDiv.textContent = 'Please enter username and password';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message || 'Login failed');
+            }
+
+            // Check if admin
+            if (data.user.role !== 'admin') {
+                throw new Error('Access denied. Admin role required.');
+            }
+
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            showDashboard(data.user);
+            fetchApiKeys();
+
+        } catch (err) {
+            errorDiv.textContent = err.message;
+            errorDiv.style.display = 'block';
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        document.getElementById('login-section').style.display = 'block';
+        document.getElementById('dashboard-section').style.display = 'none';
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+    }
+
+    async function validateAndShowDashboard(token) {
+        // Technically we should validate the token with an API call,
+        // but for now we'll trust localStorage and let API calls fail if invalid.
+        // We can check the stored user object.
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+             if (user.role !== 'admin') {
+                logout();
+                alert('Access denied. Admin role required.');
+                return;
+            }
+            showDashboard(user);
+            fetchApiKeys();
+        } else {
+            logout();
+        }
+    }
+
+    function showDashboard(user) {
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('dashboard-section').style.display = 'block';
+        document.getElementById('user-display').textContent = user.username;
+        document.getElementById('role-badge').textContent = user.role;
+    }
+
+    async function fetchApiKeys() {
+        const token = localStorage.getItem('token');
+        const listContainer = document.getElementById('keys-list');
+
+        try {
+            const res = await fetch(`${API_BASE}/api-keys`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (res.status === 401 || res.status === 403) {
+                logout();
+                return;
+            }
+
+            const data = await res.json();
+
+            if (data.items && data.items.length > 0) {
+                listContainer.innerHTML = '';
+                data.items.forEach(key => {
+                    const el = document.createElement('div');
+                    el.className = 'api-key-item';
+
+                    const statusBadge = key.active ?
+                        '<span class="badge-active">Active</span>' :
+                        '<span class="badge-revoked">Revoked</span>';
+
+                    const actionBtn = key.active ?
+                        `<button class="btn btn-sm btn-outline-danger" onclick="revokeKey('${key.id}')">Revoke</button>` :
+                        `<button class="btn btn-sm btn-secondary" disabled>Revoked</button>`;
+
+                    el.innerHTML = `
+                        <div>
+                            <strong>${key.name}</strong> <small class="text-muted">(${key.prefix}***)</small>
+                            <br>
+                            ${statusBadge} <small class="text-muted">Created: ${new Date(key.createdAt).toLocaleDateString()}</small>
+                        </div>
+                        <div>${actionBtn}</div>
+                    `;
+                    listContainer.appendChild(el);
+                });
+            } else {
+                listContainer.innerHTML = '<div class="text-muted text-center">No API keys found.</div>';
+            }
+
+        } catch (err) {
+            console.error(err);
+            listContainer.innerHTML = '<div class="text-danger">Failed to load API keys</div>';
+        }
+    }
+
+    async function createApiKey() {
+        const nameInput = document.getElementById('new-key-name');
+        const name = nameInput.value.trim();
+        const displayDiv = document.getElementById('new-key-display');
+        const keyInput = document.getElementById('generated-key-value');
+
+        if (!name) {
+            alert('Please enter a name for the key');
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+
+        try {
+            const res = await fetch(`${API_BASE}/api-keys`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ name })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message || 'Failed to create key');
+            }
+
+            // Show simple success
+            keyInput.value = data.key;
+            displayDiv.style.display = 'block';
+            nameInput.value = ''; // clear input
+
+            // Refresh list
+            fetchApiKeys();
+
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    async function revokeKey(id) {
+        if (!confirm('Are you sure you want to revoke this API key? This cannot be undone.')) {
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+
+        try {
+            const res = await fetch(`${API_BASE}/api-keys/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || 'Failed to revoke key');
+            }
+
+            fetchApiKeys();
+
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    function copyToClipboard() {
+        const copyText = document.getElementById("generated-key-value");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(copyText.value);
+        alert("Copied API key to clipboard");
+    }
+</script>
+
+</body>
+</html>
+

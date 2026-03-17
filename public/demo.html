@@ -552,6 +552,70 @@
         margin-bottom: 4px;
       }
 
+      /* Filter bar */
+      .filter-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: end;
+        padding: 16px;
+        background: #161b22;
+        border: 1px solid #21262d;
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+      .filter-bar .form-group {
+        flex: 0 1 auto;
+        min-width: 120px;
+      }
+      .filter-bar select,
+      .filter-bar input {
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+      .filter-bar .btn {
+        padding: 8px 16px;
+        font-size: 13px;
+        align-self: end;
+      }
+      .filter-active {
+        border-color: #58a6ff !important;
+      }
+
+      /* Preset chips */
+      .preset-list {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+      .preset-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 20px;
+        font-size: 13px;
+        color: #c9d1d9;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .preset-chip:hover {
+        border-color: #58a6ff;
+        color: #e6edf3;
+      }
+      .preset-chip .preset-delete {
+        color: #484f58;
+        font-size: 14px;
+        line-height: 1;
+        padding: 0 2px;
+      }
+      .preset-chip .preset-delete:hover {
+        color: #f85149;
+      }
+
       /* Loading spinner */
       .loading-dots::after {
         content: "";
@@ -703,8 +767,8 @@
         <div class="step-header">
           <h2>Data ophalen</h2>
           <p>
-            Elke track krijgt een vingerafdruk (genre-vector, 20 dimensies) op basis van Last.fm
-            tags, plus collaborative filtering data van miljoenen luisteraars.
+            Elke track krijgt een array van 20 genres (genre-vector) op basis van Last.fm tags, plus
+            collaborative filtering data van miljoenen luisteraars.
           </p>
         </div>
 
@@ -805,10 +869,13 @@
             Genre gewichten
             <span style="font-size: 13px; color: #8b949e; font-weight: 400">(fijn-tunen)</span>
           </h3>
+          <div class="preset-list" id="preset-list">
+            <span style="color: #484f58; font-size: 13px">Presets laden...</span>
+          </div>
           <div class="btn-row" style="margin-bottom: 16px">
-            <button class="btn btn-secondary" onclick="presetRock()">Rock fan</button>
-            <button class="btn btn-secondary" onclick="presetElectronic()">Electronic fan</button>
-            <button class="btn btn-secondary" onclick="presetBroad()">Breed profiel</button>
+            <button class="btn btn-secondary" onclick="saveCurrentAsPreset()">
+              Huidige opslaan als preset
+            </button>
             <button class="btn btn-secondary" onclick="resetSliders()">Reset</button>
           </div>
           <div class="genre-grid" id="genres"></div>
@@ -850,6 +917,62 @@
             <span style="color: #8b949e; font-size: 14px">Dial (van veilig tot avontuurlijk):</span>
             <div class="dial-row" id="dial-row-mini" style="margin: 0; gap: 4px"></div>
           </div>
+        </div>
+
+        <div class="filter-bar" id="filter-bar">
+          <div class="form-group">
+            <label>Genre filter</label>
+            <select id="filter-genre" onchange="onFilterChange()">
+              <option value="">Alle genres</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Artiest</label>
+            <input
+              type="text"
+              id="filter-artist"
+              placeholder="bijv. Radiohead"
+              style="width: 140px"
+              onchange="onFilterChange()"
+            />
+          </div>
+          <div class="form-group">
+            <label>Sortering</label>
+            <select id="filter-sort" onchange="onFilterChange()">
+              <option value="">Dial (standaard)</option>
+              <option value="genreSim">Genre match</option>
+              <option value="cf">Collaborative filtering</option>
+              <option value="recent">Nieuwste eerst</option>
+              <option value="random">Random</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Explicit</label>
+            <select id="filter-explicit" onchange="onFilterChange()">
+              <option value="">Alles</option>
+              <option value="true">Alleen explicit</option>
+              <option value="false">Geen explicit</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Onbeluisterd</label>
+            <select id="filter-unplayed" onchange="onFilterChange()">
+              <option value="">Alles</option>
+              <option value="true">Alleen onbeluisterd</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Laatste N dagen</label>
+            <input
+              type="number"
+              id="filter-recent-days"
+              placeholder="bijv. 7"
+              min="1"
+              style="width: 80px"
+              onchange="onFilterChange()"
+            />
+          </div>
+          <button class="btn btn-secondary" onclick="clearFilters()">Reset filters</button>
         </div>
 
         <div class="stats-bar" id="stats-bar" style="display: none"></div>
@@ -1063,9 +1186,11 @@
           ]);
           genres = genreData.items;
           renderGenres();
+          populateGenreFilter();
           document.getElementById("track-count").textContent = `${trackData.items.length} tracks`;
           document.getElementById("status-dot").style.background = "#3fb950";
           loadDialPresets();
+          loadPresets();
         } catch (e) {
           document.getElementById("track-count").textContent = esc(e.message);
           document.getElementById("status-dot").style.background = "#f85149";
@@ -1249,6 +1374,9 @@
             `Profiel aangemaakt! Top genre: <strong>${data.profile?.meta?.topGenre || "—"}</strong>, ${data.profile?.meta?.activeGenres || 0} actieve genres. Sliders zijn bijgewerkt.`,
             "ok",
           );
+
+          // Onboarding voltooid — presets nu beschikbaar
+          loadPresets();
         } catch (e) {
           showMsg("onboarding-msg", `Onboarding mislukt: ${esc(e.message)}`, "err");
         } finally {
@@ -1324,30 +1452,85 @@
         });
       }
 
-      function presetRock() {
-        resetSliders();
-        setSlider("rock", 90);
-        setSlider("indie", 60);
-        setSlider("punk", 40);
-        setSlider("metal", 30);
+      // --- Slider Presets ---
+      let sliderPresets = [];
+
+      async function loadPresets() {
+        try {
+          sliderPresets = await apiFetch(`${API}/slider-presets`);
+          renderPresets();
+        } catch {
+          document.getElementById("preset-list").innerHTML =
+            '<span style="color:#484f58;font-size:13px">Presets niet beschikbaar (eerst inloggen + onboarding)</span>';
+        }
       }
 
-      function presetElectronic() {
-        resetSliders();
-        setSlider("electronic", 90);
-        setSlider("ambient", 60);
-        setSlider("dance", 50);
-        setSlider("funk", 30);
+      function renderPresets() {
+        const el = document.getElementById("preset-list");
+        if (!sliderPresets.length) {
+          el.innerHTML = '<span style="color:#484f58;font-size:13px">Geen presets</span>';
+          return;
+        }
+        el.innerHTML = sliderPresets
+          .map(
+            (p) => `
+            <span class="preset-chip" onclick="applyPreset('${p._id}')" title="Klik om toe te passen">
+              ${esc(p.name)}
+              <span class="preset-delete" onclick="event.stopPropagation();deletePreset('${p._id}','${esc(p.name)}')" title="Verwijderen">&times;</span>
+            </span>`,
+          )
+          .join("");
       }
 
-      function presetBroad() {
-        resetSliders();
-        setSlider("rock", 60);
-        setSlider("pop", 50);
-        setSlider("electronic", 50);
-        setSlider("hip-hop", 40);
-        setSlider("jazz", 30);
-        setSlider("soul", 30);
+      async function applyPreset(presetId) {
+        try {
+          const data = await apiFetch(`${API}/slider-presets/${presetId}/apply`, {
+            method: "POST",
+          });
+          // Pas sliders toe in UI
+          resetSliders();
+          if (data.sliders) {
+            for (const [genre, value] of Object.entries(data.sliders)) {
+              setSlider(genre, Math.round(value * 100));
+            }
+          }
+          updateProfileFromSliders();
+          const preset = sliderPresets.find((p) => p._id === presetId);
+          showMsg("onboarding-msg", `Preset "${preset?.name || "?"}" toegepast`, "ok");
+        } catch (e) {
+          showMsg("onboarding-msg", `Preset toepassen mislukt: ${esc(e.message)}`, "err");
+        }
+      }
+
+      async function saveCurrentAsPreset() {
+        const weights = getWeights();
+        if (Object.keys(weights).length === 0) {
+          showMsg("onboarding-msg", "Stel eerst minimaal 1 genre-gewicht in", "err");
+          return;
+        }
+        const name = prompt("Naam voor de preset:");
+        if (!name || !name.trim()) return;
+
+        try {
+          await apiFetch(`${API}/slider-presets`, {
+            method: "POST",
+            body: JSON.stringify({ name: name.trim(), sliders: weights, locked: [] }),
+          });
+          await loadPresets();
+          showMsg("onboarding-msg", `Preset "${esc(name.trim())}" opgeslagen`, "ok");
+        } catch (e) {
+          showMsg("onboarding-msg", `Opslaan mislukt: ${esc(e.message)}`, "err");
+        }
+      }
+
+      async function deletePreset(presetId, name) {
+        if (!confirm(`Preset "${name}" verwijderen?`)) return;
+        try {
+          await apiFetch(`${API}/slider-presets/${presetId}`, { method: "DELETE" });
+          await loadPresets();
+        } catch (e) {
+          showMsg("onboarding-msg", `Verwijderen mislukt: ${esc(e.message)}`, "err");
+        }
       }
 
       // --- Dial ---
@@ -1411,6 +1594,55 @@
           if (dialInfo)
             dialInfo.innerHTML = `<strong>${preset.name}</strong> &mdash; filter: <span style="color:#3fb950">${filterLabel}</span>, sort: <span style="color:#58a6ff">${preset.sortSignal}</span>${extras.length ? " \u00b7 " + extras.join(", ") : ""}`;
         }
+      }
+
+      // --- Filters ---
+      function getFilters() {
+        const filters = {};
+        const genre = document.getElementById("filter-genre").value;
+        const artist = document.getElementById("filter-artist").value.trim();
+        const sort = document.getElementById("filter-sort").value;
+        const explicit = document.getElementById("filter-explicit").value;
+        const unplayed = document.getElementById("filter-unplayed").value;
+        const recentDays = document.getElementById("filter-recent-days").value;
+
+        if (genre) filters.genre = genre;
+        if (artist) filters.artist = artist;
+        if (sort) filters.sort = sort;
+        if (explicit === "true") filters.explicit = true;
+        else if (explicit === "false") filters.explicit = false;
+        if (unplayed === "true") filters.unplayed = true;
+        if (recentDays) filters.recentDays = parseInt(recentDays);
+
+        return Object.keys(filters).length > 0 ? filters : null;
+      }
+
+      function onFilterChange() {
+        const filters = getFilters();
+        document.getElementById("filter-bar").classList.toggle("filter-active", !!filters);
+        doGetRecommendations();
+      }
+
+      function clearFilters() {
+        document.getElementById("filter-genre").value = "";
+        document.getElementById("filter-artist").value = "";
+        document.getElementById("filter-sort").value = "";
+        document.getElementById("filter-explicit").value = "";
+        document.getElementById("filter-unplayed").value = "";
+        document.getElementById("filter-recent-days").value = "";
+        document.getElementById("filter-bar").classList.remove("filter-active");
+        doGetRecommendations();
+      }
+
+      function populateGenreFilter() {
+        const select = document.getElementById("filter-genre");
+        if (select.options.length > 1) return; // already populated
+        genres.forEach((g) => {
+          const opt = document.createElement("option");
+          opt.value = g.name;
+          opt.textContent = g.name;
+          select.appendChild(opt);
+        });
       }
 
       // --- Compute + Recommend ---
@@ -1477,6 +1709,8 @@
             profileVector: currentVector,
             dial: currentDial,
           };
+          const filters = getFilters();
+          if (filters) body.filters = filters;
           if (userId) body.userId = userId;
 
           const requests = [
@@ -1517,8 +1751,12 @@
         const statsBar = document.getElementById("stats-bar");
         statsBar.style.display = "";
 
+        const activeFilters = getFilters();
+        const filterLabel = activeFilters
+          ? ` &middot; filters: <strong>${Object.keys(activeFilters).join(", ")}</strong>`
+          : "";
         statsBar.innerHTML = `
-          <span><strong>${data.total}</strong> resultaten</span>
+          <span><strong>${data.total}</strong> resultaten${filterLabel}</span>
           <span>gem. score: <strong>${data.meta.avgScore.toFixed(3)}</strong></span>
           <span>range: <strong>${data.meta.scoreRange.min.toFixed(3)}</strong> &mdash; <strong>${data.meta.scoreRange.max.toFixed(3)}</strong></span>
         `;

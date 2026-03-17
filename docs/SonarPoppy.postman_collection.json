@@ -314,6 +314,39 @@
           ]
         },
         {
+          "name": "3.2b Recommendations met Filters",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/recommendations",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profileVector\": {{profileVector}},\n  \"limit\": 10,\n  \"filters\": {\n    \"genre\": \"rock\",\n    \"explicit\": false,\n    \"sort\": \"recent\"\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Gefilterde recommendations ontvangen', () => {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.tracks).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "3.3 Dial Standen Bekijken",
           "request": {
             "method": "GET",
@@ -366,7 +399,101 @@
           ]
         },
         {
-          "name": "3.5 Tracks Ophalen",
+          "name": "3.5 Slider Presets Ophalen",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/slider-presets",
+              "host": ["{{baseUrl}}"],
+              "path": ["slider-presets"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Presets ontvangen', () => {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res).to.be.an('array');",
+                  "  if (res.length > 0) {",
+                  "    pm.environment.set('presetId', res[0]._id);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.6 Slider Preset Aanmaken",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/slider-presets",
+              "host": ["{{baseUrl}}"],
+              "path": ["slider-presets"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mijn Rock Preset\",\n  \"sliders\": { \"rock\": 2.0, \"metal\": 1.5, \"pop\": 0.3 },\n  \"locked\": [\"rock\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Preset aangemaakt', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res).to.have.property('name', 'Mijn Rock Preset');",
+                  "  pm.environment.set('presetId', res._id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.7 Slider Preset Toepassen",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/slider-presets/VERVANG_MET_PRESET_ID/apply",
+              "host": ["{{baseUrl}}"],
+              "path": ["slider-presets", "VERVANG_MET_PRESET_ID", "apply"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Preset toegepast op sliders', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.property('sliders');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.8 Tracks Ophalen",
           "request": {
             "method": "GET",
             "header": [

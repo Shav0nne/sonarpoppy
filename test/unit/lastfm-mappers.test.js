@@ -5,6 +5,7 @@ import {
   mapTopTags,
   mapSimilarTracks,
   mapSimilarArtists,
+  mapArtistSearch,
 } from "../../src/services/lastfm/mappers.js";
 
 describe("mapTrackInfo", () => {
@@ -291,5 +292,52 @@ describe("mapSimilarArtists", () => {
     const result = mapSimilarArtists(response);
     assert.equal(result.length, 1);
     assert.equal(result[0].artist, "Good");
+  });
+});
+
+describe("mapArtistSearch", () => {
+  it("maps artist search results to [{ name }]", () => {
+    const response = {
+      results: {
+        artistmatches: {
+          artist: [
+            {
+              name: "Radiohead",
+              listeners: "5000000",
+              mbid: "abc",
+              url: "https://last.fm/radiohead",
+            },
+            {
+              name: "Radio Dept.",
+              listeners: "300000",
+              mbid: "def",
+              url: "https://last.fm/radiodept",
+            },
+          ],
+        },
+      },
+    };
+    const result = mapArtistSearch(response);
+    assert.deepEqual(result, [{ name: "Radiohead" }, { name: "Radio Dept." }]);
+  });
+
+  it("returns empty array for missing artistmatches", () => {
+    assert.deepEqual(mapArtistSearch({}), []);
+    assert.deepEqual(mapArtistSearch({ results: {} }), []);
+    assert.deepEqual(mapArtistSearch({ results: { artistmatches: {} } }), []);
+    assert.deepEqual(mapArtistSearch({ results: { artistmatches: { artist: [] } } }), []);
+  });
+
+  it("filters out entries without name", () => {
+    const response = {
+      results: {
+        artistmatches: {
+          artist: [{ name: "Good" }, { name: "" }, {}],
+        },
+      },
+    };
+    const result = mapArtistSearch(response);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].name, "Good");
   });
 });
