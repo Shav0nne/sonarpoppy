@@ -43,6 +43,6 @@ const blacklistSchema = new mongoose.Schema(
 // This is best handled in the route/service when adding, rather than DB schema array limits,
 // although a unique array items validation could be written.
 
-blacklistSchema.plugin(mongooseHistory, { historyCollection: "blacklist_history" });
+blacklistSchema.plugin(mongooseHistory, { historyCollection: "blacklist_history", diffOnly: false, fullDocument: 'updateLookup' });
 
 export default mongoose.model("Blacklist", blacklistSchema);

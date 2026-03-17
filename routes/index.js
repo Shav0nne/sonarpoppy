@@ -42,6 +42,6 @@ router.use("/blacklist", blacklistRouter);
 router.use("/slider-presets", sliderPresetsRouter);
 router.use("/artists", artistsRouter);
 router.use("/admin", adminRouter);
-router.use("/adminData", adminOnlyDataRouter);
+router.use("/history", adminOnlyDataRouter);
 
 export default router;

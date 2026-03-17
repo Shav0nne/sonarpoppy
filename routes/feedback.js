@@ -17,11 +17,15 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "trackId is required" });
   }
 
-  const doc = await Feedback.findOneAndUpdate(
-    { userId, trackId },
-    { action },
-    { upsert: true, new: true, runValidators: true },
-  );
+  // Use find + save to ensure mongoose-history records full document snapshots
+  let doc = await Feedback.findOne({ userId, trackId });
+  if (doc) {
+    doc.action = action;
+    await doc.save();
+  } else {
+    doc = new Feedback({ userId, trackId, action });
+    await doc.save();
+  }
 
   // Slider evolutie — fire-and-forget als GenreSliders niet bestaat
   let evolution = null;
@@ -88,11 +92,16 @@ router.delete("/:trackId", async (req, res) => {
 // POST /api/feedback/:trackId/play — play count incrementen
 router.post("/:trackId/play", async (req, res) => {
   const userId = req.user?.id;
-  const doc = await Feedback.findOneAndUpdate(
-    { userId, trackId: req.params.trackId },
-    { $inc: { playCount: 1 }, lastPlayedAt: new Date() },
-    { upsert: true, new: true, runValidators: true },
-  );
+  // Use find + save so mongoose-history records the snapshot
+  let doc = await Feedback.findOne({ userId, trackId: req.params.trackId });
+  if (doc) {
+    doc.playCount = (doc.playCount || 0) + 1;
+    doc.lastPlayedAt = new Date();
+    await doc.save();
+  } else {
+    doc = new Feedback({ userId, trackId: req.params.trackId, playCount: 1, lastPlayedAt: new Date() });
+    await doc.save();
+  }
 
   res.json(doc);
 });
