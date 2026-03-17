@@ -91,8 +91,10 @@ function applyBubbleFilter(scored, preset, feedbackMap) {
   if (preset.unplayedOnly && feedbackMap) {
     filtered = filtered.filter((s) => {
       const fb = feedbackMap.get(String(s.track._id));
-      if (!fb) return true; // No feedback record → unplayed
-      return fb.playCount === 0;
+      if (fb) return false; // feedback exists → played
+      return true;
+      // if (!fb) return true; // No feedback record → unplayed
+      // return fb.playCount === 0;
     });
   } else if (preset.unplayedOnly) {
     // No feedbackMap → all tracks are "unplayed"
