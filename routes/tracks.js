@@ -6,6 +6,7 @@ import {ingestBatch, ingestTrack} from "../src/services/ingestion/ingest.js";
 import {enrichTracks} from "../src/services/spotify/enrichSpotify.js";
 import {enrichCfData} from "../src/services/cf/enrichCf.js";
 import {enrichTracksWithDeezer} from "../src/services/deezer/enrichDeezer.js";
+import deezerClient from "../src/services/deezer/deezerClient.js";
 
 const router = Router();
 
@@ -135,6 +136,38 @@ router.post("/enrich-deezer", async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({error: error.message});
+    }
+});
+
+router.get("/:id/preview", async (req, res) => {
+    try {
+        const track = await Track.findById(req.params.id);
+        if (!track) {
+            return res.status(404).json({error: "Track not found"});
+        }
+
+        // If we have a deezerId, fetch fresh preview URL
+        if (track.deezerId) {
+            const deezerTrack = await deezerClient.getTrack(track.deezerId);
+            if (deezerTrack && deezerTrack.preview) {
+                // If the preview URL has changed, update it in DB asynchronously
+                if (track.previewUrl !== deezerTrack.preview) {
+                    track.previewUrl = deezerTrack.preview;
+                    track.save().catch((err) => console.error("Error updating preview URL:", err));
+                }
+                return res.redirect(deezerTrack.preview);
+            }
+        }
+
+        // Fallback to stored previewUrl if it exists (might be expired, but worth a try if API fails or no deezerId)
+        if (track.previewUrl) {
+            return res.redirect(track.previewUrl);
+        }
+
+        return res.status(404).json({error: "No preview available"});
+    } catch (error) {
+        console.error("Error fetching preview:", error);
+        res.status(500).json({error: "Internal server error"});
     }
 });
 

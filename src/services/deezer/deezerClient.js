@@ -24,7 +24,20 @@ class DeezerClient {
             return null;
         }
     }
+
+    async getTrack(id) {
+        try {
+            const url = `${this.baseUrl}/track/${id}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Deezer API error: ${response.statusText}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Error getting Deezer track ${id}:`, error.message);
+            return null;
+        }
+    }
 }
 
 export default new DeezerClient();
-

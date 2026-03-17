@@ -6,8 +6,8 @@ import deezerClient from "./deezerClient.js";
 const RATE_LIMIT_DELAY = 200;
 
 export async function enrichTracksWithDeezer({batchSize = 50, onProgress} = {}) {
-    // Find tracks without previewUrl
-    const tracks = await Track.find({previewUrl: {$exists: false}}).limit(batchSize);
+    // Find tracks without deezerId (this covers both new tracks and old tracks with expired URLs but no ID)
+    const tracks = await Track.find({deezerId: {$exists: false}}).limit(batchSize);
 
     const result = {
         total: tracks.length,
@@ -21,10 +21,12 @@ export async function enrichTracksWithDeezer({batchSize = 50, onProgress} = {}) 
         try {
             const deezerTrack = await deezerClient.searchTrack(track.artist, track.title);
 
-            if (deezerTrack && deezerTrack.preview) {
-                track.previewUrl = deezerTrack.preview;
-                // Optionally store deezerId if we want to add it to schema later
-                // track.deezerId = deezerTrack.id;
+            if (deezerTrack && deezerTrack.id) {
+                track.deezerId = deezerTrack.id;
+                // Update previewUrl just in case, but rely on ID mostly
+                if (deezerTrack.preview) {
+                    track.previewUrl = deezerTrack.preview;
+                }
                 await track.save();
                 result.enriched++;
             } else {

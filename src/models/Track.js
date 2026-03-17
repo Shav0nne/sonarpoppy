@@ -47,6 +47,7 @@ const trackSchema = new mongoose.Schema(
         ],
         cfEnrichedAt: {type: Date, default: null},
         previewUrl: {type: String},
+        deezerId: {type: String},
     },
     {timestamps: true},
 );
