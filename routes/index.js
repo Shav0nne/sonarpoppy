@@ -14,6 +14,7 @@ import blacklistRouter from "./blacklist.js";
 import sliderPresetsRouter from "./slider-presets.js";
 import adminRouter from "./admin.js";
 import artistsRouter from "./artists.js";
+import adminOnlyDataRouter from "./adminOnlyData.js";
 import { validateApiKey, injectUserId } from "../src/middleware/apiKeyMiddleware.js";
 import { authenticateJWT } from "../src/middleware/authMiddleware.js";
 
@@ -41,5 +42,6 @@ router.use("/blacklist", blacklistRouter);
 router.use("/slider-presets", sliderPresetsRouter);
 router.use("/artists", artistsRouter);
 router.use("/admin", adminRouter);
+router.use("/adminData", adminOnlyDataRouter);
 
 export default router;
