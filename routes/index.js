@@ -11,10 +11,10 @@ import usersRouter from "./users.js";
 import authRouter from "./auth.js";
 import apiKeysRouter from "./api-keys.js";
 import blacklistRouter from "./blacklist.js";
+import friendRouter from "./friends.js";
 import sliderPresetsRouter from "./slider-presets.js";
 import adminRouter from "./admin.js";
 import artistsRouter from "./artists.js";
-import friendRouter from "./friends.js";
 import { validateApiKey, injectUserId } from "../src/middleware/apiKeyMiddleware.js";
 import { authenticateJWT } from "../src/middleware/authMiddleware.js";
 
