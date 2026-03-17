@@ -33,12 +33,13 @@ router.get('/', async (req, res) => {
             });
         }
 
-        // Find all accepted friendships where the user is involved
+        // Find all accepted friendships where the user is involved (exclude blocked)
         const friendships = await Friend.find({
             $or: [
                 { sender_user_id: userId, status: 'accepted' },
                 { receiver_user_id: userId, status: 'accepted' }
-            ]
+            ],
+            status: { $ne: 'blocked' }
         }).populate('sender_user_id receiver_user_id', 'username email image');
 
         // Format the response for each friendship
@@ -99,8 +100,27 @@ router.get('/requests', async (req, res) => {
             status: 'pending'
         }).populate('receiver_user_id', 'username email image');
 
+        // Filter out any requests where a blocked relationship exists
+        const filteredIncoming = incomingRequests.filter(req => {
+            // Check if there's any blocked relationship between these users
+            return !incomingRequests.some(r => 
+                r.status === 'blocked' && 
+                ((r.sender_user_id._id.toString() === userId && r.receiver_user_id._id.toString() === req.sender_user_id._id.toString()) ||
+                 (r.receiver_user_id._id.toString() === userId && r.sender_user_id._id.toString() === req.sender_user_id._id.toString()))
+            );
+        });
+
+        const filteredOutgoing = outgoingRequests.filter(req => {
+            // Check if there's any blocked relationship between these users
+            return !outgoingRequests.some(r => 
+                r.status === 'blocked' && 
+                ((r.sender_user_id._id.toString() === userId && r.receiver_user_id._id.toString() === req.receiver_user_id._id.toString()) ||
+                 (r.receiver_user_id._id.toString() === userId && r.sender_user_id._id.toString() === req.receiver_user_id._id.toString()))
+            );
+        });
+
         // Format incoming requests
-        const formattedIncoming = incomingRequests.map(req => ({
+        const formattedIncoming = filteredIncoming.map(req => ({
             id: req._id,
             sender: {
                 id: req.sender_user_id._id,
@@ -118,7 +138,7 @@ router.get('/requests', async (req, res) => {
         }));
 
         // Format outgoing requests
-        const formattedOutgoing = outgoingRequests.map(req => ({
+        const formattedOutgoing = filteredOutgoing.map(req => ({
             id: req._id,
             receiver: {
                 id: req.receiver_user_id._id,
@@ -200,7 +220,33 @@ router.post('/request', async (req, res) => {
         });
 
         if (existingFriendship) {
-            if (existingFriendship.status === 'pending') {
+            if (existingFriendship.status === 'blocked') {
+                // Check if senderId is the one who was blocked (sender of the blocked request)
+                if (existingFriendship.sender_user_id.toString() === senderId) {
+                    // Sender was blocked, cannot send request
+                    return res.status(403).json({
+                        success: false,
+                        error: 'You cannot send a friend request to this user because you are blocked'
+                    });
+                } else {
+                    // Sender did the blocking, allow them to unblock by sending request
+                    existingFriendship.status = 'pending';
+                    existingFriendship.sender_user_id = senderId;
+                    existingFriendship.receiver_user_id = receiver._id;
+                    existingFriendship.accepted_at = null;
+                    await existingFriendship.save();
+
+                    return res.status(201).json({
+                        success: true,
+                        message: 'Friend request sent successfully',
+                        data: existingFriendship,
+                        _links: {
+                            self: { href: `${process.env.BASE_URI}/api/friends/${existingFriendship._id}` },
+                            collection: { href: `${process.env.BASE_URI}/api/friends` }
+                        }
+                    });
+                }
+            } else if (existingFriendship.status === 'pending') {
                 return res.status(400).json({
                     success: false,
                     error: 'A pending request already exists between these users'
@@ -210,7 +256,7 @@ router.post('/request', async (req, res) => {
                     success: false,
                     error: 'You are already friends with this user'
                 });
-            } else if (existingFriendship.status === 'rejected' || existingFriendship.status === 'blocked') {
+            } else if (existingFriendship.status === 'rejected') {
                 // Update existing relationship to pending
                 existingFriendship.status = 'pending';
                 existingFriendship.sender_user_id = senderId;
@@ -275,10 +321,10 @@ router.patch('/:requestId', async (req, res) => {
         }
 
         // Validate status
-        if (!['accepted', 'rejected'].includes(status)) {
+        if (!['accepted', 'rejected', 'blocked'].includes(status)) {
             return res.status(400).json({
                 success: false,
-                error: 'Status must be "accepted" or "rejected"'
+                error: 'Status must be "accepted", "rejected", or "blocked"'
             });
         }
 
@@ -312,12 +358,14 @@ router.patch('/:requestId', async (req, res) => {
         friendship.status = status;
         if (status === 'accepted') {
             friendship.accepted_at = new Date();
+        } else if (status === 'blocked') {
+            friendship.accepted_at = null;
         }
         await friendship.save();
 
         res.json({
             success: true,
-            message: status === 'accepted' ? 'Friend request accepted' : 'Friend request rejected',
+            message: status === 'accepted' ? 'Friend request accepted' : status === 'blocked' ? 'User blocked successfully' : 'Friend request rejected',
             data: friendship,
             _links: {
                 self: { href: `${process.env.BASE_URI}/api/friends/${friendship._id}` },
