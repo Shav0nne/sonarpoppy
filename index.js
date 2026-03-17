@@ -1,5 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
+import cors from "cors";
 import apiRouter from "./routes/index.js";
 
 const app = express();
@@ -9,13 +10,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 // CORS — preflight + headers voor React frontend
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization, X-API-Key");
-  if (req.method === "OPTIONS") return res.sendStatus(204);
-  next();
-});
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || "*",
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Accept', 'Content-Type', 'Authorization', 'X-API-Key'],
+    }
+));
 
 // Routes — alles via /api/v1
 // Accept header check alleen op API routes (niet op statische bestanden)
