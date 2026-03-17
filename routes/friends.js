@@ -157,7 +157,7 @@ router.get('/requests', async (req, res) => {
 router.post('/request', async (req, res) => {
     try {
         // Get senderId from request body
-        const { senderId, userId, email } = req.body;
+        const { senderId, userId } = req.body;
 
         if (!senderId) {
             return res.status(400).json({
@@ -166,20 +166,15 @@ router.post('/request', async (req, res) => {
             });
         }
 
-        if (!userId && !email) {
+        if (!userId) {
             return res.status(400).json({
                 success: false,
-                error: 'Either userId or email is required'
+                error: 'userId is required in request body'
             });
         }
 
-        // Find the receiver by ID or email
-        let receiver;
-        if (userId) {
-            receiver = await User.findById(userId);
-        } else if (email) {
-            receiver = await User.findOne({ email });
-        }
+        // Validate that the receiver user exists by ID
+        const receiver = await User.findById(userId);
 
         if (!receiver) {
             return res.status(404).json({
