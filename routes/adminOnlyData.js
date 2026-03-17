@@ -1,10 +1,11 @@
-import mongooseHistory from "mongoose-history";
 import mongoose from "mongoose";
-import { Router } from "express";
+import {Router} from "express";
+import {authenticateJWT} from "../src/middleware/authMiddleware.js";
+import {ifAdmin} from "../src/middleware/onlyAdmin.js";
 
 const router = Router();
 
-router.get('/blacklist', async (req, res) => {
+router.get('/blacklist', authenticateJWT, ifAdmin, async (req, res) => {
     try {
         const db = mongoose.connection.db;
 
@@ -43,7 +44,7 @@ router.get('/blacklist', async (req, res) => {
     }
 });
 
-router.get('/genreslider', async (req, res) => {
+router.get('/genreslider', authenticateJWT, ifAdmin, async (req, res) => {
     try {
         const db = mongoose.connection.db;
 
@@ -82,7 +83,7 @@ router.get('/genreslider', async (req, res) => {
     }
 });
 
-router.get('/feedback', async (req, res) => {
+router.get('/feedback', authenticateJWT, ifAdmin, async (req, res) => {
     try {
         const db = mongoose.connection.db;
 

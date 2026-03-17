@@ -48,6 +48,22 @@ router.get("/", async (req, res) => {
     });
 });
 
+router.get("/:trackId", async (req, res) => {
+    const trackId = req.params.trackId;
+    const track = await Track.findById(trackId).lean();
+    if (!track) {
+        return res.status(404).json({error: "Track not found"});
+    }
+
+    res.json({
+        ...track,
+        _links: {
+            self: {href: `/api/tracks/${trackId}`},
+            collection: {href: "/api/tracks"},
+        },
+    });
+})
+
 router.post("/ingest", async (req, res) => {
     const {artist, title, force} = req.body;
     if (!artist || !title) {
