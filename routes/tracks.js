@@ -161,7 +161,7 @@ router.get("/:id/preview", async (req, res) => {
 
         // Fallback to stored previewUrl if it exists (might be expired, but worth a try if API fails or no deezerId)
         if (track.previewUrl) {
-            return res.redirect(track.previewUrl);
+            res.json({url: track.preview});
         }
 
         return res.status(404).json({error: "No preview available"});
