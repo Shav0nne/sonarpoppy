@@ -1,14 +1,14 @@
 import Track from "../../models/Track.js";
 import Feedback from "../../models/Feedback.js";
-import { cosineSimilarity } from "../../utils/similarity.js";
-import { hybridScore, DEFAULT_WEIGHTS } from "../scoring/hybridScore.js";
-import { getFeedbackMultiplier } from "../feedback/feedbackMultiplier.js";
-import { getDialPreset } from "../../config/dial.js";
-import { computeCfScore } from "../cf/cfScore.js";
-import { getBlacklistFilters, isGenreBlocked } from "../blacklist/blacklistFilter.js";
-import { GENRES } from "../../config/genres.js";
+import {cosineSimilarity} from "../../utils/similarity.js";
+import {DEFAULT_WEIGHTS, hybridScore} from "../scoring/hybridScore.js";
+import {getFeedbackMultiplier} from "../feedback/feedbackMultiplier.js";
+import {getDialPreset} from "../../config/dial.js";
+import {computeCfScore} from "../cf/cfScore.js";
+import {getBlacklistFilters, isGenreBlocked} from "../blacklist/blacklistFilter.js";
+import {GENRES} from "../../config/genres.js";
 import mongoose from "mongoose";
-import { getAlgorithmConfig, DEFAULT_ALGORITHM_CONFIG } from "../admin/configLoader.js";
+import {DEFAULT_ALGORITHM_CONFIG, getAlgorithmConfig} from "../admin/configLoader.js";
 
 /**
  * Get dominant genre name for a track's genreVector.
@@ -205,8 +205,8 @@ function applyFilters(scored, filters = {}, feedbackMap = null, now = null) {
   if (filters.unplayed === true && feedbackMap) {
     result = result.filter((s) => {
       const fb = feedbackMap.get(String(s.track._id));
-      if (!fb) return true;
-      return fb.playCount === 0;
+      if (fb) return false; // feedback exists → played
+      return true;
     });
   }
 
