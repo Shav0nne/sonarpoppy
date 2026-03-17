@@ -155,7 +155,7 @@ router.get("/:id/preview", async (req, res) => {
                     track.previewUrl = deezerTrack.preview;
                     track.save().catch((err) => console.error("Error updating preview URL:", err));
                 }
-                return res.redirect(deezerTrack.preview);
+                return res.json({url: deezerTrack.preview});
             }
         }
 
