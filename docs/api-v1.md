@@ -32,6 +32,7 @@ De server haalt `userId` automatisch uit het JWT token — je hoeft dit nooit me
 | [Artist Images](#artist-images)          | artists/:name/image                      | Optioneel — artist foto's tonen        |
 | [Admin](#admin-algorithm-tuning)         | admin/config, admin/explain              | Alleen voor admins                     |
 | [Beheer](#beheer-endpoints)              | ingest, enrich                           | Niet voor frontenders                  |
+| [Friend](#friends)                       | friends, friends/request, friends/:id    | Optioneel - vriendschappen beheren     |                                   
 
 ---
 
@@ -768,3 +769,209 @@ await api("/blacklist", {
     body: { type: "artist", value: "Nickelback" },
 });
 ```
+### friends
+
+Beheer vriendschappen tussen gebruikers. Je kunt vriendenlijsten bekijken, vriendschapsverzoeken sturen, accepteren, weigeren en verwijderen. Verder is er geen authentication nodig. Je moet altijd de juiste userId meesturen als query parameter of in de request body.
+
+| Method | Pad                                      | Wat doet het?                                |
+| ------ | ---------------------------------------- | -------------------------------------------- |
+| GET    | `/api/v1/friends?userId={id}`            | Vriendenlijst tonen in UI                    |
+| GET    | `/api/v1/friends/requests?userId={id}`   | Pending verzoeken tonen (notificaties)       |
+| POST   | `/api/v1/friends/request`                | Vriendschapsverzoek sturen                   |
+| PATCH  | `/api/v1/friends/{requestId}`            | Verzoek accepteren/weigeren                  |
+| DELETE | `/api/v1/friends/{friendId}`             | Vriendschap verwijderen of verzoek annuleren |
+
+### GET /api/v1/friends
+
+Haal alle geaccepteerde vrienden van een gebruiker op.
+
+| Query param | Type   | Verplicht | Beschrijving        |
+| ----------- | ------ | --------- | ------------------- |
+| `userId`    | string | ja        | ID van de gebruiker |
+
+de response die je terug krijgt:
+
+```json
+{
+  "success": true,
+  "count": 2,
+  "data": [
+    {
+      "id": "user456",
+      "username": "john_doe",
+      "email": "john@example.com",
+      "image": "https://...",
+      "friendshipId": "9812364054123",
+      "since": "2026-03-10T12:00:00.000Z",
+      "status": "accepted"
+    }
+  ],
+  "_links": {
+    "self": { "href": "/api/v1/friends?userId=user123" },
+    "requests": { "href": "/api/v1/friends/requests?userId=user123" }
+  }
+}
+```
+### GET /api/v1/friends/requests
+
+Haal alle openstaande vriendschapsverzoeken op (zowel inkomend als uitgaand).
+
+Request:
+GET /api/v1/friends/requests?userId=69a828a00fd6e8d421af8e50
+
+```json
+{
+    "success": true,
+    "data": {
+        "incoming": [
+            {
+                "id": "69b9235b33b09565dbc98bb4",
+                "sender": {
+                    "id": "69b7e1619d88bb9c38923c6f",
+                    "username": "john_doe",
+                    "email": "john@example.com",
+                    "image": null
+                },
+                "status": "pending",
+                "createdAt": "2026-03-17T09:48:11.293Z",
+                "_links": {
+                    "self": { "href": "http://localhost:8000/api/v1/friends/69b9235b33b09565dbc98bb4" },
+                    "accept": { "href": "http://localhost:8000/api/v1/friends/69b9235b33b09565dbc98bb4", "method": "PATCH" },
+                    "reject": { "href": "http://localhost:8000/api/v1/friends/69b9235b33b09565dbc98bb4", "method": "PATCH" }
+                }
+            }
+        ],
+        "outgoing": [
+            {
+                "id": "69c1234b33b09565dbc98cc5",
+                "receiver": {
+                    "id": "69d4567a00fd6e8d421af911",
+                    "username": "jane_doe",
+                    "email": "jane@example.com",
+                    "image": null
+                },
+                "status": "pending",
+                "createdAt": "2026-03-17T10:15:22.123Z",
+                "_links": {
+                    "self": { "href": "http://localhost:8000/api/v1/friends/69c1234b33b09565dbc98cc5" },
+                    "cancel": { "href": "http://localhost:8000/api/v1/friends/69c1234b33b09565dbc98cc5", "method": "DELETE" }
+                }
+            }
+        ]
+    },
+    "_links": {
+        "self": { "href": "http://localhost:8000/api/v1/friends/requests?userId=69a828a00fd6e8d421af8e50" },
+        "friends": { "href": "http://localhost:8000/api/v1/friends?userId=69a828a00fd6e8d421af8e50" }
+    }
+}
+```
+Dit kan alleen fout gaan als je de userId vergeet!
+
+### POST /api/v1/friends/request
+
+Stuur een vriendschapsverzoek naar een andere gebruiker.
+
+voorbeeld:
+```json
+{
+  "senderId": "user123",
+  "receiverId": "user456"
+}
+```
+
+|Veld	         | Type   | Verplicht	 |Beschrijving        |
+|--------------|--------|------------|--------------------|
+|senderId	     | string	| ja	       |ID van de verzender |
+|receiverId	   | string	| ja	       |ID van de ontvange  |
+
+De response die je terug krijgt wanneer het goed gaat:
+```json
+{
+  "success": true,
+  "message": "Friend request sent successfully",
+  "data": {
+    "id": "req123",
+    "sender_user_id": "user123",
+    "receiver_user_id": "user456",
+    "status": "pending"
+  },
+  "_links": {
+    "self": { "href": "/api/v1/friends/req123" },
+    "collection": { "href": "/api/v1/friends" }
+  }
+}
+```
+|Fout	| Wanneer                                      |
+|-----|----------------------------------------------|
+|400	| Velden ontbreken of self-request             |
+|404	| Ontvanger bestaat niet                       |
+|409	| Request bestaat al of users zijn al vrienden |
+
+### PATCH /api/v1/friends/:requestId
+
+Accepteer of weiger een vriendschapsverzoek.
+
+Request:
+```json
+{
+  "userId": "user456",
+  "status": "accepted"
+}
+```
+
+|Veld	         | Type   | Verplicht	 |Beschrijving              |
+|--------------|--------|------------|--------------------------|
+|userId        | string	| ja	       |ID van de ontvanger       |
+|status   	   | string	| ja	       |"accepted" of "rejected"  |
+
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Friend request accepted",
+  "data": {
+    "id": "req123",
+    "status": "accepted",
+    "accepted_at": "2026-03-10T12:00:00.000Z"
+  }
+}
+```
+
+|Fout	| Wanneer                                      |
+|-----|----------------------------------------------|
+|400	| Ongeldige status of ontberekende velden      |
+|403	| User is niet de ontvanger                    |
+|404	| Request niet gevonden                        |
+
+### DELETE /api/v1/friends/:friendId
+
+Verwijderen van een vriendschap
+
+|Query param	|Type	   |Verplicht	 |Beschrijving        |
+|-------------|--------|-----------|--------------------|
+|userId	      |string	 |ja	       |ID van de gebruiker |
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Friendship removed successfully",
+  "_links": {
+    "collection": { "href": "/api/v1/friends" },
+    "requests": { "href": "/api/v1/friends/requests" }
+  }
+}
+```
+
+|Fout	| Wanneer                                      |
+|-----|----------------------------------------------|
+|400	| userId ontbreekt                             |
+|403	| User hoort niet bij deze relatie             |
+|404	| Vriendschap niet gevonden                    |
+
+### extra notes
+
+Een friendship is altijd tussen twee users en wordt opgeslagen als één document. De richting (sender/receiver) is alleen relevant tijdens de request fase (pending).
+
+
