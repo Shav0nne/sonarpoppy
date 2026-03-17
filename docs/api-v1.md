@@ -778,8 +778,8 @@ Beheer vriendschappen tussen gebruikers. Je kunt vriendenlijsten bekijken, vrien
 | GET    | `/api/v1/friends?userId={id}`            | Vriendenlijst tonen in UI                    |
 | GET    | `/api/v1/friends/requests?userId={id}`   | Pending verzoeken tonen (notificaties)       |
 | POST   | `/api/v1/friends/request`                | Vriendschapsverzoek sturen                   |
-| PATCH  | `/api/v1/friends/{requestId}`            | Verzoek accepteren/weigeren                  |
-| DELETE | `/api/v1/friends/{friendId}`             | Vriendschap verwijderen of verzoek annuleren |
+| PATCH  | `/api/v1/friends/{requestId}`            | Verzoek accepteren/weigeren of blokeren      |
+| DELETE | `/api/v1/friends/{friendId}`             | Vriendschap verwijderen                      |
 
 ### GET /api/v1/friends
 
@@ -919,13 +919,13 @@ Request:
 }
 ```
 
-|Veld	         | Type   | Verplicht	 |Beschrijving              |
-|--------------|--------|------------|--------------------------|
-|userId        | string	| ja	       |ID van de ontvanger       |
-|status   	   | string	| ja	       |"accepted" of "rejected"  |
+|Veld	         | Type   | Verplicht	 |Beschrijving                         |
+|--------------|--------|------------|-------------------------------------|
+|userId        | string	| ja	       |ID van de ontvanger                  |
+|status   	   | string	| ja	       |"accepted" , "rejected" of "blocked" |
 
 
-Response:
+Response: Accepteren
 ```json
 {
   "success": true,
@@ -937,6 +937,41 @@ Response:
   }
 }
 ```
+Response: Weigeren
+```json
+{
+    "success": true,
+    "message": "Friend request rejected",
+    "data": {
+        "_id": "69b9235b33b09565dbc98bb4",
+        "sender_user_id": "69b7e1619d88bb9c38923c6f",
+        "receiver_user_id": "69a828a00fd6e8d421af8e50",
+        "status": "rejected",
+        "accepted_at": null,
+        "createdAt": "2026-03-17T09:48:11.293Z",
+        "updatedAt": "2026-03-17T10:30:00.000Z"
+    }
+}
+```
+
+Response: Blokeren
+```json
+{
+    "success": true,
+    "message": "User blocked successfully",
+    "data": {
+        "_id": "69b9235b33b09565dbc98bb4",
+        "sender_user_id": "69b7e1619d88bb9c38923c6f",
+        "receiver_user_id": "69a828a00fd6e8d421af8e50",
+        "status": "blocked",
+        "accepted_at": null,
+        "createdAt": "2026-03-17T09:48:11.293Z",
+        "updatedAt": "2026-03-17T10:30:00.000Z"
+    }
+}
+```
+
+Je kunt een vriend on-blokeren als je zelf een vriendschap verzoek stuurt. 
 
 |Fout	| Wanneer                                      |
 |-----|----------------------------------------------|
