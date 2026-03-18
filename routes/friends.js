@@ -24,6 +24,54 @@ router.options("/:id", (req, res) => {
     res.sendStatus(204);
 });
 
+// GET /api/friends/search
+router.get('/search', async (req, res) => {
+    try {
+        const q = req.query.q;
+        if (!q || q.length < 2) {
+            return res.status(400).json({
+                success: false,
+                error: 'Query parameter "q" must be at least 2 characters long'
+            });
+        }
+
+        // Search for users by username (case-insensitive)
+        const regex = new RegExp(q, 'i');
+        const users = await User.find(
+            { username: regex },
+            'username email image hasCompletedOnboarding status'
+        ).limit(10);
+
+        const results = users.map(user => ({
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            image: user.image,
+            hasCompletedOnboarding: user.hasCompletedOnboarding,
+            status: user.status,
+            _links: {
+                self: { href: `${process.env.BASE_URI}/friends/${user._id}` },
+                profile: { href: `${process.env.BASE_URI}/users/${user._id}` }
+            }
+        }));
+
+        res.json({
+            success: true,
+            count: results.length,
+            data: results,
+            _links: {
+                self: { href: `${process.env.BASE_URI}/friends/search` },
+                collection: { href: `${process.env.BASE_URI}/friends` }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // GET /api/friends
 router.get('/', async (req, res) => {
     try {
@@ -60,8 +108,8 @@ router.get('/', async (req, res) => {
             count: friends.length,
             data: friends,
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends` },
-                requests: { href: `${process.env.BASE_URI}/api/friends/requests` }
+                self: { href: `${process.env.BASE_URI}/friends` },
+                requests: { href: `${process.env.BASE_URI}/friends/requests` }
             }
         });
     } catch (error) {
@@ -121,9 +169,9 @@ router.get('/requests', async (req, res) => {
             status: req.status,
             createdAt: req.createdAt,
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends/${req._id}` },
-                accept: { href: `${process.env.BASE_URI}/api/friends/${req._id}`, method: 'PATCH' },
-                reject: { href: `${process.env.BASE_URI}/api/friends/${req._id}`, method: 'PATCH' }
+                self: { href: `${process.env.BASE_URI}/friends/${req._id}` },
+                accept: { href: `${process.env.BASE_URI}/friends/${req._id}`, method: 'PATCH' },
+                reject: { href: `${process.env.BASE_URI}/friends/${req._id}`, method: 'PATCH' }
             }
         }));
 
@@ -139,8 +187,8 @@ router.get('/requests', async (req, res) => {
             status: req.status,
             createdAt: req.createdAt,
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends/${req._id}` },
-                cancel: { href: `${process.env.BASE_URI}/api/friends/${req._id}`, method: 'DELETE' }
+                self: { href: `${process.env.BASE_URI}/friends/${req._id}` },
+                cancel: { href: `${process.env.BASE_URI}/friends/${req._id}`, method: 'DELETE' }
             }
         }));
 
@@ -151,8 +199,8 @@ router.get('/requests', async (req, res) => {
                 outgoing: formattedOutgoing
             },
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends/requests` },
-                friends: { href: `${process.env.BASE_URI}/api/friends` }
+                self: { href: `${process.env.BASE_URI}/friends/requests` },
+                friends: { href: `${process.env.BASE_URI}/friends` }
             }
         });
     } catch (error) {
@@ -163,8 +211,8 @@ router.get('/requests', async (req, res) => {
     }
 });
 
-// POST /api/friends/request - Send a friend request
-router.post('/request', async (req, res) => {
+// POST /api/friends/requests - Send a friend request
+router.post('/requests', async (req, res) => {
     try {
         // Get senderId from JWT token
         const senderId = req.user.id;
@@ -225,8 +273,8 @@ router.post('/request', async (req, res) => {
                         message: 'Friend request sent successfully',
                         data: existingFriendship,
                         _links: {
-                            self: { href: `${process.env.BASE_URI}/api/friends/${existingFriendship._id}` },
-                            collection: { href: `${process.env.BASE_URI}/api/friends` }
+                            self: { href: `${process.env.BASE_URI}/friends/${existingFriendship._id}` },
+                            collection: { href: `${process.env.BASE_URI}/friends` }
                         }
                     });
                 }
@@ -253,8 +301,8 @@ router.post('/request', async (req, res) => {
                     message: 'Friend request sent successfully',
                     data: existingFriendship,
                     _links: {
-                        self: { href: `${process.env.BASE_URI}/api/friends/${existingFriendship._id}` },
-                        collection: { href: `${process.env.BASE_URI}/api/friends` }
+                        self: { href: `${process.env.BASE_URI}/friends/${existingFriendship._id}` },
+                        collection: { href: `${process.env.BASE_URI}/friends` }
                     }
                 });
             }
@@ -272,8 +320,8 @@ router.post('/request', async (req, res) => {
             message: 'Friend request sent successfully',
             data: friendRequest,
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends/${friendRequest._id}` },
-                collection: { href: `${process.env.BASE_URI}/api/friends` }
+                self: { href: `${process.env.BASE_URI}/friends/${friendRequest._id}` },
+                collection: { href: `${process.env.BASE_URI}/friends` }
             }
         });
     } catch (error) {
@@ -347,8 +395,8 @@ router.patch('/:requestId', async (req, res) => {
             message: status === 'accepted' ? 'Friend request accepted' : status === 'blocked' ? 'User blocked successfully' : 'Friend request rejected',
             data: friendship,
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends/${friendship._id}` },
-                collection: { href: `${process.env.BASE_URI}/api/friends` }
+                self: { href: `${process.env.BASE_URI}/friends/${friendship._id}` },
+                collection: { href: `${process.env.BASE_URI}/friends` }
             }
         });
     } catch (error) {
@@ -392,8 +440,61 @@ router.delete('/:friendId', async (req, res) => {
             success: true,
             message: 'Friendship removed successfully',
             _links: {
-                collection: { href: `${process.env.BASE_URI}/api/friends` },
-                requests: { href: `${process.env.BASE_URI}/api/friends/requests` }
+                collection: { href: `${process.env.BASE_URI}/friends` },
+                request: { href: `${process.env.BASE_URI}/friends/requests` }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// GET /api/friends/:friendId - View a friend's profile/details (MUST be last to avoid route conflicts)
+router.get('/:friendId', async (req, res) => {
+    try {
+        const { friendId } = req.params;
+        const userId = req.user.id;
+
+        // Find the friendship
+        const friendship = await Friend.findOne({
+            $or: [
+                { sender_user_id: userId, receiver_user_id: friendId },
+                { sender_user_id: friendId, receiver_user_id: userId }
+            ],
+            status: 'accepted'
+        }).populate('sender_user_id receiver_user_id', 'username email image hasCompletedOnboarding status');
+
+        if (!friendship) {
+            return res.status(404).json({
+                success: false,
+                error: 'Friend not found or friendship not established'
+            });
+        }
+
+        // Get the friend data
+        const friend = friendship.sender_user_id._id.toString() === userId 
+            ? friendship.receiver_user_id 
+            : friendship.sender_user_id;
+
+        res.json({
+            success: true,
+            data: {
+                id: friend._id,
+                username: friend.username,
+                email: friend.email,
+                image: friend.image,
+                hasCompletedOnboarding: friend.hasCompletedOnboarding,
+                status: friend.status,
+                friendshipId: friendship._id,
+                friendsSince: friendship.accepted_at || friendship.updatedAt
+            },
+            _links: {
+                self: { href: `${process.env.BASE_URI}/friends/${friend._id}` },
+                profile: { href: `${process.env.BASE_URI}/users/${friend._id}` },
+                collection: { href: `${process.env.BASE_URI}/friends` }
             }
         });
     } catch (error) {
