@@ -46,7 +46,7 @@ front-end team and a back-end team.
 > This repository only contains the back-end of this project!
 > The front-end repositories can be found [here (Poppy)](https://github.com/semvde/Poppy-Front_end) and [here (SonarPop)](https://github.com/Quinten-1074726/TLE3-Frontend-SonarPop).
 
-> [!INFO]  
+> [!NOTE]  
 > Read the documentation in the `docs/` folder for more information about this project.
 > Read the api documentation in `docs/api-v1.md` for more information about the API endpoints and their usage.
 
