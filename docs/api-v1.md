@@ -772,11 +772,13 @@ await api("/blacklist", {
 ```
 ### friends
 
-Beheer vriendschappen tussen gebruikers. Je kunt vriendenlijsten bekijken, vriendschapsverzoeken sturen, accepteren, weigeren en verwijderen. Verder is er geen authentication nodig. Je moet altijd de juiste userId meesturen als query parameter of in de request body.
+Beheer vriendschappen tussen gebruikers. Je kunt vriendenlijsten bekijken, vriendschapsverzoeken sturen, accepteren, weigeren en verwijderen of blokeren. Er is authenticatie nodig voor deze endpoints. Je moet altijd de juiste userId meesturen als query parameter of in de request body.
 
 | Method | Pad                                      | Wat doet het?                                |
 | ------ | ---------------------------------------- | -------------------------------------------- |
-| GET    | `/api/v1/friends?userId={id}`            | Vriendenlijst tonen in UI                    |
+| GET    | `/api/v1/friends`                        | Vriendenlijst tonen in UI                    |
+| GET    | `/api/v1/friends/{id}`                   | Vrienden vergelijken                         |
+| GET    | `/api/v1/friends/search`                 | Vrienden opzoeken via username               |
 | GET    | `/api/v1/friends/requests?userId={id}`   | Pending verzoeken tonen (notificaties)       |
 | POST   | `/api/v1/friends/request`                | Vriendschapsverzoek sturen                   |
 | PATCH  | `/api/v1/friends/{requestId}`            | Verzoek accepteren/weigeren of blokeren      |
@@ -784,11 +786,7 @@ Beheer vriendschappen tussen gebruikers. Je kunt vriendenlijsten bekijken, vrien
 
 ### GET /api/v1/friends
 
-Haal alle geaccepteerde vrienden van een gebruiker op.
-
-| Query param | Type   | Verplicht | Beschrijving        |
-| ----------- | ------ | --------- | ------------------- |
-| `userId`    | string | ja        | ID van de gebruiker |
+Haal alle geaccepteerde vrienden op van de gebruiker.
 
 de response die je terug krijgt:
 
@@ -813,6 +811,72 @@ de response die je terug krijgt:
   }
 }
 ```
+
+### GET /api/v1/friends/{id}
+
+Kan een vriend profiel bekijken en vergelijken met anderen.
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "user456",
+    "username": "john_doe",
+    "email": "john@example.com",
+    "image": "https://...",
+    "friendsSince": "2026-03-10T12:00:00.000Z",
+    "comparison": {
+      "genreSimilarity": 0.78,
+      "listeningOverlap": 0.45
+    }
+  },
+  "_links": {
+    "self": { "href": "/api/v1/friends/user456" },
+    "topTracks": { "href": "/api/v1/friends/user456/top-tracks" }
+  }
+}
+```
+
+### GET /api/v1/friends/search
+
+Request:
+GET /api/v1/friends/search?q=
+
+Zoek naar vrienden door via hun username (LET OP! Er moet minimaal 2 letters/cijfers er in hebben)
+
+
+
+Query param	Type	Verplicht	Beschrijving
+q	string	ja	Zoekterm (minimaal 2 letters/cijfers
+
+|query param   | Type   | Verplicht	 |Beschrijving          |
+|--------------|--------|------------|----------------------|
+|q      	     | type 	| ja	       |min 2 letters/cijfers |
+
+voorbeeld:
+
+```json
+{
+  "success": true,
+  "count": 2,
+  "data": [
+    {
+      "id": "user456",
+      "username": "john_doe",
+      "email": "john@example.com",
+      "image": "https://..."
+    },
+    {
+      "id": "user789",
+      "username": "johnny_cage",
+      "email": "johnny@example.com",
+      "image": null
+    }
+  ]
+}
+
+```
+
 ### GET /api/v1/friends/requests
 
 Haal alle openstaande vriendschapsverzoeken op (zowel inkomend als uitgaand).
