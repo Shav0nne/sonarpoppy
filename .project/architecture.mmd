@@ -1,0 +1,149 @@
+graph TD
+    classDef done fill:#13261c,stroke:#3fb950,stroke-width:1.5px,color:#c9d1d9
+    classDef planned fill:#1b1530,stroke:#8b5cf6,stroke-dasharray:5 5,color:#8b949e
+    classDef external fill:#1c2128,stroke:#30363d,color:#8b949e
+
+    subgraph API["API Laag"]
+        RT[API Routes<br/>routes/index.js]:::done
+        RG[Genres Route<br/>routes/genres.js]:::done
+        RTR[Tracks Route<br/>routes/tracks.js]:::done
+        RP[Profile Route<br/>routes/profile.js]:::done
+        RR[Recommendations Route<br/>routes/recommendations.js]:::done
+        RD[Dial Route<br/>routes/dial.js]:::done
+        RF[Feedback Route<br/>routes/feedback.js]:::done
+        RB[Blacklist Route<br/>routes/blacklist.js]:::planned
+        RS[Sliders Route<br/>routes/sliders.js]:::done
+        RSP[Slider Presets Route<br/>routes/slider-presets.js]:::done
+        RAK[API Keys Route<br/>routes/api-keys.js]:::done
+        RON[Onboarding Route<br/>routes/onboarding.js]:::done
+        RAUTH[Auth Route<br/>routes/auth.js]:::done
+        RUSER[Users Route<br/>routes/users.js]:::done
+        RADM[Admin Route<br/>routes/admin.js]:::done
+        RART[Artists Route<br/>routes/artists.js]:::done
+    end
+
+    subgraph Auth["Auth & API Key Laag"]
+        AKMW[API Key Middleware<br/>middleware/apiKeyMiddleware.js]:::done
+        JWTMW[JWT Middleware<br/>middleware/authMiddleware.js]:::done
+        AKG[Key Generator<br/>apikeys/generateKey.js]:::done
+        MULT[Multer Setup<br/>middleware/multerSetup.js]:::done
+        ONBMW[Onboarding Guard<br/>middleware/onboardingMiddleware.js]:::done
+        ADMIN[Admin Guard<br/>middleware/onlyAdmin.js]:::done
+    end
+
+    subgraph Data["Data Laag"]
+        GS[Genre Systeem<br/>genres.js · genreVector.js]:::done
+        TM[Track Model<br/>Track.js]:::done
+        FM[Feedback Model<br/>Feedback.js]:::done
+        BM[Blacklist Model<br/>Blacklist.js]:::planned
+        GSM[GenreSliders Model<br/>GenreSliders.js]:::done
+        SPM[SliderPreset Model<br/>SliderPreset.js]:::done
+        AKM[ApiKey Model<br/>ApiKey.js]:::done
+        UM[User Model<br/>User.js]:::done
+        ACM[AlgorithmConfig Model<br/>AlgorithmConfig.js]:::done
+        AIM[ArtistImage Model<br/>ArtistImage.js]:::done
+        DB[(MongoDB)]:::external
+    end
+
+    subgraph Extern["Externe Bronnen"]
+        LFM[Last.fm Client<br/>lastfm/client.js]:::done
+        LFMAPI{{Last.fm API}}:::external
+        SPDATA[Spotify Data Client<br/>spotify/client.js]:::done
+        SPAPI{{Spotify API}}:::external
+        SPOAUTH[Spotify OAuth]:::planned
+    end
+
+    subgraph Verwerking
+        TI[Track Ingestie<br/>ingestion/ingest.js]:::done
+        SIM[Similarity<br/>similarity.js]:::done
+        ECF[CF Enrichment<br/>cf/enrichCf.js]:::done
+        CFS[CF Score<br/>cf/cfScore.js]:::done
+    end
+
+    subgraph Scoring["Hybride Scoring Pipeline"]
+        PS[Profiel Service<br/>profile/computeProfile.js]:::done
+        RE[Recommendation Engine<br/>recommendation/recommend.js]:::done
+        BF[Blacklist Filter<br/>blacklist/blacklistFilter.js]:::planned
+        HS[Hybrid Scoring<br/>scoring/hybridScore.js]:::done
+        DS[Dial System<br/>config/dial.js]:::done
+        FBM[Feedback Multiplier<br/>feedback/feedbackMultiplier.js]:::done
+        PE[Profiel Evolutie<br/>feedback/profileEvolution.js]:::done
+        CL[Config Loader<br/>admin/configLoader.js]:::done
+        ES[Explain Score<br/>admin/explainScore.js]:::done
+    end
+
+    subgraph Pijlers["3 Pijlers"]
+        P1[Pijler 1: Genre Vectors<br/>20-dim cosine similarity]:::done
+        P2[Pijler 2: Last.fm CF<br/>track/artist.getSimilar]:::done
+                P4[Pijler 4: User Feedback<br/>like · dislike · library · skip]:::done
+    end
+
+    subgraph Input["Gebruiker Input"]
+        ON[Onboarding Service<br/>onboarding/onboard.js]:::done
+        SL[Genre Sliders<br/>routes/sliders.js · GenreSliders.js]:::done
+        FB[User Feedback]:::done
+    end
+
+    RT --> RG & RTR & RP & RR & RD & RF & RB & RS & RSP & RAK & RON
+    RAUTH --> UM & JWTMW & MULT
+    RUSER --> UM & MULT & ADMIN
+    ONBMW --> UM
+    ONBMW --> RF & RS & RB
+    RSP --> SPM
+    RSP --> GSM
+    SPM --- DB
+    RON --> ON
+    ON --> LFM
+    ON --> GSM
+    ON --> PS
+    RAK --> JWTMW
+    RAK --> AKM & AKG
+    AKMW --> AKM
+    AKMW --> RG & RTR & RP & RR & RD & RF & RS
+    AKM --- DB
+    RB --> BM
+    RS --> GSM
+    RD --> DS
+    RG --> GS
+    RTR --> TM & TI & LFM
+    RP --> PS
+    RR --> HS
+    RF --> FM
+    GS --> TM & TI & PS
+    LFM --> TI
+    LFM -.-> LFMAPI
+    LFM --> ECF
+    ECF --> TM
+    CFS --> P2
+    SPDATA -.-> SPAPI
+        SPOAUTH -.-> SPAPI
+    SPOAUTH --> ON
+    TI --> DB
+    TM --- DB
+    FM --- DB
+    BM --- DB
+    GSM --- DB
+    BF --> BM
+    BF --> GS
+    BF --> RE
+    SIM --> P1 & PS
+    P1 --> HS
+    P2 --> HS
+        P4 --> HS
+    DS --> HS
+    FB --> P4
+    FM --> FBM
+    FBM --> P4
+    PE --> PS
+    FM --> PE
+    SL --> PS
+    PS --> P1
+    HS --> RE
+    TM --> RE
+    RADM --> CL & ES & ADMIN
+    CL --> ACM
+    ACM --- DB
+    CL --> HS & DS & FBM & PE
+    ES --> SIM & HS & CFS & FBM
+    RART --> AIM & LFM
+    AIM --- DB

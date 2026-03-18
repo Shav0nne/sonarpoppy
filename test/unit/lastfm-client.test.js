@@ -1,0 +1,601 @@
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
+import assert from "node:assert/strict";
+import { createLastfmClient } from "../../src/services/lastfm/client.js";
+import {
+  LastfmApiError,
+  LastfmRateLimitError,
+  LastfmNotFoundError,
+} from "../../src/services/lastfm/errors.js";
+
+const BASE_URL = "https://ws.audioscrobbler.com/2.0/";
+const API_KEY = "test-api-key-123";
+
+function mockFetch(responses) {
+  let callIndex = 0;
+  const calls = [];
+
+  const fn = async (url) => {
+    calls.push(url);
+    const response = responses[callIndex] ?? responses[responses.length - 1];
+    callIndex++;
+
+    if (response.error) {
+      throw response.error;
+    }
+
+    return {
+      ok: response.ok ?? true,
+      status: response.status ?? 200,
+      json: async () => response.json,
+    };
+  };
+
+  return { fn, calls };
+}
+
+describe("createLastfmClient", () => {
+  it("requires apiKey", () => {
+    assert.throws(() => createLastfmClient({}), {
+      message: /apiKey/i,
+    });
+  });
+
+  it("returns client with expected methods", () => {
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: async () => {},
+    });
+    assert.equal(typeof client.getTrackInfo, "function");
+    assert.equal(typeof client.getTrackTopTags, "function");
+    assert.equal(typeof client.getArtistTopTags, "function");
+  });
+});
+
+describe("API key in requests", () => {
+  it("includes api_key and format=json in all requests", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          track: {
+            name: "Test",
+            artist: { name: "Artist" },
+            duration: "0",
+            url: "https://last.fm",
+            mbid: "",
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+    });
+    await client.getTrackInfo("Artist", "Test");
+
+    assert.equal(calls.length, 1);
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("api_key"), API_KEY);
+    assert.equal(url.searchParams.get("format"), "json");
+  });
+});
+
+describe("getTrackInfo", () => {
+  it("calls track.getInfo and returns mapped result", async () => {
+    const { fn } = mockFetch([
+      {
+        json: {
+          track: {
+            name: "Bohemian Rhapsody",
+            artist: { name: "Queen" },
+            album: { title: "A Night at the Opera" },
+            duration: "354000",
+            toptags: { tag: [{ name: "rock" }] },
+            url: "https://last.fm/queen/bohemian",
+            mbid: "abc-123",
+            image: [{ "#text": "https://img.fm/large.jpg", size: "large" }],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+    });
+    const result = await client.getTrackInfo("Queen", "Bohemian Rhapsody");
+
+    assert.equal(result.title, "Bohemian Rhapsody");
+    assert.equal(result.artist, "Queen");
+    assert.equal(result.duration, 354);
+  });
+
+  it("uses correct API method and params", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          track: {
+            name: "Test",
+            artist: { name: "Art" },
+            duration: "0",
+            url: "u",
+            mbid: "",
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+    });
+    await client.getTrackInfo("Art", "Test");
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "track.getInfo");
+    assert.equal(url.searchParams.get("artist"), "Art");
+    assert.equal(url.searchParams.get("track"), "Test");
+  });
+});
+
+describe("getTrackTopTags", () => {
+  it("calls track.getTopTags and returns sorted tags", async () => {
+    const { fn } = mockFetch([
+      {
+        json: {
+          toptags: {
+            tag: [
+              { name: "rock", count: 100 },
+              { name: "pop", count: 50 },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+    });
+    const result = await client.getTrackTopTags("Queen", "Bohemian Rhapsody");
+
+    assert.equal(result.length, 2);
+    assert.equal(result[0].name, "rock");
+    assert.equal(result[0].count, 100);
+  });
+});
+
+describe("getArtistTopTags", () => {
+  it("calls artist.getTopTags and returns sorted tags", async () => {
+    const { fn } = mockFetch([
+      {
+        json: {
+          toptags: {
+            tag: [
+              { name: "rock", count: 100 },
+              { name: "classic rock", count: 80 },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+    });
+    const result = await client.getArtistTopTags("Queen");
+
+    assert.equal(result.length, 2);
+    assert.equal(result[0].name, "rock");
+  });
+
+  it("uses correct API method and params", async () => {
+    const { fn, calls } = mockFetch([{ json: { toptags: { tag: [] } } }]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+    });
+    await client.getArtistTopTags("Queen");
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "artist.getTopTags");
+    assert.equal(url.searchParams.get("artist"), "Queen");
+  });
+});
+
+describe("error handling", () => {
+  it("throws LastfmNotFoundError on Last.fm error 6 (not found)", async () => {
+    const { fn } = mockFetch([{ json: { error: 6, message: "Track not found" } }]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 0,
+    });
+
+    await assert.rejects(
+      () => client.getTrackInfo("X", "Y"),
+      (err) => {
+        assert.ok(err instanceof LastfmNotFoundError);
+        return true;
+      },
+    );
+  });
+
+  it("throws LastfmRateLimitError on HTTP 429", async () => {
+    const { fn } = mockFetch([{ ok: false, status: 429, json: {} }]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 0,
+    });
+
+    await assert.rejects(
+      () => client.getTrackInfo("X", "Y"),
+      (err) => {
+        assert.ok(err instanceof LastfmRateLimitError);
+        return true;
+      },
+    );
+  });
+
+  it("throws LastfmApiError on other HTTP errors", async () => {
+    const { fn } = mockFetch([{ ok: false, status: 500, json: {} }]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 0,
+    });
+
+    await assert.rejects(
+      () => client.getTrackInfo("X", "Y"),
+      (err) => {
+        assert.ok(err instanceof LastfmApiError);
+        assert.equal(err.statusCode, 500);
+        return true;
+      },
+    );
+  });
+});
+
+describe("retry with exponential backoff", () => {
+  it("retries on 429 and succeeds", async () => {
+    const { fn, calls } = mockFetch([
+      { ok: false, status: 429, json: {} },
+      {
+        json: {
+          track: {
+            name: "T",
+            artist: { name: "A" },
+            duration: "0",
+            url: "u",
+            mbid: "",
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 3,
+      baseDelay: 10,
+    });
+
+    const result = await client.getTrackInfo("A", "T");
+    assert.equal(calls.length, 2);
+    assert.equal(result.title, "T");
+  });
+
+  it("retries on 5xx errors", async () => {
+    const { fn, calls } = mockFetch([
+      { ok: false, status: 503, json: {} },
+      {
+        json: {
+          track: {
+            name: "T",
+            artist: { name: "A" },
+            duration: "0",
+            url: "u",
+            mbid: "",
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 3,
+      baseDelay: 10,
+    });
+
+    const result = await client.getTrackInfo("A", "T");
+    assert.equal(calls.length, 2);
+  });
+
+  it("retries on network errors", async () => {
+    const { fn, calls } = mockFetch([
+      { error: new TypeError("fetch failed") },
+      {
+        json: {
+          track: {
+            name: "T",
+            artist: { name: "A" },
+            duration: "0",
+            url: "u",
+            mbid: "",
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 3,
+      baseDelay: 10,
+    });
+
+    const result = await client.getTrackInfo("A", "T");
+    assert.equal(calls.length, 2);
+  });
+
+  it("gives up after max retries", async () => {
+    const { fn, calls } = mockFetch([
+      { ok: false, status: 500, json: {} },
+      { ok: false, status: 500, json: {} },
+      { ok: false, status: 500, json: {} },
+      { ok: false, status: 500, json: {} },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 3,
+      baseDelay: 10,
+    });
+
+    await assert.rejects(() => client.getTrackInfo("A", "T"));
+    assert.equal(calls.length, 4); // 1 initial + 3 retries
+  });
+
+  it("does not retry on 4xx (except 429)", async () => {
+    const { fn, calls } = mockFetch([{ ok: false, status: 400, json: {} }]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 3,
+      baseDelay: 10,
+    });
+
+    await assert.rejects(() => client.getTrackInfo("A", "T"));
+    assert.equal(calls.length, 1);
+  });
+
+  it("does not retry on Last.fm not found errors", async () => {
+    const { fn, calls } = mockFetch([{ json: { error: 6, message: "Not found" } }]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 3,
+      baseDelay: 10,
+    });
+
+    await assert.rejects(() => client.getTrackInfo("A", "T"));
+    assert.equal(calls.length, 1);
+  });
+});
+
+describe("getTrackSimilar", () => {
+  it("calls track.getSimilar and returns mapped similar tracks", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          similartracks: {
+            track: [
+              { name: "Under Pressure", match: "0.85", artist: { name: "Queen" } },
+              { name: "We Will Rock You", match: "0.72", artist: { name: "Queen" } },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getTrackSimilar("Queen", "Bohemian Rhapsody");
+
+    assert.equal(result.length, 2);
+    assert.equal(result[0].title, "Under Pressure");
+    assert.equal(result[0].artist, "Queen");
+    assert.equal(result[0].match, 0.85);
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "track.getSimilar");
+    assert.equal(url.searchParams.get("artist"), "Queen");
+    assert.equal(url.searchParams.get("track"), "Bohemian Rhapsody");
+  });
+
+  it("returns empty array when no similar tracks", async () => {
+    const { fn } = mockFetch([{ json: { similartracks: { track: [] } } }]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getTrackSimilar("Unknown", "Song");
+
+    assert.deepEqual(result, []);
+  });
+
+  it("retries on rate limit (reuses client retry logic)", async () => {
+    const { fn, calls } = mockFetch([
+      { ok: false, status: 429, json: {} },
+      {
+        json: {
+          similartracks: {
+            track: [{ name: "T", match: "0.5", artist: { name: "A" } }],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 3,
+      baseDelay: 10,
+    });
+    const result = await client.getTrackSimilar("A", "T");
+
+    assert.equal(calls.length, 2);
+    assert.equal(result.length, 1);
+  });
+});
+
+describe("getArtistSimilar", () => {
+  it("calls artist.getSimilar and returns mapped similar artists", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          similarartists: {
+            artist: [
+              { name: "David Bowie", match: "0.92" },
+              { name: "Led Zeppelin", match: "0.78" },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getArtistSimilar("Queen");
+
+    assert.equal(result.length, 2);
+    assert.equal(result[0].artist, "David Bowie");
+    assert.equal(result[0].match, 0.92);
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "artist.getSimilar");
+    assert.equal(url.searchParams.get("artist"), "Queen");
+  });
+
+  it("returns empty array when no similar artists", async () => {
+    const { fn } = mockFetch([{ json: { similarartists: { artist: [] } } }]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getArtistSimilar("Unknown");
+
+    assert.deepEqual(result, []);
+  });
+});
+
+describe("searchArtists", () => {
+  it("calls artist.search and returns mapped artist names", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          results: {
+            artistmatches: {
+              artist: [
+                { name: "Radiohead", listeners: "5000000" },
+                { name: "Radio Dept.", listeners: "300000" },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.searchArtists("radio");
+
+    assert.equal(result.length, 2);
+    assert.deepEqual(result[0], { name: "Radiohead" });
+    assert.deepEqual(result[1], { name: "Radio Dept." });
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "artist.search");
+    assert.equal(url.searchParams.get("artist"), "radio");
+    assert.equal(url.searchParams.get("limit"), "10");
+  });
+
+  it("returns empty array when no matches", async () => {
+    const { fn } = mockFetch([{ json: { results: { artistmatches: { artist: [] } } } }]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.searchArtists("zzzznonexistent");
+
+    assert.deepEqual(result, []);
+  });
+});
+
+describe("getArtistInfo", () => {
+  it("calls artist.getInfo and returns mapped artist info with images", async () => {
+    const { fn, calls } = mockFetch([
+      {
+        json: {
+          artist: {
+            name: "Radiohead",
+            mbid: "abc-123",
+            url: "https://last.fm/radiohead",
+            image: [
+              { "#text": "https://img.fm/small.jpg", size: "small" },
+              { "#text": "https://img.fm/large.jpg", size: "large" },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const client = createLastfmClient({ apiKey: API_KEY, fetch: fn, rateLimit: false });
+    const result = await client.getArtistInfo("Radiohead");
+
+    assert.equal(result.name, "Radiohead");
+    assert.equal(result.images.length, 2);
+    assert.equal(result.images[0].url, "https://img.fm/small.jpg");
+    assert.equal(result.images[0].size, "small");
+
+    const url = new URL(calls[0]);
+    assert.equal(url.searchParams.get("method"), "artist.getInfo");
+    assert.equal(url.searchParams.get("artist"), "Radiohead");
+  });
+
+  it("throws LastfmNotFoundError for unknown artist", async () => {
+    const { fn } = mockFetch([{ json: { error: 6, message: "Artist not found" } }]);
+
+    const client = createLastfmClient({
+      apiKey: API_KEY,
+      fetch: fn,
+      rateLimit: false,
+      maxRetries: 0,
+    });
+
+    await assert.rejects(
+      () => client.getArtistInfo("NonExistentArtist12345"),
+      (err) => {
+        assert.ok(err instanceof LastfmNotFoundError);
+        return true;
+      },
+    );
+  });
+});

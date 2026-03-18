@@ -1,0 +1,35 @@
+import { Router } from "express";
+import { getRecommendations } from "../src/services/recommendation/recommend.js";
+import { requireOnboarding } from "../src/middleware/onboardingMiddleware.js";
+
+const router = Router();
+router.use(requireOnboarding);
+
+router.post("/", async (req, res) => {
+  const { profileVector, limit, offset, filters, weights, dial, overrides } = req.body;
+  const userId = req.user?.id;
+
+  if (!Array.isArray(profileVector)) {
+    return res.status(400).json({ error: "profileVector array is required" });
+  }
+
+  const result = await getRecommendations({
+    profileVector,
+    limit,
+    offset,
+    filters,
+    dial,
+    userId,
+    overrides,
+  });
+
+  res.json({
+    ...result,
+    _links: {
+      self: { href: "/api/recommendations" },
+      profile: { href: "/api/profile/compute" },
+    },
+  });
+});
+
+export default router;

@@ -4,14 +4,27 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --env-file=.env --experimental-test-module-mocks --test",
     "dev": "node --env-file=.env --watch index.js"
   },
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "ejs": "^5.0.1",
     "express": "^5.2.1",
-    "mongoose": "^9.2.4"
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.3.0",
+    "mongoose-history": "^0.8.0",
+    "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.0.1",
+    "prettier": "^3.8.1"
   }
 }
