@@ -21,18 +21,19 @@ De server haalt `userId` automatisch uit het JWT token — je hoeft dit nooit me
 
 ## Overzicht per sectie
 
-| Sectie                                   | Endpoints                                | Wanneer nodig?                         |
-| ---------------------------------------- | ---------------------------------------- | -------------------------------------- |
-| [Data ophalen](#data-ophalen)            | genres, tracks                           | Altijd — basisdata voor je UI          |
-| [Onboarding](#onboarding)                | onboarding                               | Eerste keer — cold start profiel       |
-| [Recommendations](#recommendations)      | profile/compute, recommendations, dial   | Kernfunctionaliteit — tracks tonen     |
-| [Sliders & Presets](#sliders--presets)   | sliders, slider-presets                  | Optioneel — genre voorkeuren finetunen |
-| [Feedback](#feedback)                    | feedback, play                           | Optioneel — likes/dislikes registreren |
-| [Blacklist & Zoeken](#blacklist--zoeken) | blacklist, artists/search, tracks/search | Optioneel — content blokkeren          |
-| [Artist Images](#artist-images)          | artists/:name/image                      | Optioneel — artist foto's tonen        |
-| [Admin](#admin-algorithm-tuning)         | admin/config, admin/explain              | Alleen voor admins                     |
-| [Beheer](#beheer-endpoints)              | ingest, enrich                           | Niet voor frontenders                  |
-| [Friend](#friends)                       | friends, friends/request, friends/:id    | Optioneel - vriendschappen beheren     |                                   
+| Sectie                                   | Endpoints                                                | Wanneer nodig?                         |
+|------------------------------------------|----------------------------------------------------------|----------------------------------------|
+| [Data ophalen](#data-ophalen)            | genres, tracks                                           | Altijd — basisdata voor je UI          |
+| [Onboarding](#onboarding)                | onboarding                                               | Eerste keer — cold start profiel       |
+| [Recommendations](#recommendations)      | profile/compute, recommendations, dial                   | Kernfunctionaliteit — tracks tonen     |
+| [Sliders & Presets](#sliders--presets)   | sliders, slider-presets                                  | Optioneel — genre voorkeuren finetunen |
+| [Feedback](#feedback)                    | feedback, play                                           | Optioneel — likes/dislikes registreren |
+| [Blacklist & Zoeken](#blacklist--zoeken) | blacklist, artists/search, tracks/search                 | Optioneel — content blokkeren          |
+| [Artist Images](#artist-images)          | artists/:name/image                                      | Optioneel — artist foto's tonen        |
+| [Admin](#admin-algorithm-tuning)         | admin/config, admin/explain                              | Alleen voor admins                     |
+| [Beheer](#beheer-endpoints)              | ingest, enrich                                           | Niet voor frontenders                  |
+| [Friend](#friends)                       | friends, friends/request, friends/:id                    | Optioneel - vriendschappen beheren     |   
+| [Logging](#logging)                      | history/blacklist, history/genreslider, history/feedback | Alleen voor admin                      |
 
 ---
 
@@ -1010,3 +1011,40 @@ Response:
 Een friendship is altijd tussen twee users en wordt opgeslagen als één document. De richting (sender/receiver) is alleen relevant tijdens de request fase (pending).
 
 
+### logging
+
+Veranderende data wordt in history opgeslagen om data terug te zien op een admindashboard. Let op, er wordt geen historie opgeslagen als er geen nieuwe veranderingen zijn gemaakt in de velden van blacklist, genresliders of feedback(likes dislikes).
+
+| Method | Pad                                 | Wat doet het?                                |
+|--------|-------------------------------------|----------------------------------------------|
+| GET    | `/api/v1/history/blacklist`         | haalt alle veranderingen van blacklist op    |
+| GET    | `/api/v1/history/genreslider` | haalt alle veranderingen van genre slider op |
+| GET    | `/api/v1/history/feedback` | haalt alle veranderingen van feedback op     |
+
+alle gets worden beantwoord met een lijst van t (time, wanneer de verandering heeft plaatsgevonden), o (op welke manier data is veranderd i: inser - u: update r: remove) en data (de daadwerkelijke verandering die heeft plaatsgevonden). Bijvoorbeeld:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "t": "2026-03-17T12:00:00.000Z",
+      "o": "i",
+      "data": {
+        "type": "artist",
+        "value": "Nickelback",
+        "action": "added"
+      }
+    },
+    {
+      "t": "2026-03-18T15:30:00.000Z",
+      "o": "u",
+      "data": {
+        "type": "artist",
+        "value": "Nickelback",
+        "action": "removed"
+      }
+    }
+  ]
+}
+```

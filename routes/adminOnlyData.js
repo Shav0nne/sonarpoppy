@@ -38,7 +38,7 @@ router.get('/blacklist', authenticateJWT, ifAdmin, async (req, res) => {
             }
         }
 
-        return res.json({ chosen, count, items: histories });
+        return res.json({  items: histories });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -77,7 +77,7 @@ router.get('/genreslider', authenticateJWT, ifAdmin, async (req, res) => {
             }
         }
 
-        return res.json({ chosen, count, items: histories });
+        return res.json({  items: histories });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -116,7 +116,7 @@ router.get('/feedback', authenticateJWT, ifAdmin, async (req, res) => {
             }
         }
 
-        return res.json({ chosen, count, items: histories });
+        return res.json({  items: histories });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
