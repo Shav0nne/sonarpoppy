@@ -11,6 +11,7 @@ import usersRouter from "./users.js";
 import authRouter from "./auth.js";
 import apiKeysRouter from "./api-keys.js";
 import blacklistRouter from "./blacklist.js";
+import friendRouter from "./friends.js";
 import sliderPresetsRouter from "./slider-presets.js";
 import adminRouter from "./admin.js";
 import artistsRouter from "./artists.js";
@@ -24,6 +25,7 @@ const router = Router();
 router.use("/auth", authRouter);
 router.use("/users", usersRouter);
 router.use("/api-keys", apiKeysRouter);
+router.use("/friends", friendRouter);
 
 // Beschermde routes: API key (app-level) + JWT (user-level) + userId injectie
 router.use(validateApiKey);
