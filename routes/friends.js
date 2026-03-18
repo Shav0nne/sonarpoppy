@@ -1,8 +1,12 @@
 import express from 'express';
 import Friend from '../src/models/Friend.js';
 import User from '../src/models/User.js';
+import { authenticateJWT } from '../src/middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Apply JWT authentication to all routes
+router.use(authenticateJWT);
 
 // OPTIONS for collection
 router.options("/", (req, res) => {
@@ -23,15 +27,8 @@ router.options("/:id", (req, res) => {
 // GET /api/friends
 router.get('/', async (req, res) => {
     try {
-        // Get userId from query parameter
-        const userId = req.query.userId;
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                error: 'userId query parameter is required'
-            });
-        }
+        // Get userId from JWT token
+        const userId = req.user.id;
 
         // Find all accepted friendships where the user is involved (exclude blocked)
         const friendships = await Friend.find({
@@ -63,8 +60,8 @@ router.get('/', async (req, res) => {
             count: friends.length,
             data: friends,
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends?userId=${userId}` },
-                requests: { href: `${process.env.BASE_URI}/api/friends/requests?userId=${userId}` }
+                self: { href: `${process.env.BASE_URI}/api/friends` },
+                requests: { href: `${process.env.BASE_URI}/api/friends/requests` }
             }
         });
     } catch (error) {
@@ -78,15 +75,8 @@ router.get('/', async (req, res) => {
 // GET /api/friends/requests - Get all pending friend requests
 router.get('/requests', async (req, res) => {
     try {
-        // Get userId from query parameter
-        const userId = req.query.userId;
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                error: 'userId query parameter is required'
-            });
-        }
+        // Get userId from JWT token
+        const userId = req.user.id;
 
         // Find incoming pending requests (user is the receiver)
         const incomingRequests = await Friend.find({
@@ -161,8 +151,8 @@ router.get('/requests', async (req, res) => {
                 outgoing: formattedOutgoing
             },
             _links: {
-                self: { href: `${process.env.BASE_URI}/api/friends/requests?userId=${userId}` },
-                friends: { href: `${process.env.BASE_URI}/api/friends?userId=${userId}` }
+                self: { href: `${process.env.BASE_URI}/api/friends/requests` },
+                friends: { href: `${process.env.BASE_URI}/api/friends` }
             }
         });
     } catch (error) {
@@ -176,15 +166,9 @@ router.get('/requests', async (req, res) => {
 // POST /api/friends/request - Send a friend request
 router.post('/request', async (req, res) => {
     try {
-        // Get senderId from request body
-        const { senderId, userId } = req.body;
-
-        if (!senderId) {
-            return res.status(400).json({
-                success: false,
-                error: 'senderId is required in request body'
-            });
-        }
+        // Get senderId from JWT token
+        const senderId = req.user.id;
+        const { userId } = req.body;
 
         if (!userId) {
             return res.status(400).json({
@@ -311,14 +295,9 @@ router.post('/request', async (req, res) => {
 router.patch('/:requestId', async (req, res) => {
     try {
         const { requestId } = req.params;
-        const { userId, status } = req.body;
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                error: 'userId is required in request body'
-            });
-        }
+        const { status } = req.body;
+        // Get userId from JWT token
+        const userId = req.user.id;
 
         // Validate status
         if (!['accepted', 'rejected', 'blocked'].includes(status)) {
@@ -384,14 +363,8 @@ router.patch('/:requestId', async (req, res) => {
 router.delete('/:friendId', async (req, res) => {
     try {
         const { friendId } = req.params;
-        const { userId } = req.body;
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                error: 'userId is required in request body'
-            });
-        }
+        // Get userId from JWT token
+        const userId = req.user.id;
 
         // Find the friendship
         const friendship = await Friend.findById(friendId);
