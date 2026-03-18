@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import mongooseHistory from "mongoose-history";
 import { GENRES } from "../config/genres.js";
 
 const defaultSliders = () => {
@@ -32,4 +33,5 @@ const genreSlidersSchema = new mongoose.Schema(
 
 genreSlidersSchema.index({ userId: 1 }, { unique: true });
 
+genreSlidersSchema.plugin(mongooseHistory, { historyCollection: "genre_sliders_history", diffOnly: false, fullDocument: 'updateLookup' });
 export default mongoose.model("GenreSliders", genreSlidersSchema);

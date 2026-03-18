@@ -37,14 +37,12 @@ const userSchema = new mongoose.Schema(
                     },
                 };
 
-                // If an image exists, expose imageUrl (don't include raw binary image data)
                 if (doc && doc.image && (doc.image.data || doc.image.contentType)) {
                     ret.imageUrl = `${process.env.BASE_URI}/users/${ret.id}/image`;
                 } else {
                     ret.imageUrl = null;
                 }
 
-                // remove internal fields before sending to client
                 delete ret._id;
                 delete ret.password;
 

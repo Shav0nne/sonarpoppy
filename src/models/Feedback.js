@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import mongooseHistory from "mongoose-history";
 
 const feedbackSchema = new mongoose.Schema(
   {
@@ -23,4 +24,9 @@ feedbackSchema.index({ userId: 1, trackId: 1 }, { unique: true });
 feedbackSchema.index({ userId: 1 });
 feedbackSchema.index({ trackId: 1 });
 
+feedbackSchema.plugin(mongooseHistory, {
+    historyCollection: "feedbacks_history",
+    diffOnly: false,
+    fullDocument: 'updateLookup'
+});
 export default mongoose.model("Feedback", feedbackSchema);

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import mongooseHistory from "mongoose-history";
 
 const { Schema } = mongoose;
 
@@ -59,4 +60,5 @@ algorithmConfigSchema.pre("validate", function () {
   validateWeightSum(this.cfWeights, ["track", "artist"], "cfWeights");
 });
 
+algorithmConfigSchema.plugin(mongooseHistory, { historyCollection: "algorithm_configs_history", diffOnly: false, fullDocument: 'updateLookup' });
 export default mongoose.model("AlgorithmConfig", algorithmConfigSchema);

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { GENRES } from "../config/genres.js";
+import mongooseHistory from "mongoose-history";
 
 const blacklistEntrySchema = new mongoose.Schema(
     {
@@ -41,5 +42,7 @@ const blacklistSchema = new mongoose.Schema(
 // Optional: you might want to prevent duplicate entries of the same type and value
 // This is best handled in the route/service when adding, rather than DB schema array limits,
 // although a unique array items validation could be written.
+
+blacklistSchema.plugin(mongooseHistory, { historyCollection: "blacklist_history", diffOnly: false, fullDocument: 'updateLookup' });
 
 export default mongoose.model("Blacklist", blacklistSchema);
