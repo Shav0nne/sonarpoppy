@@ -83,7 +83,7 @@ git clone https://github.com/Shav0nne/sonarpoppy.git sonarpoppy
 cd sonarpoppy
 ```
 
-2. Setup dependencies and front-end assets
+2. Setup dependencies and back-end assets
 
 ```sh
 npm install
