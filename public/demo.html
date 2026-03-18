@@ -806,6 +806,37 @@
           <div id="vector-bars"></div>
         </div>
 
+        <div class="card">
+          <h3>Artist Images</h3>
+          <p style="color: #8b949e; margin-bottom: 16px">
+            Haal artist afbeeldingen op via Last.fm. Typ een artiestnaam en bekijk de gecachte
+            images.
+          </p>
+          <div class="btn-row" style="margin-bottom: 12px">
+            <input
+              type="text"
+              id="artist-image-input"
+              placeholder="Artiestnaam (bijv. Radiohead)"
+              value="Radiohead"
+              style="
+                flex: 1;
+                padding: 8px 12px;
+                background: #0d1117;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                color: #c9d1d9;
+                font-size: 14px;
+              "
+            />
+            <button class="btn btn-primary" onclick="demoArtistImage()">Image ophalen</button>
+          </div>
+          <div id="artist-image-msg"></div>
+          <div
+            id="artist-image-result"
+            style="display: none; margin-top: 12px; text-align: center"
+          ></div>
+        </div>
+
         <button class="btn btn-primary" onclick="showStep(2)" style="width: 100%; margin-top: 16px">
           Verder &rarr;
         </button>
@@ -1318,6 +1349,32 @@
           refreshTrackCount();
         } catch (e) {
           showMsg("ingest-msg", `Fout: ${esc(e.message)}`, "err");
+        }
+      }
+
+      async function demoArtistImage() {
+        const name = document.getElementById("artist-image-input").value.trim();
+        if (!name) {
+          showMsg("artist-image-msg", "Vul een artiestnaam in", "err");
+          return;
+        }
+        showMsg("artist-image-msg", "Ophalen...", "ok");
+        document.getElementById("artist-image-result").style.display = "none";
+        try {
+          const data = await apiFetch(`${API}/artists/${encodeURIComponent(name)}/image`);
+          const container = document.getElementById("artist-image-result");
+          if (data.images && data.images.length > 0) {
+            const largest = data.images[data.images.length - 1];
+            container.innerHTML =
+              `<img src="${esc(largest.url)}" alt="${esc(data.artist)}" style="max-width:300px;border-radius:8px;margin-bottom:8px;" />` +
+              `<p style="color:#8b949e;font-size:13px;">${esc(data.artist)} — ${data.images.length} afbeelding(en), gecacht op ${new Date(data.fetchedAt).toLocaleString("nl-NL")}</p>`;
+          } else {
+            container.innerHTML = `<p style="color:#8b949e;">Geen afbeeldingen gevonden voor ${esc(data.artist)}</p>`;
+          }
+          container.style.display = "";
+          showMsg("artist-image-msg", `Artist image opgehaald voor "${esc(data.artist)}"`, "ok");
+        } catch (e) {
+          showMsg("artist-image-msg", `Fout: ${esc(e.message)}`, "err");
         }
       }
 
