@@ -34,7 +34,7 @@ router.get("/search", async (req, res) => {
     .lean();
 
   res.json({
-    results: tracks.map((t) => ({ title: t.title, artist: t.artist })),
+    results: tracks.map((t) => ({ _id: t._id, title: t.title, artist: t.artist })),
   });
 });
 
