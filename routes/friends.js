@@ -24,54 +24,6 @@ router.options("/:id", (req, res) => {
     res.sendStatus(204);
 });
 
-// GET /api/friends/search
-router.get('/search', async (req, res) => {
-    try {
-        const q = req.query.q;
-        if (!q || q.length < 2) {
-            return res.status(400).json({
-                success: false,
-                error: 'Query parameter "q" must be at least 2 characters long'
-            });
-        }
-
-        // Search for users by username (case-insensitive)
-        const regex = new RegExp(q, 'i');
-        const users = await User.find(
-            { username: regex },
-            'username email image hasCompletedOnboarding status'
-        ).limit(10);
-
-        const results = users.map(user => ({
-            id: user._id,
-            username: user.username,
-            email: user.email,
-            image: user.image,
-            hasCompletedOnboarding: user.hasCompletedOnboarding,
-            status: user.status,
-            _links: {
-                self: { href: `${process.env.BASE_URI}/friends/${user._id}` },
-                profile: { href: `${process.env.BASE_URI}/users/${user._id}` }
-            }
-        }));
-
-        res.json({
-            success: true,
-            count: results.length,
-            data: results,
-            _links: {
-                self: { href: `${process.env.BASE_URI}/friends/search` },
-                collection: { href: `${process.env.BASE_URI}/friends` }
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
 // GET /api/friends
 router.get('/', async (req, res) => {
     try {
@@ -110,6 +62,106 @@ router.get('/', async (req, res) => {
             _links: {
                 self: { href: `${process.env.BASE_URI}/friends` },
                 requests: { href: `${process.env.BASE_URI}/friends/requests` }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+router.get('/:friendId', async (req, res) => {
+    try {
+        const { friendId } = req.params;
+        const userId = req.user.id;
+
+        // Find the friendship
+        const friendship = await Friend.findOne({
+            $or: [
+                { sender_user_id: userId, receiver_user_id: friendId },
+                { sender_user_id: friendId, receiver_user_id: userId }
+            ],
+            status: 'accepted'
+        }).populate('sender_user_id receiver_user_id', 'username email image hasCompletedOnboarding status');
+
+        if (!friendship) {
+            return res.status(404).json({
+                success: false,
+                error: 'Friend not found or friendship not established'
+            });
+        }
+
+        // Get the friend data
+        const friend = friendship.sender_user_id._id.toString() === userId
+            ? friendship.receiver_user_id
+            : friendship.sender_user_id;
+
+        res.json({
+            success: true,
+            data: {
+                id: friend._id,
+                username: friend.username,
+                email: friend.email,
+                image: friend.image,
+                hasCompletedOnboarding: friend.hasCompletedOnboarding,
+                status: friend.status,
+                friendshipId: friendship._id,
+                friendsSince: friendship.accepted_at || friendship.updatedAt
+            },
+            _links: {
+                self: { href: `${process.env.BASE_URI}/friends/${friend._id}` },
+                profile: { href: `${process.env.BASE_URI}/users/${friend._id}` },
+                collection: { href: `${process.env.BASE_URI}/friends` }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// GET /api/friends/search
+router.get('/search', async (req, res) => {
+    try {
+        const q = req.query.q;
+        if (!q || q.length < 2) {
+            return res.status(400).json({
+                success: false,
+                error: 'Query parameter "q" must be at least 2 characters long'
+            });
+        }
+
+        // Search for users by username (case-insensitive)
+        const regex = new RegExp(q, 'i');
+        const users = await User.find(
+            { username: regex },
+            'username email image hasCompletedOnboarding status'
+        ).limit(10);
+
+        const results = users.map(user => ({
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            image: user.image,
+            hasCompletedOnboarding: user.hasCompletedOnboarding,
+            status: user.status,
+            _links: {
+                self: { href: `${process.env.BASE_URI}/friends/${user._id}` },
+                profile: { href: `${process.env.BASE_URI}/users/${user._id}` }
+            }
+        }));
+
+        res.json({
+            success: true,
+            count: results.length,
+            data: results,
+            _links: {
+                self: { href: `${process.env.BASE_URI}/friends/search` },
+                collection: { href: `${process.env.BASE_URI}/friends` }
             }
         });
     } catch (error) {
@@ -442,59 +494,6 @@ router.delete('/:friendId', async (req, res) => {
             _links: {
                 collection: { href: `${process.env.BASE_URI}/friends` },
                 request: { href: `${process.env.BASE_URI}/friends/requests` }
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
-// GET /api/friends/:friendId - View a friend's profile/details (MUST be last to avoid route conflicts)
-router.get('/:friendId', async (req, res) => {
-    try {
-        const { friendId } = req.params;
-        const userId = req.user.id;
-
-        // Find the friendship
-        const friendship = await Friend.findOne({
-            $or: [
-                { sender_user_id: userId, receiver_user_id: friendId },
-                { sender_user_id: friendId, receiver_user_id: userId }
-            ],
-            status: 'accepted'
-        }).populate('sender_user_id receiver_user_id', 'username email image hasCompletedOnboarding status');
-
-        if (!friendship) {
-            return res.status(404).json({
-                success: false,
-                error: 'Friend not found or friendship not established'
-            });
-        }
-
-        // Get the friend data
-        const friend = friendship.sender_user_id._id.toString() === userId 
-            ? friendship.receiver_user_id 
-            : friendship.sender_user_id;
-
-        res.json({
-            success: true,
-            data: {
-                id: friend._id,
-                username: friend.username,
-                email: friend.email,
-                image: friend.image,
-                hasCompletedOnboarding: friend.hasCompletedOnboarding,
-                status: friend.status,
-                friendshipId: friendship._id,
-                friendsSince: friendship.accepted_at || friendship.updatedAt
-            },
-            _links: {
-                self: { href: `${process.env.BASE_URI}/friends/${friend._id}` },
-                profile: { href: `${process.env.BASE_URI}/users/${friend._id}` },
-                collection: { href: `${process.env.BASE_URI}/friends` }
             }
         });
     } catch (error) {
